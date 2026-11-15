@@ -16,7 +16,31 @@ Select objects, press **Ctrl+C**, switch projects and press **Ctrl+V**. Referenc
 
 Use **×** beside a project name to choose **Save**, **Don’t save** or **Cancel**. Projects remain in memory until you close the editor: save each project explicitly to keep it. Asterisks mark unsaved changes, including on inactive projects. Object-file export/import is deferred.
 
-## Develop
+## Windows: build app.asar
+
+This builds the current editor and Electron wrapper for updating an existing Windows Electron installation. It does not create a new `.exe` or include the Electron runtime.
+
+1. Install [Node.js LTS](https://nodejs.org/).
+2. Download **Code → Download ZIP** from this repository and extract it.
+3. Open the extracted **oskyn-main** folder containing `desktop`, `source` and `oskyn.html`. Type `cmd` in File Explorer's address bar and press Enter. Run these commands from that main folder, not from `source`:
+
+   ```cmd
+   npm.cmd --prefix desktop ci
+   npm.cmd --prefix desktop run build
+   ```
+
+4. The generated file is **`desktop\dist\app.asar`**. To open its folder from the same terminal:
+
+   ```cmd
+   explorer desktop\dist
+   ```
+
+5. Close your existing oskyn desktop app. In its folder (beside the `.exe`), open **`resources`**, back up the old `app.asar` and replace it with the new one.
+6. Launch the `.exe` and verify drawing, saving and the window **× → Save / Don't Save / Cancel** dialog. Keep the Electron runtime files and all licence notices alongside the app. Run from an extracted folder, not from inside a ZIP viewer.
+
+For the next update, download the latest source and repeat these steps. More details: [desktop/README.md](desktop/README.md).
+
+## Develop and test the HTML version
 
 The editable source lives in [`source/src`](source/src). Build instructions and tests: [source/building.md](source/building.md).
 
