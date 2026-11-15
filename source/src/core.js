@@ -2778,7 +2778,7 @@ function as1Prepare(src, inner) {
 
 /* Curve-aware simplification: preserve corners/extrema and fit original samples.
    Mirror-related anchors are removed together; this is not Inkscape source code. */
-function kroganSimplifyContour(contour) {
+function kroganSimplifyContour(contour, maxError) {
   const original = contour.nodes, closed = !!contour.closed, count = original.length;
   const unchanged = () => ({ contour: { ...contour, nodes: original.map(n => ({ ...n })) }, removed: 0 });
   if (count < 3 || original.some(n => ![n.x, n.y, n.ix || 0, n.iy || 0, n.ox || 0, n.oy || 0].every(Number.isFinite))) return unchanged();
@@ -2786,7 +2786,7 @@ function kroganSimplifyContour(contour) {
   const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
   const diagonal = Math.hypot(xmax - xmin, ymax - ymin);
   if (diagonal < 1e-9) return unchanged();
-  const tolerance = diagonal * 0.004, eps = diagonal * 1e-7;
+  const tolerance = Number.isFinite(maxError) && maxError > 0 ? maxError : diagonal * 0.004, eps = diagonal * 1e-7;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const unit = v => { const l = Math.hypot(v.x, v.y); return l > eps ? { x: v.x / l, y: v.y / l } : null; };
   const dot = (a, b) => a.x * b.x + a.y * b.y;

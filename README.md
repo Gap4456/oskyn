@@ -24,10 +24,11 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 ## Included features
 
-- Vector drawing, corner and curve node editing, transforms and selection.
+- Vector drawing, corner and curve node editing, transforms and selection. Adding a node preserves existing curves.
 - Timeline keyframes, Shape/Motion tweening and Hold-Q performance recording.
 - Bone IK, soft-body deformation and coloured bone influence zones.
-- Animated mirror controls and bitmap path cutting/masking.
+- Animated mirror controls and bitmap path cutting/masking. The Eraser creates editable bitmap masks without deleting the source pixels.
+- Brush and Fluid Brush produce filled silhouettes with reduced node counts; pressure, taper and other Fluid settings remain available.
 - Timeline end dragging to extend frames or trim empty trailing frames.
 - Project saving and export, including a standalone HTML animation player.
 

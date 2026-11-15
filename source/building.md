@@ -30,7 +30,7 @@ npx playwright install chromium
 npm test
 ```
 
-To use an installed Chromium instead, set `CHROMIUM_PATH` to its executable path. The active suites exercise timeline controls and end handles, node editing, bitmap cutting and masks, Shape tween, Hold-Q recording, project Save/Open, and standalone-player rendering.
+To use an installed Chromium instead, set `CHROMIUM_PATH` to its executable path. The active suites exercise timeline controls and end handles, node editing, sparse brush silhouettes, vector/bitmap erasing, bitmap cutting and masks, Shape tween, Hold-Q recording, project Save/Open, and standalone-player rendering.
 
 `test/legacy/` preserves tests and fixtures from the supplied upstream archive. They are historical references, not part of `npm test`; several rely on unavailable old fixtures or paths. No claim is made that the complete upstream suite passes.
 

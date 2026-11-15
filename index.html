@@ -3570,7 +3570,7 @@ function as1Prepare(src, inner) {
 
 /* Curve-aware simplification: preserve corners/extrema and fit original samples.
    Mirror-related anchors are removed together; this is not Inkscape source code. */
-function kroganSimplifyContour(contour) {
+function kroganSimplifyContour(contour, maxError) {
   const original = contour.nodes, closed = !!contour.closed, count = original.length;
   const unchanged = () => ({ contour: { ...contour, nodes: original.map(n => ({ ...n })) }, removed: 0 });
   if (count < 3 || original.some(n => ![n.x, n.y, n.ix || 0, n.iy || 0, n.ox || 0, n.oy || 0].every(Number.isFinite))) return unchanged();
@@ -3578,7 +3578,7 @@ function kroganSimplifyContour(contour) {
   const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
   const diagonal = Math.hypot(xmax - xmin, ymax - ymin);
   if (diagonal < 1e-9) return unchanged();
-  const tolerance = diagonal * 0.004, eps = diagonal * 1e-7;
+  const tolerance = Number.isFinite(maxError) && maxError > 0 ? maxError : diagonal * 0.004, eps = diagonal * 1e-7;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const unit = v => { const l = Math.hypot(v.x, v.y); return l > eps ? { x: v.x / l, y: v.y / l } : null; };
   const dot = (a, b) => a.x * b.x + a.y * b.y;
@@ -5764,7 +5764,7 @@ function onUp(e) {
   }
   if (S.draw) {
     const dr = S.draw; S.draw = null;
-    if (dr.type === 'erase') { if (dr.changed) { S.sel = []; commit(); buildLayerList(); } }
+    if (dr.type === 'erase') { if (dr.changed) { finishErase(dr); S.sel = []; commit(); buildLayerList(); } }
     else if (dr.type === 'pencil') finishPencil(dr.pts);
     else if (dr.type === 'brush') finishBrush(dr.pts);
     else if (dr.type === 'fluid') finishFluid(dr.pts);
@@ -6251,13 +6251,26 @@ function sweepNib(R, V, base, sc, asNodes) {
   const walk = (Q) => {
     const out = [], segs = [];
     for (let i = 0; i + 1 < Q.length; i++) { const L = hy(Q[i], Q[i + 1]); if (L < 1e-9) continue; const dx = (Q[i + 1].x - Q[i].x) / L, dy = (Q[i + 1].y - Q[i].y) / L; segs.push({ i, dx, dy, a: sup(dy, -dx) }); }
+    let joinedStart=null;
     segs.forEach((sg, j) => {
-      out.push(pt(Q[sg.i], sg.a), pt(Q[sg.i + 1], sg.a));
+      out.push(joinedStart||pt(Q[sg.i], sg.a), pt(Q[sg.i + 1], sg.a));
+      joinedStart=null;
       const nx = segs[j + 1];
       if (nx) {
         const cross = sg.dx * nx.dy - sg.dy * nx.dx, P = Q[sg.i + 1];
         if (cross > 1e-6) { let k = sg.a; while (k !== nx.a) { k = (k + 1) % K; if (k !== nx.a) out.push(pt(P, k)); } }
-        else if (cross < -1e-6) out.push({ x: P.x, y: P.y });
+        else if (cross < -1e-6) {
+          // Inner joins meet at the intersection of the two swept edges.
+          // Connecting through the centreline cuts a tooth into every bend.
+          const a=pt(Q[sg.i],sg.a),b=pt(P,sg.a),c=pt(P,nx.a),d=pt(Q[nx.i+1],nx.a);
+          const ux=b.x-a.x,uy=b.y-a.y,vx=d.x-c.x,vy=d.y-c.y,det=ux*vy-uy*vx;
+          if(Math.abs(det)>1e-9){
+            const t=((c.x-a.x)*vy-(c.y-a.y)*vx)/det;
+            const joint={x:a.x+t*ux,y:a.y+t*uy};
+            const reach=base*sc(P)*Math.max(...V.map(v=>Math.hypot(v[0],v[1])));
+            if(Math.hypot(joint.x-P.x,joint.y-P.y)<=reach*4){out[out.length-1]=joint;joinedStart=joint;}
+          }
+        }
       } else {
         const P = Q[sg.i + 1], b = sup(-sg.dy, sg.dx);
         let k = sg.a; while (k !== b) { k = (k + 1) % K; if (k !== b) out.push(pt(P, k)); }
@@ -6270,10 +6283,36 @@ function sweepNib(R, V, base, sc, asNodes) {
   return [asNodes(clean)];
 }
 
+// Store the visible silhouette, not a collection of internal overlap edges.
+// Fit curves only after release, with a subpixel error bound; previews stay fast.
+function brushSilhouette(contours, size, z) {
+  let result=contours;
+  try {
+    const geometry=polygonClipping.union(...contours.map(c=>[[c.nodes.map(n=>[n.x,n.y])]]));
+    if(geometry.length)result=geometry.flatMap(poly=>poly.map(ring=>({closed:true,nodes:ring.slice(0,-1).map(p=>C.node(p[0],p[1]))})));
+  } catch (_) { /* Keep the original silhouette if geometry cannot be resolved. */ }
+  const tolerance=Math.min(.25/Math.max(z,.01),Math.max(.001,size*.01));
+  return result.map(c=>fitSilhouetteContour(c,tolerance));
+}
+function fitSilhouetteContour(c,tolerance) {
+  if(c.nodes.length<=1024)return C.kroganSimplifyContour(c,tolerance).contour;
+  // Bound fitting work for long strokes instead of leaving their dense
+  // outlines untouched. Neighbouring pieces share the same fixed endpoint.
+  const nodes=[],count=c.nodes.length,last=c.closed?count:count-1;
+  for(let start=0;start<last;start+=96){
+    const end=Math.min(start+96,last),piece=[];
+    for(let i=start;i<=end;i++)piece.push(c.nodes[i%count]);
+    const fitted=C.kroganSimplifyContour({closed:false,nodes:piece},tolerance).contour.nodes;
+    if(nodes.length){nodes[nodes.length-1].ox=fitted[0].ox;nodes[nodes.length-1].oy=fitted[0].oy;}
+    nodes.push(...fitted.slice(nodes.length?1:0).map(n=>({...n})));
+  }
+  if(c.closed){const closing=nodes.pop();nodes[0].ix=closing.ix;nodes[0].iy=closing.iy;}
+  return {...c,nodes};
+}
+
 function finishBrush(raw) {
   if (!raw.length) return;
-  const st = S.style, cs = brushOutline(raw, st, S.view.z);
-  facePositive(cs);
+  const st = S.style, cs = brushSilhouette(brushOutline(raw, st, S.view.z), st.bsize, S.view.z);
   const o = C.mkPath(cs, { fill: st.bcolor, fa: 1, stroke: null, sw: 0 });
   o.nz = true;
   C.recenter(o);
@@ -6363,8 +6402,7 @@ function fluidOutline(raw, fb, z) {
 }
 function finishFluid(raw) {
   if (!raw.length) return;
-  const fb = S.style.fb, cs = fluidOutline(raw, fb, S.view.z);
-  facePositive(cs);
+  const fb = S.style.fb, cs = brushSilhouette(fluidOutline(raw, fb, S.view.z), fbSize(fb,S.view.z), S.view.z);
   const o = C.mkPath(cs, { fill: fb.color, fa: fb.alpha / 100, stroke: null, sw: 0 });
   o.nz = true;
   C.recenter(o);
@@ -6811,11 +6849,13 @@ function nodeDbl(p) {
   const o = findEditable(one.lid, one.id), c = o.contours[best.ci];
   const j = (best.i + 1) % c.nodes.length;
   const r = C.splitSeg(c.nodes[best.i], c.nodes[j], best.t);
-  // A manually inserted anchor starts with straight adjacent segments. Clear
-  // both ends of those segments; leave the other neighboring curves intact.
-  r[0].ox=r[0].oy=0;r[0].s=false;
-  Object.assign(r[1],{ix:0,iy:0,ox:0,oy:0,s:false});
-  r[2].ix=r[2].iy=0;r[2].s=false;
+  // Exact subdivision preserves the existing cubic, including neighbouring
+  // handles. Corner type keeps the new handles independent when edited later.
+  r[1].s=false;
+  if(!(c.nodes[best.i].ox||c.nodes[best.i].oy||c.nodes[j].ix||c.nodes[j].iy)){
+    r[0].ox=r[0].oy=r[2].ix=r[2].iy=0;
+    r[1].ix=r[1].iy=r[1].ox=r[1].oy=0;
+  }
   r[1].mid=uid();r[1].birth=[c.nodes[best.i].mid,c.nodes[j].mid,best.t];
   c.nodes[best.i] = r[0]; c.nodes[j] = r[2];
   c.nodes.splice(best.i + 1, 0, r[1]);
@@ -7346,26 +7386,55 @@ function eCutLine(pts, closed, P, Q, r) {
   return pieces.filter((p) => p.length > 1 && p.some((q) => Math.hypot(q[0] - p[0][0], q[1] - p[0][1]) > 1e-3));
 }
 const eNode = (inv, p) => { const q = C.mapply(inv, p[0], p[1]); return C.node(q[0], q[1]); };
+// A circular eraser uses real cubic caps, so sampling points never become nodes.
+function eRoundCapsule(P,Q,r) {
+  const dx=Q[0]-P[0],dy=Q[1]-P[1],length=Math.hypot(dx,dy),k=.5522847498307936*r;
+  if(length<1e-9){const c=C.ellipseContour(r,r);for(const n of c.nodes){n.x+=P[0];n.y+=P[1];}return c;}
+  const ux=dx/length,uy=dy/length,vx=-uy,vy=ux;
+  const nodes=[
+    {...C.node(0,-r),ix:-k}, {...C.node(length,-r),ox:k},
+    {...C.node(length+r,0),iy:-k,oy:k}, {...C.node(length,r),ix:k},
+    {...C.node(0,r),ox:-k}, {...C.node(-r,0),iy:k,oy:-k}
+  ];
+  for(const n of nodes){const {x,y,ix,iy,ox,oy}=n;n.x=P[0]+x*ux+y*vx;n.y=P[1]+x*uy+y*vy;n.ix=ix*ux+iy*vx;n.iy=ix*uy+iy*vy;n.ox=ox*ux+oy*vx;n.oy=ox*uy+oy*vy;}
+  return {closed:true,nodes};
+}
+function eCutFillContours(o,P,Q,r) {
+  const m=C.matOf(o.t),inv=C.minv(m),pc=polygonClipping,g=eFillGeom(o,m);
+  if(!g?.length||!pc.intersection(g,[[eCapsule(P,Q,r)]]).length)return null;
+  try {
+    const cutter=C.mkPath([eRoundCapsule(P,Q,r)],{fill:'#ffffff',stroke:null,sw:0});
+    const curves=kroganBooleanSources([o,cutter]);
+    return pc.difference(...curves.geometries).flatMap(poly=>poly.map(ring=>curves.reconstruct(ring,inv)).filter(Boolean));
+  } catch (_) {
+    // A difficult junction still erases using the established polygon fallback.
+    return pc.difference(g,[[eCapsule(P,Q,r)]]).flatMap(poly=>poly.map(ring=>{
+      const points=rdpClosed(ring.slice(0,-1),.12);
+      return {closed:true,nodes:points.map(p=>eNode(inv,p))};
+    }).filter(c=>c.nodes.length>=3));
+  }
+}
+function eEraseImage(o,P,Q,r) {
+  const mask={...o,kind:'path',contours:C.imageContours(o),fill:'#ffffff',stroke:null,nz:false};
+  const contours=eCutFillContours(mask,P,Q,r);
+  return contours===null?null:[{...C.clone(o),contours}];
+}
+function finishErase(dr) {
+  const layer=curLayer(),key=layer&&C.kfFor(layer,S.frame);
+  for(const o of key?.objs||[]){
+    if(!dr.touched?.has(o.id))continue;
+    const m=C.matOf(o.t),scale=Math.max(Math.hypot(m[0],m[1]),Math.hypot(m[2],m[3]),.001);
+    const tolerance=.2/Math.max(.01,S.view.z*scale);
+    o.contours=o.contours.map(c=>fitSilhouetteContour(c,tolerance));
+  }
+}
 /* erase one path object; returns null (untouched) or the list of objects that replace it */
 function eErasePath(o, P, Q, r) {
-  const m = C.matOf(o.t), inv = C.minv(m), pc = polygonClipping;
+  const m = C.matOf(o.t), inv = C.minv(m);
   const hasFill = o.fill != null && o.contours.some((c) => c.closed);
   const hasStroke = !!o.stroke && o.sw > 0;
   let fillRings = null, strokeContours = null;
-  if (hasFill) {
-    const g = eFillGeom(o, m);
-    if (g && g.length) {
-      const cap = [[eCapsule(P, Q, r)]];
-      if (pc.intersection(g, cap).length) {
-        fillRings = [];
-        for (const poly of pc.difference(g, cap)) for (const ring of poly) {
-          const pts = ring.slice(0, -1);
-          const s = rdpClosed(pts, 0.12);
-          if (s.length >= 3) fillRings.push({ closed: true, nodes: s.map((p) => eNode(inv, p)) });
-        }
-      }
-    }
-  }
+  if (hasFill) fillRings=eCutFillContours(o,P,Q,r);
   if (hasStroke) {
     let any = false; const out = [];
     for (const c of o.contours) {
@@ -7406,7 +7475,7 @@ function eraseSweep(dr, a, b) {
   const r = eraserR(), P = [a.x, a.y], Q = [b.x, b.y];
   const bx0 = Math.min(P[0], Q[0]) - r, bx1 = Math.max(P[0], Q[0]) + r, by0 = Math.min(P[1], Q[1]) - r, by1 = Math.max(P[1], Q[1]) + r;
   const cand = C.evalLayerObjs(l, S.frame).filter((o) => {
-    if (o.kind !== 'path' || o.rig) return false;
+    if (!['path','image'].includes(o.kind) || o.rig) return false;
     const wb = C.worldBounds(o); if (!wb) return false;
     const pad = (o.stroke ? o.sw : 0) / 2 + 1;
     return !(wb.x0 - pad > bx1 || wb.x1 + pad < bx0 || wb.y0 - pad > by1 || wb.y1 + pad < by0);
@@ -7416,11 +7485,13 @@ function eraseSweep(dr, a, b) {
   let kf = C.kfFor(l, S.frame);
   const targets = (kf && (kf.f === S.frame || kf.tween === 'none') ? kf.objs : cand).filter((o) => ids.has(o.id));
   const plan = [];
-  for (const o of targets) { const rep = eErasePath(o, P, Q, r); if (rep) plan.push([o.id, rep]); }
+  for (const o of targets) { const rep = o.kind==='image'?eEraseImage(o,P,Q,r):eErasePath(o,P,Q,r); if (rep) plan.push([o.id, rep]); }
   if (!plan.length) return false;
   if (!dr.undone) { pushUndo(); dr.undone = true; }
   kf = C.ensureEditable(l, S.frame);
+  dr.touched ||= new Set();
   for (const [id, rep] of plan) {
+    for(const o of rep)dr.touched.add(o.id);
     const i = kf.objs.findIndex((x) => x.id === id);
     if (i >= 0) kf.objs.splice(i, 1, ...rep);
   }
