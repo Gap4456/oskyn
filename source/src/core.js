@@ -1630,6 +1630,35 @@ function evalLayerRaw(layer,t) {
   const el=_ctxEl,lib=_lib,scope=skeletonScopes.get(layer),rows=cache.get(layer),hit=rows?.find(r=>r.t===t&&r.el===el&&r.lib===lib&&r.scope===scope);if(hit)return hit.objs;
   const objs=evalLayerRawUncached(layer,t),entry={t,el,lib,scope,objs};if(rows)rows.push(entry);else cache.set(layer,[entry]);return objs;
 }
+function sameSkeletonBinding(a,b) {
+  return (!a&&!b)||!!(a&&b&&a.to===b.to&&a.joint===b.joint&&!!a.node===!!b.node);
+}
+// A newly attached/detached/rebound object must tween to the pose actually
+// displayed at the endpoint, not its stale pre-binding registration transform.
+function tweenBindingEndpoint(layer,key,o) {
+  if(!o.sbind||freeBind.has(o.id))return o;
+  const scope=skeletonScopes.get(layer)||[layer];let rig=null;
+  for(const l of scope.filter(l=>l.visible===false).concat(scope.filter(l=>l.visible!==false))){
+    let objects=key.objs;
+    if(l!==layer){
+      // Evaluate rig channels only. Evaluating attached artwork here would
+      // recursively resolve the same cross-layer binding transition.
+      if(!l.kfs.some(k=>k.objs.some(o=>o.skel)))continue;
+      const rigs={...l,kfs:l.kfs.map(k=>({...k,objs:k.objs.filter(o=>o.skel)}))};
+      objects=evalLayerRawUncached(rigs,key.f);
+    }
+    for(const q of objects)if(q.skel&&q.id===o.sbind.to)rig=q;
+  }
+  return rig?{...o,t:skeletonBoundPose(o,rig)}:o;
+}
+function tweenLayerObject(layer,key,next,a,b,p,mode,rot) {
+  if(!a.skin&&!b.skin&&!sameSkeletonBinding(a.sbind,b.sbind)){
+    const start={...tweenBindingEndpoint(layer,key,a)},end={...tweenBindingEndpoint(layer,next,b)};
+    delete start.sbind;delete end.sbind;
+    return lerpObj(start,end,p,mode,rot);
+  }
+  return lerpObj(a,b,p,mode,rot);
+}
 function evalLayerRawUncached(layer, t) {
   const i = kfIndexAt(layer, t);
   if (i < 0) return [];
@@ -1639,7 +1668,7 @@ function evalLayerRawUncached(layer, t) {
     const p = (t - kf.f) / (next.f - kf.f);
     const e = keyframeEase(kf,p);
     const pairs = tweenPairs(kf, next);
-    return withClips(layer, i, t, editableImages(kf.objs.map((a) => { const b = pairs.get(a); return b ? lerpObj(a, b, e, kf.tween, kf.rot) : a; })));
+    return withClips(layer, i, t, editableImages(kf.objs.map((a) => { const b = pairs.get(a); return b ? tweenLayerObject(layer,kf,next,a,b,e,kf.tween,kf.rot) : a; })));
   }
   return withClips(layer, i, t, editableImages(kf.objs));
 }
