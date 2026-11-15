@@ -1,0 +1,302 @@
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<div id="app">
+  <header id="top">
+    <div class="brand" title="oskyn">
+      <svg class="brand-onion" width="30" height="22" viewBox="0 0 30 22" aria-hidden="true"><circle cx="8" cy="11" r="6.5" fill="currentColor" opacity=".25"/><circle cx="14" cy="11" r="6.5" fill="currentColor" opacity=".5"/><circle cx="20" cy="11" r="6.5" fill="currentColor"/></svg>
+      <svg class="brand-heart" width="30" height="24" viewBox="40 84 285 248" aria-hidden="true">
+        <path d="M181 138 C155 94 115 82 82 111 C49 140 41 165 59 203 C79 249 141 266 181 321 C222 266 284 244 305 199 C330 149 292 98 254 98 C222 97 198 115 181 138 Z" fill="#F77CC4" stroke="#17182D" stroke-width="8" stroke-linejoin="round"/>
+        <ellipse cx="276" cy="129" rx="30" ry="10" transform="rotate(40 276 129)" fill="#83FFE2"/>
+      </svg>
+      <svg class="brand-ship" width="30" height="26" viewBox="0 0 340 355" aria-hidden="true" fill="currentColor">
+        <path d="M83 124 43 51C29 69 25 94 24 124 34 98 38 83 43 74L65 132ZM101 84C120 60 119 44 117 24L135 13 151 87 159 81 141 0C125 7 114 17 108 29 111 51 100 59 78 65 94 63 99 70 101 84Z"/>
+        <path d="M113 111C133 75 166 40 207 10 176 44 187 57 217 67L250 44C218 94 207 146 214 198 234 188 244 172 248 155L282 62 268 127 319 64C270 135 271 201 337 228 302 218 273 211 252 215L243 250 236 194C222 208 203 215 185 217L120 205C101 174 96 139 113 111ZM134 115C135 137 139 150 146 156 145 139 153 122 162 116L155 107C144 108 139 111 134 115ZM166 93 166 116 217 72C195 73 178 82 166 93Z" fill-rule="evenodd"/>
+        <path d="M78 95C43 135 29 158 45 197L63 207 74 187 84 194 74 214 90 232 73 237 61 228C45 241 30 235 9 213L24 239 11 246C20 285 40 296 67 293L72 310 58 318 56 330 38 324 31 336 19 332 18 344 9 345 9 337 0 337 0 355H326C337 351 339 338 332 325L307 330C301 342 329 336 327 348L260 323 273 310 241 282 221 290 224 274 245 261 223 243 215 219 167 198 127 183 103 161C82 141 78 119 78 95ZM27 266C33 281 47 288 64 287L35 263Z" fill-rule="evenodd"/>
+        <g transform="rotate(-14 138 178)" fill="var(--panel)">
+          <path d="M114 158H157V191H146V200H123V191H114Z"/>
+          <path d="m109 199 52 14 3-7-52-14Zm0 14 52-14-3-7-52 14Z"/>
+        </g>
+        <g transform="rotate(-14 138 178)" fill="currentColor">
+          <circle cx="126" cy="171" r="4"/><circle cx="146" cy="171" r="4"/>
+          <path d="m136 178-4 7h8Z"/><path d="M126 188h4v8h-4Zm9 0h4v8h-4Zm9 0h4v8h-4Z"/>
+        </g>
+      </svg>
+      <svg class="brand-stripes" width="30" height="22" viewBox="0 0 84 30" aria-hidden="true" fill="currentColor">
+        <path d="M18 0H36L18 30H0ZM42 0H60L42 30H24ZM66 0H84L66 30H48Z"/>
+      </svg>
+      <span>oskyn</span>
+    </div>
+    <button class="mbtn" id="mFile" aria-haspopup="true" aria-expanded="false">File</button>
+    <button class="mbtn" id="bPreview" title="Preview with scripts (runs in a sandbox)">▶ Preview</button>
+    <button class="mbtn" id="mExport" aria-haspopup="true" aria-expanded="false">Export</button>
+    <span class="sep"></span>
+    <button class="tbtn" id="bUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3L2 6l3 3"/><path d="M2 6h7a4 4 0 010 8H6"/></svg></button>
+    <button class="tbtn" id="bRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3l3 3-3 3"/><path d="M14 6H7a4 4 0 000 8h3"/></svg></button>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="mbtn" id="mPath" title="Bézier path operations" aria-haspopup="true" aria-expanded="false">Path ▾</button>
+    <div id="kNodeBar" aria-label="Node editing operations">
+      <button class="tbtn" data-knode="corner" title="Make selected nodes corner (independent handles)">Corner</button>
+      <button class="tbtn" data-knode="straight" title="Straighten segments between selected adjacent nodes">Straight</button>
+      <button class="tbtn" data-knode="smooth" title="Make selected nodes smooth">Smooth</button>
+      <button class="tbtn" data-knode="symmetric" title="Make selected nodes symmetric">Symmetric</button>
+      <button class="tbtn" data-knode="auto" title="Auto-smooth selected nodes">Auto</button>
+    </div>
+    <div id="kSelectBar" aria-label="Selection transforms">
+      <button class="tbtn" data-ktransform="flipH" title="Flip selected objects horizontally">Flip H</button>
+      <button class="tbtn" data-ktransform="flipV" title="Flip selected objects vertically">Flip V</button>
+      <button class="tbtn" data-ktransform="rotateL" title="Rotate selected objects 90° counterclockwise">↶ 90°</button>
+      <button class="tbtn" data-ktransform="rotateR" title="Rotate selected objects 90° clockwise">↷ 90°</button>
+    </div>
+    <div class="grow"></div>
+    <div id="gridControls" role="group" aria-label="Grid controls">
+      <button class="tbtn" id="bGrid" aria-pressed="false" title="Show drawing grid">▦ Grid</button>
+      <button class="tbtn" id="bGridOptions" aria-label="Grid size and colour" title="Grid size and colour">▾</button>
+      <button class="tbtn" id="bGridSnap" aria-pressed="false" title="Show Grid first to enable node snapping" disabled>Snap</button>
+    </div>
+    <button class="tbtn wide-only" id="zOut" title="Zoom out (-)" aria-label="Zoom out">−</button>
+    <button class="tbtn zoomval wide-only" id="zVal" title="Fit stage (Shift+1)">100%</button>
+    <button class="tbtn wide-only" id="zIn" title="Zoom in (+)" aria-label="Zoom in">+</button>
+    <span class="sep wide-only"></span>
+    <button class="tbtn" id="bHelp" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+    <button class="tbtn" id="bTheme" title="Theme: system" aria-label="Theme">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/><path d="M8 2.8v10.4" /><path d="M8 2.8a5.2 5.2 0 010 10.4" fill="currentColor"/></svg>
+    </button>
+    <button class="tbtn" id="kThemePalette" type="button" title="Choose editor colour theme" aria-label="Choose editor colour theme" aria-haspopup="true" aria-expanded="false"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 1.3-3.5 1.8 1.8 0 0 1 1.2-3.1H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/><circle cx="17.5" cy="11" r="1"/></svg></button>
+    <button class="tbtn narrow-only" id="bProps" aria-label="Properties" aria-pressed="false">Props</button>
+  </header>
+
+  <div id="kThemeMenu" role="listbox" aria-label="Editor themes"></div>
+
+  <aside id="tools" role="toolbar" aria-label="Tools"></aside>
+
+  <main id="stagewrap">
+    <canvas id="stage" aria-label="Stage"></canvas>
+    <div id="bonePoseGallery" role="group" aria-label="Saved poses" hidden></div><div id="boneMenu" role="group" aria-label="Joint actions" hidden><button id="boneSoft" type="button" aria-label="Soft body actions" title="Soft body actions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16c0-7 4-11 9-11s9 4 9 11c-2 4-16 4-18 0Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8"/><path d="m15 8 3 1" stroke="var(--panel)" stroke-width="2.5" stroke-linecap="round"/></svg></button><button id="boneSoftBind" type="button" aria-label="Attach or detach soft body" title="Attach soft body: click here, then a vector figure. Same figure detaches.">◇</button><button id="boneSoftUp" type="button" aria-label="Bring body part forward" title="Bring body part forward"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 7-8 7 8h-4v7H9v-7Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button><button id="boneSoftDown" type="button" aria-label="Send body part backward" title="Send body part backward"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 11 7 8 7-8h-4V4H9v7Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button><button id="boneSoftZones" type="button" aria-label="Show influence zones" aria-pressed="false" title="Show influence zones (editor only)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.5" fill="#ef796f" stroke="currentColor"/><circle cx="16" cy="8" r="3.5" fill="#e7b648" stroke="currentColor"/><circle cx="8" cy="16" r="3.5" fill="#49ba9a" stroke="currentColor"/><circle cx="16" cy="16" r="3.5" fill="#56a9e4" stroke="currentColor"/></svg></button><button id="boneSoftMinus" type="button" aria-label="Softer bend" title="Softer bend">−</button><button id="boneSoftPlus" type="button" aria-label="Stiffer bend" title="Stiffer bend">+</button><button id="bonePose" type="button" aria-label="Pose actions" title="Pose actions">✦</button><button id="bonePhoto" type="button" aria-label="Save pose" title="Save a new pose">▣</button><button id="boneLibrary" type="button" aria-label="Pose library" title="Open pose library">▰</button><button id="boneMode" type="button" aria-label="Switch to Animate" title="Switch to Animate"></button><button id="boneRigid" type="button" aria-label="Fix joints together" title="Fix joints together: select joints, then click this icon again."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v9l-8 5-8-5V7Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 5 8-5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="7.5" rx="3" ry="1.8" fill="var(--accent-soft)" stroke="currentColor"/></svg></button><button id="boneAttach" type="button" aria-label="Attach or detach drawing" title="Attach drawing: click here, then click artwork. Choose the same drawing again to detach."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 8 8-8 8-8-8Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7"/><path d="M8 9 3 4m0 4V4h4m9 5 5-5m-4 0h4v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button><button id="bonePin" type="button" aria-label="Pin joint in place" aria-pressed="false" title="Pin this joint in Animate. Click again to release."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 15 5-7 3-3 9-1-12Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button><button id="boneAdd" type="button" aria-label="Add bone" title="Add bone: click, then choose the new end. Drag this icon away to hide the menu.">+</button><button id="boneRemove" type="button" aria-label="Remove end joint" title="Remove this end joint and its bone. Drag this icon away to hide the menu.">−</button></div>
+    <button id="boneAngleRemove" type="button" aria-label="Remove joint angle limits" title="Remove this joint’s movement limit" hidden>−</button>
+    <button id="boneAngle" type="button" aria-label="Set joint angle limits" aria-expanded="false" title="Set joint angle limits: click, then drag either boundary. Click again or outside to finish." hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="var(--panel)" stroke="currentColor" stroke-width="1.5"/><path d="M9 6a6 6 0 1 1-3 8M12 12 4 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="2" fill="var(--accent-soft)" stroke="currentColor"/></svg></button>
+    <div id="toolopts" aria-label="Tool options"><label data-for="rect">Corner <input type="number" id="radius" min="0" max="500" step="1"></label><label data-for="brush">Size <input type="range" id="bsizeR" min="1" max="200" aria-label="Brush size"><input type="number" id="bsize" min="1" max="500" step="1" aria-label="Brush size in pixels"></label><label data-for="brush">Shape <select id="bshape" aria-label="Brush shape"></select></label><label data-for="brush">Angle <input type="range" id="bangleR" min="0" max="180" aria-label="Brush angle"><input type="number" id="bangle" min="0" max="180" step="1" aria-label="Brush angle in degrees">°</label><label data-for="brush">Colour <input type="color" id="bcolor" aria-label="Brush colour"></label><label data-for="brush"><input type="checkbox" id="bpress"> Pressure</label><label data-for="brush"><input type="checkbox" id="bmerge"> Merge strokes</label><label data-for="eraser">Size <input type="range" id="esizeR" min="1" max="200" aria-label="Eraser size"><input type="number" id="esize" min="1" max="500" step="1" aria-label="Eraser size in pixels"></label><label data-for="bucket">Gap size <select id="bgap" aria-label="Gap size for region fill"><option value="none">Close no gaps</option><option value="small">Close small gaps</option><option value="medium">Close medium gaps</option><option value="large">Close large gaps</option></select></label><label data-for="bucket"><input type="checkbox" id="ball"> All layers</label><label data-for="pencil brush">Smoothing <input type="range" id="smooth" min="0" max="100"></label></div>
+    <div id="crumb"><button id="crumbBack" title="Back to scene (Esc)">◀ Back</button><span id="crumbPath"></span></div>
+    <div id="hud"><span id="hCoord">x 0  y 0</span><span id="hFrame">Frame 1</span><span id="hRecord" hidden role="status"></span><span id="hTool"></span></div>
+    <div id="drop">Drop a .fla, .xfl or project file to open</div>
+  </main>
+  <div id="prev"><div class="ph"><b>Preview</b><span id="prevErr"></span><span class="grow"></span><button id="prevRestart">Restart</button><button id="prevClose">Close</button></div><iframe id="prevFrame" sandbox="allow-scripts" title="Preview"></iframe></div>
+
+  <aside id="props" aria-label="Properties">
+    <div id="ptabs" role="tablist" aria-label="Property tabs">
+      <button role="tab" id="tab-obj" data-tab="obj" aria-controls="pane-obj" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5l9 5.5-4 1.2-1.6 4z"/></svg><span>Object</span></button>
+      <button role="tab" id="tab-text" data-tab="text" aria-controls="pane-text" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4V2.8h9V4M8 2.8v10.4M6 13.2h4"/></svg><span>Text</span></button>
+      <button role="tab" id="tab-brush" data-tab="brush" hidden aria-controls="pane-brush" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 2.5c-3.2.2-6.6 3-7.6 6.6l1.2 1.2c3.6-1 6.4-4.4 6.6-7.6z"/><path d="M5.6 10.4c-1.3 0-2.1 1-2.1 2.3 0 .6-.3 1-.8 1.3 1.8.3 3.7-.5 3.7-2.2"/></svg><span>Brush</span></button>
+      <button role="tab" id="tab-align" data-tab="align" aria-controls="pane-align" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2v12M5 4h8M5 8h5M5 12h7"/></svg><span>Align</span></button>
+      <button role="tab" id="tab-frame" data-tab="frame" aria-controls="pane-frame" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" rx="1"/><path d="M6 3.5v9M10 3.5v9"/></svg><span>Frame</span></button>
+      <button role="tab" id="tab-lib" data-tab="lib" aria-controls="pane-lib" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3h3v10H3zM7 3h3v10H7zM11.5 3.6l2.6.7-2.4 9.3-2.6-.7z"/></svg><span>Library</span></button>
+      <button role="tab" id="tab-doc" data-tab="doc" aria-controls="pane-doc" aria-selected="false" tabindex="-1"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2h5.5L12 4.5V14H4z"/><path d="M9 2v3h3"/></svg><span>Doc</span></button>
+      <button id="ptabPin" class="pin" aria-pressed="false" title="Pin the current tab (stop auto-switching)" aria-label="Pin tab"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2l4.5 4.5-2 .6-2.4 2.4.2 3-1 1-2.7-2.7L3 14l-1-1 3.7-3.7L3 6.6l1-1 3 .2 2.4-2.4z"/></svg></button>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-obj" data-pane="obj" aria-labelledby="tab-obj">
+    <div class="sec">
+      <h3>Selection <em id="selInfo">none</em></h3>
+      <div class="mini" style="margin-bottom:8px"><button id="objConvert" title="Turn the selection into a reusable symbol (F8)">Convert to symbol</button><button id="objBitmap" title="Flatten the selection into a transparent PNG at its current size and position">To Bitmap</button></div>
+      <div class="row"><span>Fill</span><div class="ctl"><input type="checkbox" id="fillOn" aria-label="Fill on"><input type="color" id="fillC" aria-label="Fill colour"><input type="range" id="fillA" min="0" max="100" aria-label="Fill opacity"></div></div>
+      <div class="row"><span>Fill type</span><div class="ctl"><select id="fillType" aria-label="Fill type"><option value="solid">Solid</option><option value="linear">Linear</option><option value="radial">Radial</option></select><input type="color" id="fill2" aria-label="Gradient end colour" style="display:none"></div></div>
+      <div id="gradBox" style="display:none"><div id="gstops" aria-label="Gradient colour stops"></div><div class="row"><span></span><div class="ctl"><button id="gAdd" type="button" class="btn">+ Stop</button><label class="gchk"><input type="checkbox" id="gEdit" checked> On canvas</label></div></div></div>
+      <div class="row"><span>Stroke</span><div class="ctl"><input type="checkbox" id="strokeOn" aria-label="Stroke on"><input type="color" id="strokeC" aria-label="Stroke colour"><input type="range" id="strokeA" min="0" max="100" aria-label="Stroke opacity"></div></div>
+      <div class="row"><span>Width</span><div class="ctl"><input type="range" id="sw" min="0" max="5" step="0.1" aria-label="Stroke width"><input type="number" id="swValue" min="0" max="200" step="0.5" aria-label="Exact stroke width" style="width:54px"></div></div>
+      <div class="row"><span>Cap / join</span><div class="ctl"><select id="cap" aria-label="Line cap"><option value="round">Round</option><option value="butt">Flat</option><option value="square">Square</option></select><select id="join" aria-label="Line join"><option value="round">Round</option><option value="miter">Miter</option><option value="bevel">Bevel</option></select></div></div>
+      <div class="row"><span>Dashes</span><div class="ctl"><select id="dash" aria-label="Stroke dash pattern" title="Stroke dash pattern"><option value="solid">━━━━━━ Solid</option><option value="dash">━━  ━━  ━━</option><option value="short">━ ━ ━ ━ ━</option><option value="dot">· · · · · · ·</option><option value="dashdot">━━ · ━━ ·</option><option value="long">━━━━  ━━━━</option></select></div></div>
+      <div class="row"><span>Opacity</span><div class="ctl"><input type="range" id="opac" min="0" max="100"></div></div>
+       <div class="row"><span>Invisible</span><div class="ctl"><label class="chk" title="Turn this path into an invisibility mask for lower layers"><input type="checkbox" id="objInvis"> Invisibility Mask</label></div></div>
+       <div class="row"><span>Blur</span><div class="ctl"><input type="range" id="objBlur" min="0" max="30" step="0.5" value="0" aria-label="Gaussian blur in pixels"><output id="objBlurVal" hidden>0 px</output></div></div>
+       <p class="hint" style="margin:-3px 0 6px" title="High blur values may be hardware-intensive">⚠ High blur may slow down animation.</p>
+    </div>
+    <div class="sec">
+      <h3>Position &amp; size</h3>
+      <div class="grid2">
+        <label>X<input type="number" id="tx" step="1"></label><label>Y<input type="number" id="ty" step="1"></label>
+        <label>W<input type="number" id="tw" step="1"></label><label>H<input type="number" id="th" step="1"></label>
+        <label>R<input type="number" id="tr" step="1"></label>
+      </div>
+      <div class="row" id="iclipRow"><span>Symbol</span><div class="ctl"><select id="itype" aria-label="Symbol type"><option value="mc">Movie clip</option><option value="btn">Button</option><option value="gr">Graphic</option></select><select id="imode" aria-label="Playback"><option value="loop">Loop</option><option value="once">Play once</option><option value="single">Single frame</option></select><input type="number" id="ifirst" min="1" step="1" style="width:56px" aria-label="First frame" title="First frame to show (1 = start)"></div></div>
+      <div class="row"><span>Instance</span><div class="ctl"><input type="text" id="iname" placeholder="name (e.g. btn_next)" spellcheck="false" aria-label="Instance name"></div></div>
+      <div class="row" id="iscriptRow" style="align-items:flex-start"><span>Script</span><div class="ctl"><textarea id="iscript" rows="4" spellcheck="false" placeholder="Runs when this clip appears, e.g. on (release) { gotoAndPlay(&quot;menu&quot;); }" aria-label="Instance script"></textarea></div></div>
+      <div class="mini" style="margin-top:8px"><button data-act="edit" title="Edit symbol timeline (double-click)">Edit symbol</button><button data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-act="del" title="Delete">Delete</button></div>
+    </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-text" data-pane="text" aria-labelledby="tab-text">
+    <div class="sec">
+      <h3>Text</h3>
+      <div class="row"><span>Font</span><div class="ctl"><select id="tFont" aria-label="Font"><option>Arial</option><option>Helvetica</option><option>Georgia</option><option>Times New Roman</option><option>Courier New</option><option>Verdana</option><option>Trebuchet MS</option><option>Impact</option><option>Comic Sans MS</option><option>IBM Plex Sans</option></select></div></div>
+      <div class="row"><span>Size</span><div class="ctl"><input type="number" id="tSize" min="1" max="600" step="1"><label><input type="checkbox" id="tBold"> B</label><label><input type="checkbox" id="tItalic"> I</label></div></div>
+      <div class="row"><span>Align</span><div class="ctl"><select id="tAlign" aria-label="Text align"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select></div></div>
+      <p class="hint" style="margin:6px 0 0">Styles the selected text. With nothing selected, these set the look of the next text you type (Text tool, T).</p>
+    </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-brush" data-pane="brush" aria-labelledby="tab-brush">
+    <div class="sec">
+      <h3>Fluid brush <em>press F</em></h3>
+      <div id="fbBox"></div>
+      <div class="fbpre">
+        <div class="mini" style="display:flex;gap:6px;margin:8px 0 6px"><input type="text" id="fbName" placeholder="Preset name" spellcheck="false" aria-label="Preset name" style="flex:1"><button id="fbSave" title="Save the current settings as a preset">Save as preset</button></div>
+        <div class="mini" style="margin-bottom:6px"><button id="fbUpdate" title="Overwrite the selected preset with the current settings" disabled>Save changes</button> <button id="fbReset" title="Back to the default settings">Reset</button></div>
+        <div class="hint" style="margin:0 0 4px">Saved presets (kept in this browser)</div>
+        <div id="fbList" class="mini" style="display:block"></div>
+      </div>
+    </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-align" data-pane="align" aria-labelledby="tab-align">
+    <div class="sec">
+      <h3>Align <em id="alignInfo"></em></h3>
+      <label class="chk" style="display:flex;gap:6px;margin:0 0 8px;align-items:center"><input type="checkbox" id="alignStage" checked> To stage</label>
+      <div class="mini" style="margin-bottom:8px"><button data-al="backcenter" title="Keep the backmost selected object fixed and centre the others on it">Centre on back object</button></div>
+      <div class="mini"><button data-al="left">Left</button><button data-al="hcenter">Centre</button><button data-al="right">Right</button><button data-al="top">Top</button><button data-al="vcenter">Middle</button><button data-al="bottom">Bottom</button></div>
+      <div class="mini" style="margin-top:6px"><button data-dist="h" title="Needs 3 or more objects">Distribute ↔</button><button data-dist="v" title="Needs 3 or more objects">Distribute ↕</button></div>
+      <p class="hint" style="margin:6px 0 0">With several objects selected and “To stage” off, they align to each other.</p>
+    </div>
+    <div class="sec">
+      <h3>Arrange</h3>
+      <div class="mini" >
+        <button data-act="front" title="Bring to front (Ctrl+Shift+])">Front</button><button data-act="forward" title="Bring forward (Ctrl+])">Forward</button>
+        <button data-act="backward" title="Send backward (Ctrl+[)">Backward</button><button data-act="back" title="Send to back (Ctrl+Shift+[)">Back</button>
+        <button data-act="group" title="Group (Ctrl+G)">Group</button><button data-act="ungroup" title="Ungroup (Ctrl+Shift+G)">Ungroup</button>
+        <button data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-act="del" title="Delete">Delete</button>
+      </div>
+    </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-frame" data-pane="frame" aria-labelledby="tab-frame">
+    <div class="sec">
+      <h3>Tween <em id="tweenInfo"></em></h3>
+      <div class="row"><span>Type</span><div class="ctl"><select id="tweenType"><option value="none">None</option><option value="motion">Motion</option><option value="shape">Shape</option></select></div></div>
+      <div class="row"><span>Easing</span><div class="ctl"><select id="easeType"><option value="linear">Linear</option><option value="in">Ease in</option><option value="out">Ease out</option><option value="inout">Ease in-out</option><option value="bounce">Bounce</option><option value="elastic">Elastic</option><option value="bezier">Custom curve</option></select></div></div>
+      <div class="row" id="easeAmtRow"><span>Strength</span><div class="ctl"><input type="range" id="easeAmt" min="0" max="100"></div></div>
+      <div id="easeBox"><canvas id="easeCv" width="260" height="180" aria-label="Easing curve. Drag the two handles to shape it." style="width:100%;max-width:260px;height:auto;display:block;border:1px solid var(--line);border-radius:6px;background:var(--cell);touch-action:none;cursor:crosshair"></canvas>
+        <div class="row" style="margin-top:6px"><span>Preset</span><div class="ctl"><select id="easePreset" aria-label="Easing preset"></select></div></div>
+        <div class="bez"><label>x1<input type="number" id="bz0" step="0.01" min="0" max="1"></label><label>y1<input type="number" id="bz1" step="0.01" min="-1" max="2"></label><label>x2<input type="number" id="bz2" step="0.01" min="0" max="1"></label><label>y2<input type="number" id="bz3" step="0.01" min="-1" max="2"></label></div>
+        <p class="hint" id="easeHint">Pick Custom curve, or drag a handle, to shape the speed of this tween.</p></div>
+      <div id="motionRotationBox" style="display:none;margin:12px 0 8px;padding:10px;border:1px solid var(--line);border-radius:7px">
+        <div style="font-size:11px;font-weight:700;margin-bottom:8px">MOTION ROTATION</div>
+        <div class="mini" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <button id="rotCW" type="button" aria-pressed="false" title="Clockwise. Click again for shortest path">↻</button>
+          <button id="rotCCW" type="button" aria-pressed="false" title="Counterclockwise. Click again for shortest path">↺</button>
+          <button id="rotMinus" type="button" title="Remove one full rotation">X −</button>
+          <button id="rotPlus" type="button" title="Add one full rotation">X +</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px">
+          <span id="rotModeLabel">Shortest path</span><span id="rotTurnsLabel">Turns: 0</span>
+        </div>
+        <p class="hint" style="margin:6px 0 0">Settings belong to this Motion Tween span. Click the selected direction again for Shortest.</p>
+      </div>
+      <p class="hint" id="tweenHint">Motion tweens move, scale, rotate and fade matching objects between keyframes. Shape tweens morph paths.</p>
+    </div>
+    <div class="sec">
+      <h3>Keyframe <em id="scriptInfo"></em></h3>
+      <div class="row"><span>Label</span><div class="ctl"><input type="text" id="kfLabel" placeholder="frame label" spellcheck="false" aria-label="Frame label"></div></div>
+      <div class="row"><span>Sound</span><div class="ctl"><select id="kfSound" aria-label="Frame sound"></select><button id="sndPlay" class="mini1" title="Audition this sound" aria-label="Audition sound">▶</button></div></div>
+      <div class="row"><span>Sync</span><div class="ctl"><select id="kfSync" aria-label="Sound sync"><option value="event">Event</option><option value="start">Start</option><option value="stream">Stream</option><option value="stop">Stop</option></select><input type="number" id="kfLoop" min="0" max="99" step="1" title="Extra repeats (0 = play once)" aria-label="Repeats"></div></div>
+      <div class="mini" style="margin:2px 0 8px"><button id="sndLib" title="Open the Library tab">Library…</button><button id="kfPop" title="Open the script in a larger editor (F9)">Edit in window</button></div>
+      <textarea id="kfScript" rows="7" spellcheck="false" placeholder="Frame script, e.g. this.stop();" aria-label="Frame script"></textarea>
+      <p class="hint" style="margin:4px 0 0">Scripts run in Preview and the exported HTML, never in the editor. Use <code>this.stop()</code>, <code>this.gotoAndPlay(n)</code>, <code>this.myButton.addEventListener("click", fn)</code>.</p>
+    </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-lib" data-pane="lib" aria-labelledby="tab-lib">
+    <div class="sec">
+      <h3>Symbols <em id="libSymInfo"></em></h3>
+      <div class="mini" style="margin-bottom:8px"><button id="libConvert" title="Turn the selected objects into a reusable symbol (F8)">Convert selection to symbol</button></div>
+      <input type="text" id="libFilter" placeholder="Filter symbols, images and sounds…" spellcheck="false" aria-label="Filter library">
+      <div id="libSyms" class="liblist"></div>
+    </div>
+    <div class="sec">
+      <h3>Images <em id="libImgInfo"></em></h3>
+      <div class="mini" style="margin-bottom:8px"><button id="libAddImg">Add image…</button></div>
+      <div id="libImgs" class="liblist"></div>
+    </div>
+    <div class="sec">
+      <h3>Sounds <em id="libSndInfo"></em></h3>
+      <div class="mini" style="margin-bottom:8px"><button id="libAddSnd">Add sound…</button></div>
+      <div id="libSnds" class="liblist"></div>
+      <p class="hint" style="margin:6px 0 0">Give a keyframe a sound in the <b>Frame</b> tab, or play one from a script with <code>createjs.Sound.play("id")</code>.</p>
+    </div>
+    </div>
+    <div class="pane" role="tabpanel" id="pane-doc" data-pane="doc" aria-labelledby="tab-doc">
+    <div class="sec">
+      <h3>Document</h3>
+      <div class="row"><span>Name</span><div class="ctl"><input type="text" id="dname"></div></div>
+      <div class="grid2">
+        <label>W<input type="number" id="dw" min="16" max="4096"></label><label>H<input type="number" id="dh" min="16" max="4096"></label>
+        <label>fps<input type="number" id="dfps" min="1" max="120"></label><label>Fr<input type="number" id="dframes" min="1" max="2000"></label>
+      </div>
+      <div class="mini" style="margin-top:6px"><button id="dHD" type="button" title="Set document to 1920 × 1080 pixels">HD</button></div>
+      <div class="row" style="margin-top:8px"><span>Scripts</span><div class="ctl"><select id="dlang" aria-label="Script language"><option value="js">JavaScript</option><option value="as1">ActionScript 1/2</option></select></div></div>
+      <div id="dscenesRow" style="display:none"><div class="row"><span>Scenes</span><div class="ctl" id="dscenes" style="flex-wrap:wrap;gap:4px"></div></div></div>
+      <div class="row"><span>Pasteboard</span><div class="ctl"><input type="color" id="pbg" aria-label="Pasteboard colour"><button class="tbtn" id="pbgReset" title="Back to the theme colour">Reset</button></div></div>
+      <div class="row" style="margin-top:8px"><span>Stage</span><div class="ctl"><input type="color" id="dbg" aria-label="Stage colour"></div></div>
+      <div class="row"><span>Onion skin</span><div class="ctl"><input type="checkbox" id="onionOn" aria-label="Onion skin"></div></div>
+      <div class="grid2 doc-onion-counts">
+        <label>Before<input type="number" id="onionB" min="0" max="10" title="Frames before" aria-label="Onion skin frames before"></label>
+        <label>After<input type="number" id="onionA" min="0" max="10" title="Frames after" aria-label="Onion skin frames after"></label>
+      </div>
+    </div>
+    </div>
+  </aside>
+
+  <section id="tl" aria-label="Timeline">
+    <div class="tl-bar">
+      <button class="tbtn" id="pRecord" title="Enable performance recording (hold Q while dragging)" aria-pressed="false">● Record</button>
+      <button class="tbtn" id="pRecordAudio" aria-pressed="true" title="Hear Frame → Sound timeline audio while holding Q">♪ Audio</button>
+      <button class="tbtn" id="pLoop" title="Loop playback" aria-pressed="true">Loop</button>
+      <button class="tbtn" id="pOnion" title="Onion skin" aria-pressed="false">Onion</button><button class="tbtn" id="pOnionOpt" title="Onion skin options" aria-label="Onion skin options" aria-haspopup="dialog" style="padding:0 6px;margin-left:-4px"><svg viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M3.5 10.5 8 5.5l4.5 5z"/></svg></button>
+      <button class="tbtn" id="pUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg style="fill:none" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3L2 6l3 3"/><path d="M2 6h7a4 4 0 010 8H6"/></svg></button>
+      <button class="tbtn" id="pRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg style="fill:none" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3l3 3-3 3"/><path d="M14 6H7a4 4 0 000 8h3"/></svg></button>
+      <button class="tbtn" data-fr="key" title="Insert keyframe (F6)">+ Key</button>
+      <button class="tbtn" data-fr="blank" title="Insert blank keyframe (F7)">+ Blank</button>
+      <button class="tbtn" data-fr="frame" title="Insert one frame (F5); hold to repeat">+ Frame</button>
+      <button class="tbtn" data-fr="motion" title="Create motion tween">Tween</button>
+      <button class="tbtn" data-fr="shape" title="Create shape tween">Shape</button>
+      <button class="tbtn" data-fr="reverse" title="Reverse the selected frames (Shift+click to select a range; Shift+click the numbers to select all layers)">Reverse</button>
+      <button class="tbtn" id="pFirst" title="First frame (Shift+,)" aria-label="First frame"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L6 8z"/></svg></button>
+      <button class="tbtn" id="pPrev" title="Previous frame (,)" aria-label="Previous frame"><svg viewBox="0 0 16 16"><path d="M12 3v10L5 8z"/></svg></button>
+      <button class="tbtn" id="pPlay" title="Play / stop (Enter)" aria-label="Play"><svg viewBox="0 0 16 16" id="playIco"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+      <button class="tbtn" id="pNext" title="Next frame (.)" aria-label="Next frame"><svg viewBox="0 0 16 16"><path d="M4 3v10l7-5z"/></svg></button>
+      <button class="tbtn" id="pLast" title="Last frame (Shift+.)" aria-label="Last frame"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7-5z"/></svg></button>
+      <span class="sep" aria-hidden="true"></span>
+      <span class="timecode" id="tcode"></span>
+    </div>
+    <div class="tl-scroll" id="tlScroll">
+      <div class="tl-inner">
+        <div class="tl-corner">
+          <button class="tbtn" id="lAdd" title="New layer" aria-label="New layer"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
+          <button class="tbtn" id="lDup" title="Duplicate layer" aria-label="Duplicate layer"><svg viewBox="0 0 16 16"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 10V4a1 1 0 011-1h6"/></svg></button>
+          <button class="tbtn" id="lMask" title="Mask: make this layer a mask for the layers below, or add it to a mask above" aria-label="Toggle mask"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5"/><path d="M8 3a5 5 0 010 10z" fill="currentColor"/></svg></button>
+          <button class="tbtn" id="lUp" title="Move layer up" aria-label="Move layer up"><svg viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
+          <button class="tbtn" id="lDown" title="Move layer down" aria-label="Move layer down"><svg viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
+          <button class="tbtn" id="lDel" title="Delete layer" aria-label="Delete layer"><svg viewBox="0 0 16 16"><path d="M3.5 5h9M6 5V3.5h4V5M5 5l.6 8h4.8l.6-8"/></svg></button>
+          <span class="grow"></span>
+          <button class="tbtn k-all-layer" id="lVisAll" type="button" title="Hide all layers" aria-label="Show or hide all layers"></button>
+          <button class="tbtn k-all-layer" id="lLockAll" type="button" title="Lock all layers" aria-label="Lock or unlock all layers"></button>
+        </div>
+        <canvas id="tlRuler"></canvas>
+        <div class="tl-layers" id="tlLayers"></div>
+        <canvas id="tlCells"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+<div id="kColorLab" role="dialog" aria-label="oskyn color palette">
+  <div class="khead"><strong>Color · oskyn</strong><button id="kColorClose" title="Close">×</button></div>
+  <div class="klabel">Basic colors</div><div class="kgrid" id="kBasic"></div>
+  <div class="klabel">Custom colors · 16 slots</div><div class="kgrid" id="kCustom"></div>
+  <div class="klabel">Project colors · unlimited</div><div id="kProjectScroll"><div class="kgrid" id="kProject"></div></div>
+  <div class="kbottom"><div><canvas id="kSpectrum" class="kspectrum" width="220" height="118"></canvas><div class="kcontrol"><span>Hue</span><input type="range" id="kHue" min="0" max="360" value="0"></div><div class="kinfo">Click a color to apply instantly.</div></div>
+  <div><div class="kpreview" id="kPreview"></div><div class="kcontrol"><span>HEX</span><input type="text" id="kHex" maxlength="7" spellcheck="false" value="#FFFFFF"></div><div class="kcontrol"><button id="kApply">Apply HEX</button><button id="kSave">Save custom</button></div><div class="kinfo">Ctrl+drag to reorder or move. Ctrl+double-click to remove. Diagonal mark = unused.</div></div></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="modalBg"><div id="modal" role="dialog" aria-modal="true"><header id="mTitle"></header><div class="mbody" id="mBody"></div><footer id="mFoot"></footer></div></div>
+<input type="file" id="imgIn" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple hidden>
+<input type="file" id="sndIn" accept="audio/*,.mp3,.wav,.ogg,.m4a" multiple hidden>
+<div id="ced" role="dialog" aria-label="Script editor">
+  <div class="ch" id="cedHead"><b id="cedTitle">Script</b><span class="grow"></span><button id="cedSmall" title="Smaller text" aria-label="Smaller text">A−</button><button id="cedBig" title="Larger text" aria-label="Larger text">A+</button><button id="cedPrev" title="Preview (Ctrl+Enter)">▶ Preview</button><button id="cedClose" title="Close (Esc)" aria-label="Close">✕</button></div>
+  <div class="cbody"><div class="gut" id="cedGut"></div><pre id="cedHi" aria-hidden="true"></pre><textarea id="cedTa" spellcheck="false" wrap="off" aria-label="Script code"></textarea></div>
+  <div class="cfoot" id="cedStat"></div>
+</div>
+<input type="file" id="fileIn" accept=".fla,.xfl,.json,.oskyn,.flashcraft,.onionskyn,.mp3,.wav,.ogg,.m4a,.png,.jpg,.jpeg,.gif,.webp,.svg" hidden>

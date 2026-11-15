@@ -1,0 +1,45 @@
+[
+  "src/head.html",
+  {
+    "text": "<script>"
+  },
+  "src/vendor/jszip.min.js",
+  {
+    "text": "</script>"
+  },
+  "src/between-vendors.html",
+  {
+    "text": "<script>"
+  },
+  "src/vendor/polygon-clipping.min.js",
+  {
+    "text": "</script>"
+  },
+  "src/page.html",
+  {
+    "text": "<script id=\"fcCore\">"
+  },
+  "src/core.js",
+  {
+    "text": "</script>"
+  },
+  "src/between-core-runtime.html",
+  {
+    "text": "<script id=\"fcRuntime\">"
+  },
+  "src/runtime.js",
+  {
+    "text": "</script>"
+  },
+  "src/before-app.html",
+  {
+    "text": "<script>"
+  },
+  "src/app1.js",
+  "src/app2.js",
+  "src/app3.js",
+  {
+    "text": "</script>"
+  },
+  "src/tail.html"
+]
