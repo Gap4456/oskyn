@@ -553,6 +553,7 @@ function restoreSnap(str) {
   S.doc = o.doc; C.setLib(S.doc.lib); C.setImages(S.doc.images); S.edit = []; rewind(o.path || []); S.frame = clamp(o.frame, 0, S.doc.frames - 1);
   S.layerId = getLayer(o.layerId) ? o.layerId : layers()[layers().length - 1].id;
   pruneSel();
+  if(singleSel()?.o.star&&S.tool==='node')setTool('select');
   refreshAll();
 }
 function undo() { if (REC.armed) recordSetArmed(false); if (!H.stack.length) return; markDirty(); H.redo.push(snap()); restoreSnap(H.stack.pop()); updateHistoryButtons(); }
@@ -969,6 +970,7 @@ function drawOverlay(ctx) {
   }
   mirrorOverlay(ctx);
   arcDraw(ctx);
+  starDraw(ctx);
   if (S.draw) drawPreview(ctx);
   drawBrushCursor(ctx);
   drawEraserCursor(ctx);

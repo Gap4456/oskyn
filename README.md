@@ -32,6 +32,22 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 - Timeline end dragging to extend frames or trim empty trailing frames.
 - Project saving and export, including a standalone HTML animation player.
 
+## Star / Cog tool
+
+Choose **Star / Cog (U)** beside Rectangle and Ellipse, then drag to create a five-ray star. Rectangle remains directly available.
+
+- Drag the outer and inner rings to set ray length and valley depth.
+- Hold **Shift** while dragging either ring to turn that set of points independently.
+- Drag the third ring/its handle inward to flatten tooth tips.
+- Drag the nearby valley handle around the inner ring to widen every valley.
+- Change the ray/tooth count in the central number box. Its dotted grip moves the box aside; each new shape starts with its box centred.
+- Drag one side, flattened tip or widened valley edge to repeat its curvature on the corresponding edges of every tooth. Opposite sides are independent.
+- Double-click the shape to bake its current appearance into an ordinary path in Node edit. Undo restores its Star/Cog parameters.
+
+The number box and control rings are editor controls and are not exported. Star/Cog parameters interpolate between keyframes with matching tooth counts. Change to Selection for normal transforms. Parametric controls are not recorded by Hold-Q; ordinary transforms still use the existing recording tools.
+
+An ellipse/Pac-Man now uses two stages: the first double-click ends angle editing and leaves Selection active; the next double-click enters Node edit.
+
 ## Animate a bitmap indentation
 
 1. Create an end keyframe for the same bitmap object.

@@ -494,6 +494,30 @@ function dashArray(o) {
   const p = presets[o.dash] || presets.solid;
   return p.map(n => n * Math.max(0.1, o.sw || 1));
 }
+// Parametric Star/Cog: four corresponding edge families per tooth.
+function starDefaults(radius=60) {
+  return {points:5,outer:radius,inner:radius*.47,clip:radius,outerAngle:-PI/2,innerAngle:-PI/2,gap:0,
+    curves:{left:{bend:0,slide:0},right:{bend:0,slide:0},tip:{bend:0,slide:0},root:{bend:0,slide:0}}};
+}
+function starContour(shape) {
+  const n=clamp(Math.round(shape.points||5),3,64),outer=Math.max(.1,shape.outer||60),inner=clamp(shape.inner||.01,.01,outer),clip=clamp(shape.clip??outer,inner,outer),step=2*PI/n;
+  const polar=(r,a)=>({x:r*Math.cos(a),y:r*Math.sin(a)}),gap=clamp(shape.gap||0,0,.45)*step;
+  const root=i=>{const angle=(shape.innerAngle??-PI/2)+(i+.5)*step;return [polar(inner,angle-gap),polar(inner,angle+gap)];};
+  const trim=(a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,A=dx*dx+dy*dy,B=2*(a.x*dx+a.y*dy),D=B*B-4*A*(a.x*a.x+a.y*a.y-clip*clip);const t=A?clamp((-B+Math.sqrt(Math.max(0,D)))/(2*A),0,1):0;return {x:a.x+t*dx,y:a.y+t*dy};};
+  const nodes=[];
+  for(let i=0;i<n;i++){
+    const tip=polar(outer,(shape.outerAngle??-PI/2)+i*step),before=root(i-1)[1],after=root(i);
+    for(const p of [trim(before,tip),trim(after[0],tip),after[0],after[1]])nodes.push(node(p.x,p.y));
+  }
+  const roles=['tip','right','root','left'];
+  for(let i=0;i<nodes.length;i++){
+    const a=nodes[i],b=nodes[(i+1)%nodes.length],c=shape.curves?.[roles[i%4]],bend=c?.bend||0,slide=c?.slide||0;
+    if(!bend&&!slide)continue;
+    const dx=b.x-a.x,dy=b.y-a.y,ox=dx*slide-dy*bend,oy=dy*slide+dx*bend;
+    a.ox=dx/3+ox;a.oy=dy/3+oy;b.ix=-dx/3+ox;b.iy=-dy/3+oy;
+  }
+  return {closed:true,nodes};
+}
 function mkPath(contours, st, t) {
   contours=contours.map(c=>({...c,nodes:c.nodes.map(n=>({...n,s:false}))}));
   st = st || {};
@@ -1498,6 +1522,14 @@ function lerpObj(a, b, p, mode, rot) {
     o.contours=mode==='shape'?((a.img===b.img&&a.w===b.w&&a.h===b.h?morphImageMask(imageContours(a),imageContours(b),p):null)||morphContours(imageContours(a),imageContours(b),p)||clone(imageContours(a))):clone(imageContours(a));
     constrainImageMask(o);return o;
   }
+  if(a.star&&b.star&&a.star.points===b.star.points){
+    o.star={...a.star,curves:{}};
+    for(const key of ['outer','inner','clip','gap'])o.star[key]=lerp(a.star[key],b.star[key],p);
+    for(const key of ['outerAngle','innerAngle'])o.star[key]=a.star[key]+Math.atan2(Math.sin(b.star[key]-a.star[key]),Math.cos(b.star[key]-a.star[key]))*p;
+    for(const key of ['left','right','tip','root']){const x=a.star.curves?.[key]||{},y=b.star.curves?.[key]||{};o.star.curves[key]={bend:lerp(x.bend||0,y.bend||0,p),slide:lerp(x.slide||0,y.slide||0,p)};}
+    o.contours=[starContour(o.star)];lerpPaint(o,a,b,p);return o;
+  }
+  if(a.star||b.star)delete o.star;
   if(a.arc&&b.arc){o.arc={rx:lerp(a.arc.rx,b.arc.rx,p),ry:lerp(a.arc.ry,b.arc.ry,p),start:a.arc.start+Math.atan2(Math.sin(b.arc.start-a.arc.start),Math.cos(b.arc.start-a.arc.start))*p,mouth:lerp(a.arc.mouth,b.arc.mouth,p)};o.contours=[mouthContour(o.arc)];lerpPaint(o,a,b,p);return o;}
   if(a.arc||b.arc)delete o.arc;
   if(a.skel&&b.skel){o.skel=lerpSkeleton(a.skel,b.skel,p,matOf(o.t),matOf(a.t),matOf(b.t));skeletonBuild(o);return o;}
@@ -3095,7 +3127,7 @@ root.FCCore = {
   KroganBezier, kroganSimplifyContour,
   uid, clamp, lerp, clone, nz, hexToRgb, rgbToHex, lerpHex, rgba,
   newT, matOf, mmul, minv, mapply, decompose, node, mouthContour, tracePath, pathD, bezPt, splitSeg, contoursBounds, localBounds, worldCorners, worldBounds,
-  imageContours, imageMaskContours, constrainImageMask, recenter, applyMatrixToNodes, setObjMatrix, ellipseContour, rectContour, mkPath, mkLayer, mkKf, mkDoc, normalizeDoc,
+  starDefaults, starContour, imageContours, imageMaskContours, constrainImageMask, recenter, applyMatrixToNodes, setObjMatrix, ellipseContour, rectContour, mkPath, mkLayer, mkKf, mkDoc, normalizeDoc,
   groupEntries, drawUnits, maskedDraw, groupAlpha, tweenPairs, shapeTweenIssues, ease, bezierEase, morphContours, evalLayerObjs, evalDoc, kfIndexAt, kfAt, kfFor, sortKfs, ensureEditable, insertKeyframe, insertFrames, removeFrames,
   beginRenderEval, endRenderEval,
   skeletonRigidGroups, skeletonRigidValid, skeletonPoseRigid,

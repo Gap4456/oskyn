@@ -1721,6 +1721,7 @@ function kroganPathBoolean(op) {
       // alignment frame. Stamp the new geometry so later node edits release it.
       const frame=bottom.arc||bottom.ellipseFrame;
       const keepFrame=op==='difference'&&frame&&Number.isFinite(frame.rx)&&Number.isFinite(frame.ry)&&frame.rx>0&&frame.ry>0&&(bottom.arc||frame.path===JSON.stringify(bottom.contours));
+      delete obj.star;
       delete obj.arc; // Boolean output is an ordinary path, not an editable ellipse.
       delete obj.ellipseFrame;
       if(keepFrame)obj.ellipseFrame={rx:frame.rx,ry:frame.ry,path:JSON.stringify(contours)};
@@ -1776,7 +1777,7 @@ function kroganPathSimplify() {
   }
   if(!total){toast('Simplify: no removable nodes.');return;}
   pushUndo();
-  for(const {o,contours} of changes)o.contours=contours;
+  for(const {o,contours} of changes){o.contours=contours;delete o.star;}
   S.nodeSel=null;S.kNodeSelection=[];commit();
   toast('KROGAN Simplify: removed '+total+' nodes. Ctrl+Z to undo.');
 }
