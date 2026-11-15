@@ -9,4 +9,4 @@
 - **Position fields are greyed out.** They are disabled when several objects are selected. Select one object or use the Align tab.
 - **Frame count won't go lower.** It cannot go below the last keyframe; clear or move that keyframe first.
 
-**Something else broken?** Choose **File → Report a problem…** to describe the problem, then **Email report** to send it, with technical details attached, to onionskyn.support@gmail.com. If no email app opens, use **Copy report** and paste it into an email yourself.
+**Something else broken in oskyn?** Choose **File → Report a problem… → Report on GitHub** to open a prepared issue at [Gap4456/oskyn/issues](https://github.com/Gap4456/oskyn/issues). Review it and submit it on GitHub, or use **Copy report** to paste the description and diagnostics manually. Reports for oskyn are not sent to the original Onionskyn author. This reporting paragraph has been updated for oskyn; the remaining upstream guide is historical.
