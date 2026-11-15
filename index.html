@@ -1685,7 +1685,7 @@ function softJointGroup(s,joint) {
 }
 function softOrder(s) {const ids=softGroups(s).map(g=>g.id);return [...(s.order||[]).filter(id=>ids.includes(id)),...ids.filter(id=>!(s.order||[]).includes(id))];}
 const softPartLabels=new WeakMap();
-function softParts(o,contours,rig) {
+function softParts(o,contours,rig,adaptive=false) {
   const s=o.skin;if(!s.order||!s.regions||s.base.length!==1||!s.base[0].closed)return null;
   const groups=softGroups(s);if(groups.length<2)return null;
   let labels=softPartLabels.get(s.regions);
@@ -1703,9 +1703,9 @@ function softParts(o,contours,rig) {
   const parts=[];
   for(const id of softOrder(s)){
 
-    if(labels.every(g=>g===id)){parts.push({id,fill:[contours[0]],outline:[contours[0]]});continue;}
+    if(labels.every(g=>g===id)){const c=adaptive?softAdaptiveContour(contours[0],Math.min(...s.bones.map(b=>Math.hypot(b.bx-b.ax,b.by-b.ay)))):contours[0];parts.push({id,fill:[c],outline:[c]});continue;}
     const runs=[];
-    for(let i=0;i<N;i++)if(labels[i]===id&&labels[(i+N-1)%N]!==id){let end=i;const run=[{...nodes[i],ix:0,iy:0}];while(labels[end%N]===id){end++;run.push({...nodes[end%N]});}run.at(-1).ox=run.at(-1).oy=0;runs.push({closed:false,nodes:run,before:labels[(i+N-1)%N],after:labels[end%N]});}
+    for(let i=0;i<N;i++)if(labels[i]===id&&labels[(i+N-1)%N]!==id){let end=i;const run=[{...nodes[i],ix:0,iy:0}];while(labels[end%N]===id){end++;run.push({...nodes[end%N]});}run.at(-1).ox=run.at(-1).oy=0;const outline=adaptive?softAdaptiveContour({closed:false,nodes:run},Math.min(...s.bones.map(b=>Math.hypot(b.bx-b.ax,b.by-b.ay)))):{closed:false,nodes:run};runs.push({...outline,before:labels[(i+N-1)%N],after:labels[end%N]});}
     const group=groups.find(g=>g.id===id),bridges=[];for(let i=0;i<N;i++){const before=labels[(i+N-1)%N],after=labels[i];if(before===after||before===id||after===id)continue;const a=groups.find(g=>g.id===before),b=groups.find(g=>g.id===after),path=route(junction(a,after),junction(b,before));let first=-1,last=-1;for(let j=0;j<path.length-1;j++)if(s.bones.some(b=>group.bones.includes(b.id)&&((b.parent===path[j]&&b.id===path[j+1])||(b.id===path[j]&&b.parent===path[j+1])))){if(first<0)first=j;last=j+1;}if(first>=0){const joints=path.slice(first,last+1).map(j=>node(...jointPositions.get(j))),v={...nodes[i],ix:0,iy:0,ox:0,oy:0};bridges.push({closed:true,nodes:[joints[0],v,...joints.slice(1).reverse()]});}}
     if(runs.length){const fill=[];for(let ri=0;ri<runs.length;ri++){const run=runs[ri],next=runs[(ri+1)%runs.length];fill.push(...run.nodes.map(n=>({...n})));for(const joint of route(junction(group,run.after),junction(group,next.before))){const p=jointPositions.get(joint);if(p)fill.push(node(...p));}}parts.push({id,fill:[{closed:true,nodes:fill},...bridges],outline:runs.map(({closed,nodes})=>({closed,nodes}))});}else if(bridges.length)parts.push({id,fill:bridges,outline:[]});
   }
@@ -1739,6 +1739,11 @@ function softAdaptiveContour(contour,scale){
     if(points.length>4096)return contour;
   }
   if(closed&&dist(points[0],points.at(-1))<1e-8)points.pop();
+  if(closed&&points.length>3){
+    let seam=points.findIndex(p=>p.corner);
+    if(seam<0){let best=-Infinity;for(let i=0;i<points.length;i++){const p=points[(i+points.length-1)%points.length],q=points[i],r=points[(i+1)%points.length],a=dist(p,q),b=dist(q,r),score=a*b?((q.x-p.x)*(r.x-q.x)+(q.y-p.y)*(r.y-q.y))/(a*b):-Infinity;if(score>best){best=score;seam=i;}}}
+    if(seam>0)points.push(...points.splice(0,seam));
+  }
   // Do not bridge large limb crossings or erase intentional bind-time corners.
   for(let pass=0;pass<12;pass++){
     let repaired=false;const n=points.length,count=closed?n:n-1;
@@ -1755,6 +1760,36 @@ function softAdaptiveContour(contour,scale){
         let area=0;for(let k=0;k<loop.length;k++){const p=loop[k],z=loop[(k+1)%loop.length];area+=p.x*z.y-p.y*z.x;}
         if(Math.abs(area)/2>scale*scale*.08)continue;
         points.splice(i+1,j-i,q);repaired=true;break;
+      }
+    }
+    if(!repaired)break;
+  }
+  // A short corrugated/backtracking edge need not cross itself. Replace only
+  // small runs whose entering/leaving directions agree, without bind corners.
+  for(let pass=0;pass<8;pass++){
+    let repaired=false;
+    for(let i=0;i<points.length-3&&!repaired;i++){
+      let arc=0;
+      for(let j=i+1;j<Math.min(points.length,i+49);j++){
+        arc+=dist(points[j-1],points[j]);if(arc>scale*.8)break;
+        if(j<i+3)continue;
+        const a=points[i],b=points[j],dx=b.x-a.x,dy=b.y-a.y,chord=Math.hypot(dx,dy);
+        if(chord<scale*.035||chord>scale*.65||arc<chord*1.12)continue;
+        const inside=points.slice(i+1,j);if(inside.some(p=>p.corner))break;
+        const before=points[i?i-1:closed?points.length-1:i],after=points[j+1<points.length?j+1:closed?0:j];
+        const ix=a.x-before.x,iy=a.y-before.y,ox=after.x-b.x,oy=after.y-b.y,il=Math.hypot(ix,iy),ol=Math.hypot(ox,oy);
+        if(!il||!ol||(ix*ox+iy*oy)/(il*ol)<.95||(ix*dx+iy*dy)/(il*chord)<.75||(ox*dx+oy*dy)/(ol*chord)<.75)continue;
+        const limit=scale*.08;if(inside.some(p=>lineDistance(p,a,b)>limit))continue;
+        let reverses=false,positive=false,negative=false,sharp=false;
+        for(let k=i+1;k<=j;k++){
+          const p=points[k-1],q=points[k],ex=q.x-p.x,ey=q.y-p.y;
+          if((ex*dx+ey*dy)/chord < -tolerance*.5)reverses=true;
+          if(k<j){const r=points[k+1],fx=r.x-q.x,fy=r.y-q.y,l=Math.hypot(ex,ey)*Math.hypot(fx,fy);if(l>1e-12){const turn=(ex*fy-ey*fx)/l;positive||=turn>.2;negative||=turn<-.2;sharp||=(ex*fx+ey*fy)/l<.8;}}
+        }
+        if(!reverses&&!(positive&&negative&&sharp))continue;
+        const c1={x:a.x+ix/il*chord/3,y:a.y+iy/il*chord/3},c2={x:b.x-ox/ol*chord/3,y:b.y-oy/ol*chord/3},bridge=[];
+        for(let k=1;k<4;k++){const t=k/4,u=1-t;bridge.push({x:u*u*u*a.x+3*u*u*t*c1.x+3*u*t*t*c2.x+t*t*t*b.x,y:u*u*u*a.y+3*u*u*t*c1.y+3*u*t*t*c2.y+t*t*t*b.y});}
+        points.splice(i+1,j-i-1,...bridge);repaired=true;break;
       }
     }
     if(!repaired)break;
@@ -1799,12 +1834,12 @@ const softAdaptiveCache=new WeakMap();
 
 function softWithParts(o,contours,rig,adaptive=true) {
   const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.contours=contours;delete copy.arc;delete copy.ellipseFrame;
-  let parts=softParts(o,contours,rig);
+  let parts;
   if(adaptive&&o.skin.adaptive){
     let clean=softAdaptiveCache.get(contours);
-    if(!clean){const scale=Math.min(...o.skin.bones.map(b=>Math.hypot(b.bx-b.ax,b.by-b.ay)));clean={contours:contours.map(c=>softAdaptiveContour(c,scale)),parts:parts?.map(p=>({...p,outline:p.outline.map(c=>softAdaptiveContour(c,scale))}))};softAdaptiveCache.set(contours,clean);}
+    if(!clean){const scale=Math.min(...o.skin.bones.map(b=>Math.hypot(b.bx-b.ax,b.by-b.ay)));clean={contours:contours.map(c=>softAdaptiveContour(c,scale)),parts:softParts(o,contours,rig,true)};softAdaptiveCache.set(contours,clean);}
     copy.contours=clean.contours;parts=clean.parts;
-  }
+  }else parts=softParts(o,contours,rig);
   if(parts)Object.defineProperty(copy,'_softParts',{value:parts,enumerable:false,configurable:true});else if(copy._softParts)delete copy._softParts;
   return copy;
 }
@@ -8088,8 +8123,19 @@ function skeletonZoneView(o,rig){
   if(!o._softParts&&o.skin.regions&&o.skin.base.length===1&&o.skin.base[0].closed){let skin=softZoneSkins.get(o.skin);if(!skin){skin={...o.skin,order:C.softOrder(o.skin)};softZoneSkins.set(o.skin,skin);}posed=C.softPoseObject({...o,skin},rig);}
   const colors=skeletonZoneColors(o.skin),groups=C.softGroups(o.skin);
   if(!posed._softParts){if(groups.length!==1)return o;const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.fill=colors.get(groups[0].id);copy.fa=1;copy.grad=null;return copy;}
-  const view=C.softView(posed),base=view.children[0],fills=posed._softParts.map(p=>({...base,id:o.id+':zone:'+p.id,contours:p.fill,fill:colors.get(p.id),fa:1,grad:null,stroke:null,nz:true}));
-  view.children=[{...base,fill:'#d5dbe5',fa:1,grad:null},...fills,...view.children.slice(1)];
+  // Zone partitions may overlap or cancel differently from the actual body.
+  // Mask their colours to the normal fill and redraw the normal ink last.
+  let view,base,ink;
+  if(o._softParts){view=C.softView(o);base=view.children[0];ink=view.children.slice(1);}
+  else{
+    const style={...o,t:C.newT(),op:1,blur:0};for(const key of ['skin','arc','ellipseFrame','pivot','bind','sbind'])delete style[key];
+    base={...style,stroke:null};ink=[{...style,fill:null,grad:null}];view={id:o.id,kind:'group',t:{...o.t},op:o.op??1,blur:o.blur||0};
+  }
+  const bounds=C.localBounds(base);if(!bounds)return o;
+  const fills=posed._softParts.map(p=>({...base,id:o.id+':zone:'+p.id,contours:p.fill,fill:colors.get(p.id),fa:1,grad:null,stroke:null,nz:true}));
+  const rect={...base,id:o.id+':zone:bg',fill:'#d5dbe5',fa:1,grad:null,contours:[{closed:true,nodes:[C.node(bounds.x0-1,bounds.y0-1),C.node(bounds.x1+1,bounds.y0-1),C.node(bounds.x1+1,bounds.y1+1),C.node(bounds.x0-1,bounds.y1+1)]}]};
+  const mask={...base,id:o.id+':zone:mask',fill:'#fff',fa:1,grad:null,stroke:null,op:1,blur:0};
+  view.children=[{id:o.id+':zones',kind:'group',t:C.newT(),op:1,children:[rect,...fills],mask:[mask]},...ink];
   if(o._mirrorCuts)Object.defineProperty(view,'_mirrorCuts',{value:o._mirrorCuts});return view;
 }
 function skeletonZoneEntries(entries){

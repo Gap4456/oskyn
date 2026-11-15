@@ -91,9 +91,9 @@ Brush and Fluid Brush share the last explicitly chosen drawing colour, including
 
 Configured joint actions (pin, rigid group, attached drawing/soft body and angle limits) use darker button backgrounds when their menu appears. Open Pose actions and enabled influence-zone/adaptive controls are also marked.
 
-Open a joint's **Soft body** submenu and click **≈** to enable the **experimental adaptive contour** for its attached editable soft bodies. It refits the posed outline with fewer cubic nodes and removes small new backtracking loops, while protecting original corners and retaining the bind geometry. Click again to return to the original deformation. The setting is saved on the current keyframe, inserts a key when needed, supports Undo/Redo, and follows the animation into exports. It starts off for existing/new soft bodies; the toggle is disabled during Record.
+Open a joint's **Soft body** submenu and click **≈** to enable the **experimental adaptive contour** for its attached editable soft bodies. It refits the posed outline with fewer cubic nodes and removes small new backtracking loops and short side zigzags, while protecting original corners and retaining the bind geometry. Click again to return to the original deformation. The setting is saved on the current keyframe, inserts a key when needed, supports Undo/Redo, and follows the animation into exports. It starts off for existing/new soft bodies; the toggle is disabled during Record.
 
-This remains experimental: deep folds, large limb crossings and complex silhouettes can still need manual adjustment. Branched-body overlap order and fill pieces are retained; their visible outlines are fitted separately. The original bind nodes are never replaced with the automatically generated contour.
+This remains experimental: deep folds, large limb crossings and complex silhouettes can still need manual adjustment. Branched-body overlap order and internal joins are retained; each repaired outer run is shared by its fill and stroke. Influence-zone colours are clipped to the normal silhouette and the normal stroke is drawn over them. The original bind nodes are never replaced with the automatically generated contour.
 
 ## Report a problem
 

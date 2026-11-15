@@ -2413,8 +2413,19 @@ function skeletonZoneView(o,rig){
   if(!o._softParts&&o.skin.regions&&o.skin.base.length===1&&o.skin.base[0].closed){let skin=softZoneSkins.get(o.skin);if(!skin){skin={...o.skin,order:C.softOrder(o.skin)};softZoneSkins.set(o.skin,skin);}posed=C.softPoseObject({...o,skin},rig);}
   const colors=skeletonZoneColors(o.skin),groups=C.softGroups(o.skin);
   if(!posed._softParts){if(groups.length!==1)return o;const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.fill=colors.get(groups[0].id);copy.fa=1;copy.grad=null;return copy;}
-  const view=C.softView(posed),base=view.children[0],fills=posed._softParts.map(p=>({...base,id:o.id+':zone:'+p.id,contours:p.fill,fill:colors.get(p.id),fa:1,grad:null,stroke:null,nz:true}));
-  view.children=[{...base,fill:'#d5dbe5',fa:1,grad:null},...fills,...view.children.slice(1)];
+  // Zone partitions may overlap or cancel differently from the actual body.
+  // Mask their colours to the normal fill and redraw the normal ink last.
+  let view,base,ink;
+  if(o._softParts){view=C.softView(o);base=view.children[0];ink=view.children.slice(1);}
+  else{
+    const style={...o,t:C.newT(),op:1,blur:0};for(const key of ['skin','arc','ellipseFrame','pivot','bind','sbind'])delete style[key];
+    base={...style,stroke:null};ink=[{...style,fill:null,grad:null}];view={id:o.id,kind:'group',t:{...o.t},op:o.op??1,blur:o.blur||0};
+  }
+  const bounds=C.localBounds(base);if(!bounds)return o;
+  const fills=posed._softParts.map(p=>({...base,id:o.id+':zone:'+p.id,contours:p.fill,fill:colors.get(p.id),fa:1,grad:null,stroke:null,nz:true}));
+  const rect={...base,id:o.id+':zone:bg',fill:'#d5dbe5',fa:1,grad:null,contours:[{closed:true,nodes:[C.node(bounds.x0-1,bounds.y0-1),C.node(bounds.x1+1,bounds.y0-1),C.node(bounds.x1+1,bounds.y1+1),C.node(bounds.x0-1,bounds.y1+1)]}]};
+  const mask={...base,id:o.id+':zone:mask',fill:'#fff',fa:1,grad:null,stroke:null,op:1,blur:0};
+  view.children=[{id:o.id+':zones',kind:'group',t:C.newT(),op:1,children:[rect,...fills],mask:[mask]},...ink];
   if(o._mirrorCuts)Object.defineProperty(view,'_mirrorCuts',{value:o._mirrorCuts});return view;
 }
 function skeletonZoneEntries(entries){

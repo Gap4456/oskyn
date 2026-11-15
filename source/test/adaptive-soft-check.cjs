@@ -1,6 +1,6 @@
 const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playwright');
 (async()=>{
- let h=fs.readFileSync(require('path').join(__dirname,'../dist/oskyn.html'),'utf8'),i=h.lastIndexOf('})();\n</script>');h=h.slice(0,i)+'window.T={C,S,SK,H,loadDoc,setTool,setFrame,refreshAll,w2s,skeletonMenuSync,skeletonSoftAdaptiveToggle,skeletonAngleMenuSync,skeletonTogglePin,undo,redo,renderFrameCanvas,buildPlayer};'+h.slice(i);
+ let h=fs.readFileSync(require('path').join(__dirname,'../dist/oskyn.html'),'utf8'),i=h.lastIndexOf('})();\n</script>');h=h.slice(0,i)+'window.T={C,S,SK,H,loadDoc,setTool,setFrame,refreshAll,w2s,skeletonMenuSync,skeletonSoftAdaptiveToggle,skeletonAngleMenuSync,skeletonTogglePin,skeletonZoneView,undo,redo,renderFrameCanvas,buildPlayer};'+h.slice(i);
  const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  try{
   const p=await b.newPage({viewport:{width:1440,height:1000}}),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('https://adaptive-soft.test/',r=>r.fulfill({contentType:'text/html',body:h}));await p.goto('https://adaptive-soft.test/');
@@ -22,6 +22,15 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
   // A generated small loop disappears; large crossings and protected original corners remain.
   assert(await p.evaluate(()=>{const {C}=T,pts=[[0,0],[60,0],[50,10],[50,-10],[65,5],[100,0],[100,100],[0,100]],c={closed:true,nodes:pts.map(([x,y],i)=>({...C.node(x,y),...(i>=5?{softCorner:true}:{})}))},clean=C.softAdaptiveContour(c,100);return clean.nodes.length<c.nodes.length&&[pts[5],pts[6],pts[7]].every(([x,y])=>clean.nodes.some(n=>n.x===x&&n.y===y));}));
   console.log('PASS small backtracking loop repair preserves protected bind-time corners');
+  const notches=await p.evaluate(()=>{
+    const {C}=T,pts=[[0,0],[0,15],[0,30],[3,35],[-3,33],[0,40],[0,55],[0,70]],make=(closed=false)=>({closed,nodes:(closed?[...pts,[60,70],[60,0]]:pts).map(([x,y],i)=>({...C.node(x,y),...((i===0||i>=7)?{softCorner:true}:{})}))});
+    const sample=c=>{const out=[];for(let i=0;i<(c.closed?c.nodes.length:c.nodes.length-1);i++){const a=c.nodes[i],b=c.nodes[(i+1)%c.nodes.length];for(let k=0;k<=16;k++){const t=k/16,u=1-t;out.push({x:u*u*u*a.x+3*u*u*t*(a.x+a.ox)+3*u*t*t*(b.x+b.ix)+t*t*t*b.x,y:u*u*u*a.y+3*u*u*t*(a.y+a.oy)+3*u*t*t*(b.y+b.iy)+t*t*t*b.y});}}return out;};
+    const raw=make(),clean=C.softAdaptiveContour(raw,100),samples=sample(clean);
+    if(samples.some((p,i)=>Math.abs(p.x)>.01||(i&&p.y<samples[i-1].y-1e-6)))throw Error('non-crossing side fold remains');
+    const protectedContour=make();protectedContour.nodes[3].softCorner=true;const protectedPose=C.softAdaptiveContour(protectedContour,100);if(!protectedPose.nodes.some(n=>n.x===3&&n.y===35))throw Error('original corner erased');
+    for(let shift=0;shift<10;shift++){const c=make(true);c.nodes.push(...c.nodes.splice(0,shift));const posed=C.softAdaptiveContour(c,100);if(sample(posed).some(p=>p.x<-.01))throw Error('closed contour seam kept fold');}
+    return {before:raw.nodes.length,after:clean.nodes.length};
+  });console.log('PASS non-self-intersecting side zigzag removed, original corner protected and closed-contour seam independent',notches);
   // Use the real radial-menu button, including its outer reach and pressed state.
   await p.locator('#boneSoftAdaptive').click();assert.equal(await p.locator('#boneSoftAdaptive').getAttribute('aria-pressed'),'true');assert.equal(await p.evaluate(()=>T.H.stack.length),1);assert(await p.evaluate(()=>T.S.doc.layers[0].kfs[0].objs.find(o=>o.id==='body').skin.adaptive));
   await p.evaluate(()=>T.undo());assert(await p.evaluate(()=>!T.S.doc.layers[0].kfs[0].objs.find(o=>o.id==='body').skin.adaptive));await p.evaluate(()=>T.redo());assert(await p.evaluate(()=>T.S.doc.layers[0].kfs[0].objs.find(o=>o.id==='body').skin.adaptive));
@@ -35,7 +44,13 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
     const bent=C.clone(rig);bent.skel.nodes[2].x=-20;bent.skel.nodes[2].y=85;bent.skel.nodes[3].x=90;bent.skel.nodes[3].y=0;C.skeletonBuild(bent);
     const raw=C.softPoseObject(body,bent),adaptive={...body,skin:{...body.skin,adaptive:true}},pose=C.softPoseObject(adaptive,bent);
     if(!raw._softParts||pose._softParts.length!==raw._softParts.length)throw Error('body part order lost');
-    if(JSON.stringify(raw._softParts.map(p=>p.fill))!==JSON.stringify(pose._softParts.map(p=>p.fill)))throw Error('part fill changed');
+    if(JSON.stringify(raw._softParts.map(p=>p.id))!==JSON.stringify(pose._softParts.map(p=>p.id)))throw Error('part order changed');
+    for(const p of pose._softParts)for(const edge of p.outline)for(const n of edge.nodes)if(!p.fill.some(c=>c.nodes.some(q=>q.x===n.x&&q.y===n.y)))throw Error('fill/stroke boundary mismatch');
+    const image=o=>{const cv=document.createElement('canvas');cv.width=640;cv.height=360;C.drawObj(cv.getContext('2d'),o,{});return cv.getContext('2d').getImageData(0,0,640,360).data;};
+    for(const source of [body,adaptive,{...adaptive,skin:{...adaptive.skin,order:undefined}}]){
+      const normal=C.softPoseObject(source,bent),a=image(normal),z=image(T.skeletonZoneView(normal,bent));
+      for(let i=0;i<a.length;i+=4){if(a[i+3]===0&&z[i+3]>1)throw Error('zone colour escaped normal silhouette');if(a[i+3]>250&&a[i]<25&&a[i+1]<25&&a[i+2]<25&&(z[i]>45||z[i+1]>45||z[i+2]>45))throw Error('zone colour covered solid stroke');}
+    }
     const before=performance.now();for(let i=0;i<100;i++)C.softPoseObject(adaptive,bent);const cachedMs=performance.now()-before;
     const chain=C.clone(fixture.rig),hole=C.mkPath([C.ellipseContour(35,110),C.ellipseContour(10,20)],{fill:'#64f'},{x:320,y:180,sx:-1.2,sy:.8,r:15});hole.skin=C.softBind(hole,chain);hole.skin.adaptive=true;chain.skel.nodes.at(-1).x=70;chain.skel.nodes.at(-1).y=130;C.skeletonBuild(chain);const holed=C.softPoseObject(hole,chain);
     if(holed.contours.length!==2||!holed.contours.every(c=>c.closed&&c.nodes.every(n=>Number.isFinite(n.x+n.y+n.ix+n.ox))))throw Error('transformed hole topology');
@@ -43,7 +58,7 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
     if(open.closed||open.nodes[0].x!==0||open.nodes.at(-1).x!==20)throw Error('open endpoints lost');
     return {parts:pose._softParts.length,cachedMs,holes:holed.contours.length};
   });
-  console.log('PASS branched overlap order and fill geometry preserved; cached evaluation; mirrored/scaled/rotated body keeps holes; open endpoints retained',extra);
+  console.log('PASS branched overlap order preserved and fill/stroke share repaired boundaries; zones cannot escape the silhouette or cover solid ink; cached evaluation; mirrored/scaled/rotated body keeps holes; open endpoints retained',extra);
   // Canonical topology stays sparse after capturing an intermediate frame, save/open and export.
   await p.evaluate(()=>{const {C,S}=T,l=S.doc.layers[0],rig=l.kfs[0].objs.find(o=>o.id==='rig');delete rig.skel.nodes[1].pin;delete rig.skel.rigids;rig.skel.mode='pose';const end=C.clone(l.kfs[0]);end.f=10;const r=end.objs.find(o=>o.id==='rig'),n=r.skel.nodes.at(-1);n.x=70.710678;n.y=29.289322;C.skeletonBuild(r);l.kfs.push(end);l.kfs[0].tween='shape';S.doc.frames=11;C.insertKeyframe(l,5,false);if(l.kfs[1].objs.find(o=>o.id==='body').contours[0].nodes.length!==JSON.parse(base)[0].nodes.length)throw Error('adaptive topology persisted');window.saved=C.clone(S.doc);T.loadDoc(C.normalizeDoc(C.clone(saved)));});
   const html=await p.evaluate(()=>T.buildPlayer({sound:false}).html),q=await b.newPage();q.on('pageerror',e=>errors.push(e.message));await q.route('https://adaptive-player.test/',r=>r.fulfill({contentType:'text/html',body:html}));await q.goto('https://adaptive-player.test/');
