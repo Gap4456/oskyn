@@ -1410,6 +1410,62 @@ function constrainImageMask(o) {
   // original rectangle limits painted pixels, never the editable geometry.
   for(const c of o.contours)c.closed=true;
 }
+// Match bitmap mask spans between surviving anchors before adding virtual
+// subdivisions. A new eraser indentation grows from its own edge, never from
+// an unrelated image corner. Stored keyframe contours are not rewritten.
+function morphImageMask(A,B,p) {
+  if(A.length!==1||B.length!==1||!A[0].closed||!B[0].closed)return null;
+  const a=A[0],b=B[0];
+  if(a.nodes.length<3||b.nodes.length<3||morphNodePair(a,b))return null;
+  const na=a.nodes,nb=signedArea(na)*signedArea(b.nodes)<0?reverseNodes(b.nodes):b.nodes;
+  const diagonal=Math.max(1,...na.map(n=>Math.hypot(n.x,n.y)),...nb.map(n=>Math.hypot(n.x,n.y)));
+  const eps=diagonal*1e-8,used=new Set(),matches=[];
+  for(let i=0;i<na.length;i++){
+    const n=na[i];let j=n.mid?nb.findIndex((q,j)=>!used.has(j)&&q.mid===n.mid):-1;
+    if(j<0)j=nb.findIndex((q,j)=>!used.has(j)&&Math.hypot(q.x-n.x,q.y-n.y)<=eps);
+    if(j>=0){matches.push({a:i,b:j});used.add(j);}
+  }
+  if(matches.length<2)return null;
+  // Reject incompatible anchor order rather than twisting the boundary.
+  const start=matches[0].b,order=matches.map(q=>(q.b-start+nb.length)%nb.length);
+  if(order.some((v,i)=>i>0&&v<=order[i-1]))return null;
+  const span=(nodes,start,end)=>{
+    const result=[{...nodes[start]}];let i=start;
+    do{i=(i+1)%nodes.length;result.push({...nodes[i]});}while(i!==end);
+    return result;
+  };
+  function expand(short,long) {
+    if(short.length===long.length)return short;
+    if(short.length===2){
+      const a=short[0],b=short[1],dx=b.x-a.x,dy=b.y-a.y,len2=dx*dx+dy*dy;
+      const distance=q=>Math.abs(dx*(q.y-a.y)-dy*(q.x-a.x))/Math.sqrt(len2||1);
+      const controlA={x:a.x+(a.ox||0),y:a.y+(a.oy||0)},controlB={x:b.x+(b.ix||0),y:b.y+(b.iy||0)};
+      const along=q=>((q.x-a.x)*dx+(q.y-a.y)*dy)/(len2||1);
+      const straight=len2>eps*eps&&distance(controlA)<=eps&&distance(controlB)<=eps&&along(controlA)>=0&&along(controlB)<=1&&along(controlA)<=along(controlB);
+      if(straight){
+        const ts=long.map(n=>clamp(((n.x-a.x)*dx+(n.y-a.y)*dy)/len2,0,1));
+        if(ts.every((v,i)=>!i||v>=ts[i-1]-1e-9)){
+          const nodes=ts.map(t=>node(a.x+t*dx,a.y+t*dy));
+          nodes[0].ix=a.ix;nodes[0].iy=a.iy;
+          nodes[nodes.length-1].ox=b.ox;nodes[nodes.length-1].oy=b.oy;
+          return nodes;
+        }
+      }
+    }
+    return subdivideTo({closed:false,nodes:short},long.length-1);
+  }
+  const nodes=[];
+  for(let i=0;i<matches.length;i++){
+    const first=matches[i],last=matches[(i+1)%matches.length];
+    let x=span(na,first.a,last.a),y=span(nb,first.b,last.b);
+    if(x.length<y.length)x=expand(x,y);else if(y.length<x.length)y=expand(y,x);
+    const blended=x.map((n,j)=>lerpNode(n,y[j],p));
+    if(nodes.length){nodes[nodes.length-1].ox=blended[0].ox;nodes[nodes.length-1].oy=blended[0].oy;nodes.push(...blended.slice(1));}
+    else nodes.push(...blended);
+  }
+  const closing=nodes.pop();nodes[0].ix=closing.ix;nodes[0].iy=closing.iy;
+  return [{closed:true,nodes}];
+}
 function lerpObj(a, b, p, mode, rot) {
   const o = Object.assign({}, a);
   const rotation=rot?.deltas&&Number.isFinite(rot.deltas[a.id])?{delta:rot.deltas[a.id]}:rot;
@@ -1439,7 +1495,7 @@ function lerpObj(a, b, p, mode, rot) {
   if(a.sbind&&b.sbind&&a.sbind.to===b.sbind.to&&a.sbind.joint===b.sbind.joint&&!!a.sbind.node===!!b.sbind.node)o.sbind={...a.sbind,lx:lerp(a.sbind.lx,b.sbind.lx,p),ly:lerp(a.sbind.ly,b.sbind.ly,p),lr:lerpAngleShortest(a.sbind.lr,b.sbind.lr,p)};
   if(a.skin&&b.skin&&a.skin.to===b.skin.to){o.skin={...a.skin,base:mode==='shape'?(morphContours(a.skin.base,b.skin.base,p)||a.skin.base):a.skin.base,bones:a.skin.bones.map(x=>{const y=b.skin.bones.find(y=>y.id===x.id);return y?{...x,stiffness:lerp(x.stiffness,y.stiffness,p)}:x;})};}
   if(a.kind==='image'&&b.kind==='image'){
-    o.contours=mode==='shape'?(morphContours(imageContours(a),imageContours(b),p)||clone(imageContours(a))):clone(imageContours(a));
+    o.contours=mode==='shape'?((a.img===b.img&&a.w===b.w&&a.h===b.h?morphImageMask(imageContours(a),imageContours(b),p):null)||morphContours(imageContours(a),imageContours(b),p)||clone(imageContours(a))):clone(imageContours(a));
     constrainImageMask(o);return o;
   }
   if(a.arc&&b.arc){o.arc={rx:lerp(a.arc.rx,b.arc.rx,p),ry:lerp(a.arc.ry,b.arc.ry,p),start:a.arc.start+Math.atan2(Math.sin(b.arc.start-a.arc.start),Math.cos(b.arc.start-a.arc.start))*p,mouth:lerp(a.arc.mouth,b.arc.mouth,p)};o.contours=[mouthContour(o.arc)];lerpPaint(o,a,b,p);return o;}

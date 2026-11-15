@@ -32,6 +32,14 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 - Timeline end dragging to extend frames or trim empty trailing frames.
 - Project saving and export, including a standalone HTML animation player.
 
+## Animate a bitmap indentation
+
+1. Create an end keyframe for the same bitmap object.
+2. At the end keyframe, use the Eraser to cut an indentation into an outside edge.
+3. Return to the first keyframe and choose **Shape**.
+
+The mask grows or moves between the keyframes while the bitmap pixels stay unchanged. This supports a single continuous closed outline. New holes and cuts that split the mask into separate pieces require different topology handling and are not covered by this first step.
+
 ## Known limitations
 
 Bitmap masks can still show a thin seam in some edge-overlap situations. A separate animated covering/mask object can be used as a workaround. This is not claimed to be fixed. Tests cover selected workflows, not every feature or operating system.
