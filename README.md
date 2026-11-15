@@ -37,8 +37,9 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 Choose **Star / Cog (U)** beside Rectangle and Ellipse, then drag to create a five-ray star. Rectangle remains directly available.
 
 - Drag the outer and inner rings to set ray length and valley depth.
-- Hold **Shift** while dragging either ring to turn that set of points independently.
+- In **Star / Cog mode**, hold **Shift** while dragging either ring to turn that set of points independently.
 - Drag the third ring/its handle inward to flatten tooth tips.
+- Drag either square at the nearby tooth tip around the trim ring or inward. That corner adjustment repeats on every tooth, independently of the opposite corner, for saw-blade profiles.
 - Drag the nearby valley handle around the inner ring to widen every valley.
 - Change the ray/tooth count in the central number box. Its dotted grip moves the box aside; each new shape starts with its box centred.
 - Drag one side, flattened tip or widened valley edge to repeat its curvature on the corresponding edges of every tooth. Opposite sides are independent.
@@ -48,13 +49,17 @@ The number box and control rings are editor controls and are not exported. Star/
 
 An ellipse/Pac-Man now uses two stages: the first double-click ends angle editing and leaves Selection active; the next double-click enters Node edit.
 
-## Animate a bitmap indentation
+## Selection and drawing colour
 
-1. Create an end keyframe for the same bitmap object.
-2. At the end keyframe, use the Eraser to cut an indentation into an outside edge.
-3. Return to the first keyframe and choose **Shape**.
+In Selection mode, hold **Shift before grabbing an already selected object** to hide scale/rotation handles, the pivot and parametric controls, and drag freely. Releasing Shift restores them. Shift still adds an unselected object to the selection; Node and Star tool modifiers retain their own behaviour.
 
-The mask grows or moves between the keyframes while the bitmap pixels stay unchanged. This supports a single continuous closed outline. New holes and cuts that split the mask into separate pieces require different topology handling and are not covered by this first step.
+Brush and Fluid Brush share the last explicitly chosen drawing colour, including Fill, Stroke, eyedropper and either brush's colour field. Switching tools no longer resets their ink to the initial dark colour.
+
+## Bitmap erasing: frame by frame
+
+Bitmap Eraser masks do **not** interpolate through Shape tweens. They stay at their keyframe state until the next keyframe; object transforms can still animate normally. Erasing a held bitmap frame inserts a keyframe at that frame instead of changing its earlier exposure. Using Eraser marks that bitmap's masks across the current layer's keyframes for this held behaviour.
+
+Original bitmap pixels remain unchanged and erased masks remain node-editable. Manually edited masks on bitmaps not treated with Eraser keep their existing Shape tween support. The experimental animated Eraser-mask interpolation has been paused. For projects saved before this change, the first new Eraser edit enables the held-mask behaviour for that bitmap across its layer.
 
 ## Known limitations
 

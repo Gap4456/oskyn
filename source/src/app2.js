@@ -57,10 +57,16 @@ function buildTools() {
   });
   syncLayout();
 }
+function rememberDrawingColour(colour){
+  if(typeof colour!=='string'||!/^#[0-9a-f]{3,8}$/i.test(colour))return;
+  S.style.drawColor=colour;S.style.bcolor=colour;S.style.fb.color=colour;
+  for(const id of ['bcolor','fb_color']){const el=document.getElementById(id);if(el)setVal(el,colour);}
+}
 function setTool(id) {
   if(id!=='dropper'){panelPicker=false;document.body.classList.remove('screen-pick-fallback');}
   if(S.drag?.type==='skeleton'&&id!==S.tool){if(S.drag.started)commit();S.drag=null;}
   if (S.pen && id !== 'pen') finishPen(false);
+  if(id==='brush'||id==='fluid')rememberDrawingColour(S.style.drawColor||singleSel()?.o.fill||S.style.fill||S.style.stroke);
   endTextEdit(true);
   S.bone = null;
   S.tool = id; S.draw = null; S.nodeSel = id === 'node' ? S.nodeSel : null;
@@ -90,6 +96,11 @@ function setTool(id) {
   skeletonPanel();
   invalidate();
 }
+
+function selectionControlsHidden(){return S.tool==='select'&&!!S.shiftHeld&&S.drag?.type!=='star';}
+window.addEventListener('keydown',e=>{if(e.key==='Shift'&&!e.target.closest?.('input,textarea,select,[contenteditable="true"]')){S.shiftHeld=true;if(S.tool==='select')stage.style.cursor='move';invalidate();}});
+window.addEventListener('keyup',e=>{if(e.key==='Shift'){S.shiftHeld=false;if(S.tool==='select')stage.style.cursor='default';invalidate();}});
+window.addEventListener('blur',()=>{S.shiftHeld=false;invalidate();});
 
 /* ---------- hit testing & creation ---------- */
 function hitAt(x, y, tolPx, rigFirst) {
@@ -220,15 +231,18 @@ function onDown(e) {
   }
   if (e.button !== 0) return;
   S.cursorW = p.w;
+  if(S.tool==='select')S.shiftHeld=e.shiftKey;
   // Ctrl selection must win before pivots, handles, curves and object hit-tests.
   if(e.ctrlKey&&['select','node','mirror'].includes(S.tool)){
     const one=singleSel(),nodes=S.tool==='node'&&nodeEditable(one?.o)&&!one.o.arc&&!one.o.skel&&!one.o.skin&&!getLayer(one.lid)?.locked;
     S.drag=nodes?{type:'node-marquee',start:p.w,cur:p.w,lid:one.lid,id:one.id,base:e.shiftKey?kNodeKeys().slice():[],forceMarquee:true,clickTool:S.tool}:{type:'marquee',start:p.w,cur:p.w,base:e.shiftKey?S.sel.slice():[],forceMarquee:true,clickTool:S.tool};
     stage.style.cursor='crosshair';invalidate();return;
   }
-  if(mirrorDown(e,p))return;
-  if(starDown(e,p))return;
-  if(arcDown(p))return;
+  if(!selectionControlsHidden()){
+    if(mirrorDown(e,p))return;
+    if(starDown(e,p))return;
+    if(arcDown(p))return;
+  }
   switch (S.tool) {
     case 'select': selDown(e, p); break;
     case 'node': nodeDown(e, p); break;
@@ -464,7 +478,7 @@ function pivotHit(o, sx, sy) {
 function selDown(e, p) {
   const w = p.w, one = singleSel();
 	// Ja nospiests uz pivot, sākam pārvietot tikai krustiņu.
-	if (one && !getLayer(one.lid).locked &&
+	if (one && !selectionControlsHidden() && !getLayer(one.lid).locked &&
     !one.o.skel &&
     pivotHit(one.o, p.sx, p.sy)) {
 
@@ -486,10 +500,10 @@ function selDown(e, p) {
   const hit = hitAt(w.x, w.y, 5, e.altKey);
   if (hit) {
     const inSel = S.sel.some((s) => s.lid === hit.lid && s.id === hit.id);
-    if (e.shiftKey) S.sel = inSel ? S.sel.filter((s) => !(s.lid === hit.lid && s.id === hit.id)) : S.sel.concat([{ lid: hit.lid, id: hit.id }]);
+    if (e.shiftKey && !inSel) S.sel = S.sel.concat([{ lid: hit.lid, id: hit.id }]);
     else if (!inSel) S.sel = [{ lid: hit.lid, id: hit.id }];
     selectLayer(hit.lid, true);
-    S.drag = { type: 'move', start: w, started: false, snapId: hit.id };
+    S.drag = { type: 'move', start: w, started: false, snapId: hit.id, dragOnly:e.shiftKey&&inSel };
   } else {
     const base = e.shiftKey ? S.sel.slice() : [];
     S.sel = base.slice();
@@ -533,8 +547,9 @@ function moveDrag(w, e) {
   }
   let dx = w.x - d.start.x, dy = w.y - d.start.y;
   const horizontal=Math.abs(dx)>Math.abs(dy);
-  if (e.shiftKey) { if (horizontal) dy = 0; else dx = 0; }
-  if(GRID.visible&&GRID.snap&&d.snapAnchor){const a=d.snapAnchor,target=gridPoint({x:a.x+dx,y:a.y+dy});if(!e.shiftKey||horizontal)dx=target.x-a.x;if(!e.shiftKey||!horizontal)dy=target.y-a.y;}
+  const constrain=e.shiftKey&&!d.dragOnly;
+  if (constrain) { if (horizontal) dy = 0; else dx = 0; }
+  if(GRID.visible&&GRID.snap&&d.snapAnchor){const a=d.snapAnchor,target=gridPoint({x:a.x+dx,y:a.y+dy});if(!constrain||horizontal)dx=target.x-a.x;if(!constrain||!horizontal)dy=target.y-a.y;}
   for (const q of d.orig) { q.o.t.x = q.x + dx; q.o.t.y = q.y + dy; }
   invalidate(); refreshTransformFields();
 }
@@ -665,7 +680,7 @@ function boxFrom(d) {
   if(d.type==='ellipse'&&GRID.visible&&GRID.snap){const cx=(x0+x1)/2,cy=(y0+y1)/2,p=gridPoint({x:cx,y:cy});x0+=p.x-cx;x1+=p.x-cx;y0+=p.y-cy;y1+=p.y-cy;}
   return { x0, y0, x1, y1, w: Math.abs(x1 - x0), h: Math.abs(y1 - y0), cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
 }
-function arcSelection(){const one=singleSel();return one&&one.o.arc&&['select','node','ellipse'].includes(S.tool)&&!getLayer(one.lid).locked?one:null;}
+function arcSelection(){if(selectionControlsHidden())return null;const one=singleSel();return one&&one.o.arc&&['select','node','ellipse'].includes(S.tool)&&!getLayer(one.lid).locked?one:null;}
 function arcHandles(one){const a=one.o.arc,M=matOf(one.o.t);const handles=[0,1].map(i=>{const angle=a.start+(i?a.mouth:0)+(a.mouth<1e-8?(i?.13:-.13):0),p=mapply(M,a.rx*Math.cos(angle),a.ry*Math.sin(angle)),c=mapply(M,0,0),q=w2s(p[0],p[1]),center=w2s(c[0],c[1]),dx=q[0]-center[0],dy=q[1]-center[1],len=Math.hypot(dx,dy)||1;return {i,x:q[0]+dx/len*24,y:q[1]+dy/len*24,center};});if(Math.hypot(handles[0].x-handles[1].x,handles[0].y-handles[1].y)<18){const h=handles[1],dx=h.x-h.center[0],dy=h.y-h.center[1],len=Math.hypot(dx,dy)||1;h.x+=dx/len*20;h.y+=dy/len*20;}return handles;}
 function arcDown(p){const one=arcSelection();if(!one)return false;const h=arcHandles(one).find(h=>Math.hypot(h.x-p.sx,h.y-p.sy)<10);if(!h)return false;S.drag={type:'arc-mouth',lid:one.lid,id:one.id,start:{...p.w},edge:h.i,last:(()=>{const q=mapply(minv(matOf(one.o.t)),p.w.x,p.w.y);return Math.atan2(q[1]/one.o.arc.ry,q[0]/one.o.arc.rx);})(),started:false};return true;}
 function arcDrag(w){const d=S.drag;if(!d.started){pushUndo();recordDragEditable(getLayer(d.lid),S.frame);d.o=findEditable(d.lid,d.id);d.inv=minv(matOf(d.o.t));d.started=true;}
@@ -682,22 +697,28 @@ function arcFinish(p){const one=arcSelection();if(!one)return false;const local=
 
 /* Star/Cog controls: radii, independent turns, valley width and repeated bends. */
 let starCountHUD=null,starCountInput=null;
-function starSelection(){const one=singleSel();return one?.o.star&&['select','star'].includes(S.tool)&&!getLayer(one.lid).locked?one:null;}
+function starSelection(){if(selectionControlsHidden())return null;const one=singleSel();return one?.o.star&&['select','star'].includes(S.tool)&&!getLayer(one.lid).locked?one:null;}
 function starPoint(o,r,angle){const p=mapply(matOf(o.t),r*Math.cos(angle),r*Math.sin(angle));return w2s(...p);}
 function starControls(one){
   const a=one.o.star,step=Math.PI*2/a.points,M=minv(matOf(one.o.t)),cursor=S.cursorW?mapply(M,S.cursorW.x,S.cursorW.y):[a.outer,0],angle=Math.atan2(cursor[1],cursor[0]);
   const valley=Math.round((angle-a.innerAngle-step/2)/step),root=a.innerAngle+(valley+.5)*step;
-  return [
+  const controls=[
     {kind:'outer',r:a.outer,angle:a.outerAngle+step*.4,label:'Outer radius · Shift = turn'},
     {kind:'inner',r:a.inner,angle:a.innerAngle,label:'Inner radius · Shift = turn'},
     {kind:'clip',r:a.clip,angle:a.outerAngle+step*.22,label:'Trim tooth tips'},
     {kind:'gap',r:a.inner,angle:root+a.gap*step,root,label:'Widen all valleys'}
   ].map(h=>({...h,p:starPoint(one.o,h.r,h.angle)}));
+  const ns=one.o.contours[0].nodes,mouse=S.cursorW?w2s(S.cursorW.x,S.cursorW.y):starPoint(one.o,a.clip,a.outerAngle);
+  let tooth=0,distance=Infinity;
+  for(let i=0;i<a.points;i++)for(const j of [i*4,i*4+1]){const n=ns[j],q=mapply(matOf(one.o.t),n.x,n.y),p=w2s(...q),d=Math.hypot(p[0]-mouse[0],p[1]-mouse[1]);if(d<distance){distance=d;tooth=i;}}
+  const tips=['left','right'].map((side,k)=>{const ni=tooth*4+k,n=ns[ni],q=mapply(matOf(one.o.t),n.x,n.y);return {kind:'corner-'+side,side,ni,p:w2s(...q),label:(side==='left'?'Left':'Right')+' tooth corner · drag around or inside the trim ring'};});
+  if(Math.hypot(tips[0].p[0]-tips[1].p[0],tips[0].p[1]-tips[1].p[1])<16){const center=starPoint(one.o,0,0),dx=tips[0].p[0]-center[0],dy=tips[0].p[1]-center[1],L=Math.hypot(dx,dy)||1;for(let i=0;i<2;i++){const sign=i?1:-1;tips[i].p=[tips[i].p[0]-dy/L*7*sign,tips[i].p[1]+dx/L*7*sign];}}
+  return tips.concat(controls);
 }
 function starDown(e,p){
   const one=starSelection();if(!one)return false;
   const a=one.o.star,controls=starControls(one),local=mapply(minv(matOf(one.o.t)),p.w.x,p.w.y),angle=Math.atan2(local[1],local[0]);
-  let hit=controls.find(h=>Math.hypot(h.p[0]-p.sx,h.p[1]-p.sy)<=9);
+  let hit=controls.find(h=>Math.hypot(h.p[0]-p.sx,h.p[1]-p.sy)<=(h.side?6:9));
   if(!hit&&S.tool==='select'&&hitHandle(getHandles(one.o),p.sx,p.sy))return false;
   if(!hit){
     const curve=kCurveHit(one.o,p.sx,p.sy);
@@ -718,7 +739,12 @@ function starDown(e,p){
 function starDrag(w,e){
   const d=S.drag;if(!d.started){if(Math.hypot(w.x-d.start.x,w.y-d.start.y)*S.view.z<2)return;pushUndo();C.ensureEditable(getLayer(d.lid),S.frame);d.o=findEditable(d.lid,d.id);d.inv=minv(matOf(d.o.t));d.p0=mapply(d.inv,d.start.x,d.start.y);d.started=true;}
   const a=d.o.star,q=mapply(d.inv,w.x,w.y),r=Math.hypot(...q),h=d.hit,base=d.base,angle=Math.atan2(q[1],q[0]);
-  if(h.kind==='curve'){
+  if(h.side){
+    const n=C.starContour(base).nodes[h.ni],x=n.x+q[0]-d.p0[0],y=n.y+q[1]-d.p0[1],old=base.corners?.[h.side]||{};
+    a.corners ||= {left:{turn:0,depth:0},right:{turn:0,depth:0}};
+    const turn=Math.atan2(Math.sin(Math.atan2(y,x)-Math.atan2(n.y,n.x)),Math.cos(Math.atan2(y,x)-Math.atan2(n.y,n.x)));
+    a.corners[h.side]={turn:(old.turn||0)+turn,depth:clamp(1-Math.hypot(x,y)/base.clip,0,.98)};
+  }else if(h.kind==='curve'){
     const ns=C.starContour(base).nodes,n=ns[h.ni],next=ns[(h.ni+1)%ns.length],dx=next.x-n.x,dy=next.y-n.y,L2=dx*dx+dy*dy,gain=1/(3*h.t*(1-h.t)),x=(q[0]-d.p0[0])*gain,y=(q[1]-d.p0[1])*gain;
     const old=base.curves[h.role];a.curves[h.role]={bend:clamp(old.bend+(-dy*x+dx*y)/L2,-1.5,1.5),slide:clamp(old.slide+(dx*x+dy*y)/L2,-1.5,1.5)};
   }else if(h.kind==='gap')a.gap=clamp(Math.abs(Math.atan2(Math.sin(angle-h.root),Math.cos(angle-h.root)))/(Math.PI*2/a.points),0,.45);
@@ -768,7 +794,7 @@ function starDraw(ctx){
     ctx.beginPath();for(let i=0;i<=96;i++){const p=starPoint(o,r,i/96*Math.PI*2);i?ctx.lineTo(...p):ctx.moveTo(...p);}ctx.stroke();
   }
   ctx.setLineDash([]);ctx.fillStyle=CSSV.accentFg;
-  for(const h of starControls(one)){ctx.beginPath();ctx.arc(...h.p,h.kind==='gap'?5:6,0,Math.PI*2);ctx.fill();ctx.stroke();
+  for(const h of starControls(one)){ctx.beginPath();if(h.side)ctx.rect(h.p[0]-4,h.p[1]-4,8,8);else ctx.arc(...h.p,h.kind==='gap'?5:6,0,Math.PI*2);ctx.fill();ctx.stroke();
     const mouse=S.cursorW&&w2s(S.cursorW.x,S.cursorW.y);if(mouse&&Math.hypot(mouse[0]-h.p[0],mouse[1]-h.p[1])<14){ctx.fillStyle=CSSV.accent;ctx.font='12px sans-serif';ctx.fillText(h.label,h.p[0]+11,h.p[1]-9);ctx.fillStyle=CSSV.accentFg;}}
   ctx.restore();
 }
@@ -1916,6 +1942,7 @@ function bucketDown(e, p) {
 }
 let screenDropperBusy=false,panelPicker=false,panelPickerStroke=false,blockPickClick=false;
 function applyPickedColor(hex,stroke) {
+  rememberDrawingColour(hex);
   const selected=selEval().filter(s=>!getLayer(s.lid)?.locked&&!s.o.skel&&['path','text','group'].includes(s.o.kind));
   if(selected.length){
     pushUndo();for(const lid of new Set(selected.map(s=>s.lid)))C.ensureEditable(getLayer(lid),S.frame);
@@ -2086,7 +2113,7 @@ function eCutFillContours(o,P,Q,r) {
 function eEraseImage(o,P,Q,r) {
   const mask={...o,kind:'path',contours:C.imageContours(o),fill:'#ffffff',stroke:null,nz:false};
   const contours=eCutFillContours(mask,P,Q,r);
-  return contours===null?null:[{...C.clone(o),contours}];
+  return contours===null?null:[{...C.clone(o),contours,eraserMask:true}];
 }
 function finishErase(dr) {
   const layer=curLayer(),key=layer&&C.kfFor(layer,S.frame);
@@ -2157,7 +2184,9 @@ function eraseSweep(dr, a, b) {
   for (const o of targets) { const rep = o.kind==='image'?eEraseImage(o,P,Q,r):eErasePath(o,P,Q,r); if (rep) plan.push([o.id, rep]); }
   if (!plan.length) return false;
   if (!dr.undone) { pushUndo(); dr.undone = true; }
-  kf = C.ensureEditable(l, S.frame);
+  kf = plan.some(([,rep])=>rep.some(o=>o.kind==='image'))&&!C.kfAt(l,S.frame)?C.insertKeyframe(l,S.frame,false):C.ensureEditable(l,S.frame);
+  const erasedImages=new Set(plan.flatMap(([,rep])=>rep.filter(o=>o.kind==='image').map(o=>o.id)));
+  for(const key of l.kfs)for(const o of key.objs)if(erasedImages.has(o.id))o.eraserMask=true;
   dr.touched ||= new Set();
   for (const [id, rep] of plan) {
     for(const o of rep)dr.touched.add(o.id);

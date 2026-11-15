@@ -918,6 +918,8 @@ function setOnion(v, fromBtn) {
 }
 function styleEdit(patch, fn) {
   Object.assign(S.style, patch);
+  if(patch.fill&&patch.fillOn!==false)rememberDrawingColour(patch.fill);
+  else if(patch.stroke&&patch.strokeOn!==false)rememberDrawingColour(patch.stroke);
   if (S.sel.length) {
     beginEditOnce();
     for (const lid of selLayerIds()) C.ensureEditable(getLayer(lid), S.frame);
@@ -1064,7 +1066,7 @@ function bindProps() {
   on('#bshape', 'change', (e) => { S.style.bshape = e.target.value; angOff(); invalidate(); });
   const setBAng = (v) => { S.style.bangle = clamp(Math.round(v) || 0, 0, 180); setVal($('#bangle'), S.style.bangle); setVal($('#bangleR'), S.style.bangle); invalidate(); };
   on('#bangleR', 'input', (e) => setBAng(+e.target.value)); on('#bangle', 'input', (e) => { if (e.target.value !== '') setBAng(+e.target.value); });
-  on('#bcolor', 'input', (e) => { S.style.bcolor = e.target.value; invalidate(); });
+  on('#bcolor', 'input', (e) => { rememberDrawingColour(e.target.value); invalidate(); });
   window.__angOff = angOff;
   on('#bpress', 'change', (e) => { S.style.bpress = e.target.checked; });
   on('#bmerge', 'change', (e) => { S.style.bmerge = e.target.checked; });
@@ -2750,7 +2752,7 @@ function fbSame(a, b) { return FB_KEYS.every((k) => a[k] === b[k]); }
 function fbSet(key, v) {
   const r = FB_ROWS.find((x) => x[0] === key), fb = S.style.fb;
   if (r) { v = Number(v); if (!isFinite(v)) return; fb[key] = clamp(Math.round(v), r[2], r[3]); }
-  else if (key === 'zoom') fb.zoom = !!v; else if (key === 'color') fb.color = String(v);
+  else if (key === 'zoom') fb.zoom = !!v; else if (key === 'color') rememberDrawingColour(String(v));
   fbSync(); invalidate();
 }
 function fbSync() {
@@ -2795,10 +2797,10 @@ function bindFluid() {
     fbActive = fbPresets.findIndex((p) => p.name === nm); $('#fbName').value = ''; fbStore(); fbRender(); fbSync(); toast('Saved preset “' + nm + '”.');
   });
   $('#fbUpdate').addEventListener('click', () => { const a = fbPresets[fbActive]; if (!a) return; Object.assign(a, fbCur()); fbStore(); fbSync(); toast('Updated “' + a.name + '”.'); });
-  $('#fbReset').addEventListener('click', () => { Object.assign(S.style.fb, FB_DEFAULT); fbActive = -1; fbSync(); invalidate(); });
+  $('#fbReset').addEventListener('click', () => { Object.assign(S.style.fb, FB_DEFAULT, {color:S.style.drawColor||S.style.fb.color}); fbActive = -1; fbSync(); invalidate(); });
   $('#fbList').addEventListener('click', (e) => {
     const a = e.target.closest('[data-fa]'), d = e.target.closest('[data-fd]');
-    if (a) { const pr = fbPresets[+a.dataset.fa]; if (!pr) return; for (const k of FB_KEYS) if (pr[k] !== undefined) S.style.fb[k] = pr[k]; fbActive = +a.dataset.fa; fbSync(); invalidate(); }
+    if (a) { const pr = fbPresets[+a.dataset.fa]; if (!pr) return; for (const k of FB_KEYS) if (pr[k] !== undefined) S.style.fb[k] = pr[k]; rememberDrawingColour(S.style.fb.color);fbActive = +a.dataset.fa; fbSync(); invalidate(); }
     else if (d) { const i = +d.dataset.fd; fbPresets.splice(i, 1); if (fbActive === i) fbActive = -1; else if (fbActive > i) fbActive--; fbStore(); fbRender(); fbSync(); }
   });
   window.__fbSet = fbSet;

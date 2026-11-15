@@ -496,7 +496,7 @@ function dashArray(o) {
 }
 // Parametric Star/Cog: four corresponding edge families per tooth.
 function starDefaults(radius=60) {
-  return {points:5,outer:radius,inner:radius*.47,clip:radius,outerAngle:-PI/2,innerAngle:-PI/2,gap:0,
+  return {points:5,outer:radius,inner:radius*.47,clip:radius,outerAngle:-PI/2,innerAngle:-PI/2,gap:0,corners:{left:{turn:0,depth:0},right:{turn:0,depth:0}},
     curves:{left:{bend:0,slide:0},right:{bend:0,slide:0},tip:{bend:0,slide:0},root:{bend:0,slide:0}}};
 }
 function starContour(shape) {
@@ -507,7 +507,8 @@ function starContour(shape) {
   const nodes=[];
   for(let i=0;i<n;i++){
     const tip=polar(outer,(shape.outerAngle??-PI/2)+i*step),before=root(i-1)[1],after=root(i);
-    for(const p of [trim(before,tip),trim(after[0],tip),after[0],after[1]])nodes.push(node(p.x,p.y));
+    const corner=(p,side)=>{const c=shape.corners?.[side],r=clip*(1-clamp(c?.depth||0,0,.98)),angle=Math.atan2(p.y,p.x)+(c?.turn||0);return polar(r,angle);};
+    for(const p of [corner(trim(before,tip),'left'),corner(trim(after[0],tip),'right'),after[0],after[1]])nodes.push(node(p.x,p.y));
   }
   const roles=['tip','right','root','left'];
   for(let i=0;i<nodes.length;i++){
@@ -1519,11 +1520,13 @@ function lerpObj(a, b, p, mode, rot) {
   if(a.sbind&&b.sbind&&a.sbind.to===b.sbind.to&&a.sbind.joint===b.sbind.joint&&!!a.sbind.node===!!b.sbind.node)o.sbind={...a.sbind,lx:lerp(a.sbind.lx,b.sbind.lx,p),ly:lerp(a.sbind.ly,b.sbind.ly,p),lr:lerpAngleShortest(a.sbind.lr,b.sbind.lr,p)};
   if(a.skin&&b.skin&&a.skin.to===b.skin.to){o.skin={...a.skin,base:mode==='shape'?(morphContours(a.skin.base,b.skin.base,p)||a.skin.base):a.skin.base,bones:a.skin.bones.map(x=>{const y=b.skin.bones.find(y=>y.id===x.id);return y?{...x,stiffness:lerp(x.stiffness,y.stiffness,p)}:x;})};}
   if(a.kind==='image'&&b.kind==='image'){
-    o.contours=mode==='shape'?((a.img===b.img&&a.w===b.w&&a.h===b.h?morphImageMask(imageContours(a),imageContours(b),p):null)||morphContours(imageContours(a),imageContours(b),p)||clone(imageContours(a))):clone(imageContours(a));
+    // Eraser masks are frame-by-frame cels; keep normal transform animation.
+    o.contours=mode==='shape'&&!a.eraserMask&&!b.eraserMask?((a.img===b.img&&a.w===b.w&&a.h===b.h?morphImageMask(imageContours(a),imageContours(b),p):null)||morphContours(imageContours(a),imageContours(b),p)||clone(imageContours(a))):clone(imageContours(a));
     constrainImageMask(o);return o;
   }
   if(a.star&&b.star&&a.star.points===b.star.points){
-    o.star={...a.star,curves:{}};
+    o.star={...a.star,curves:{},corners:{}};
+    for(const side of ['left','right']){const x=a.star.corners?.[side]||{},y=b.star.corners?.[side]||{};o.star.corners[side]={turn:lerp(x.turn||0,y.turn||0,p),depth:lerp(x.depth||0,y.depth||0,p)};}
     for(const key of ['outer','inner','clip','gap'])o.star[key]=lerp(a.star[key],b.star[key],p);
     for(const key of ['outerAngle','innerAngle'])o.star[key]=a.star[key]+Math.atan2(Math.sin(b.star[key]-a.star[key]),Math.cos(b.star[key]-a.star[key]))*p;
     for(const key of ['left','right','tip','root']){const x=a.star.curves?.[key]||{},y=b.star.curves?.[key]||{};o.star.curves[key]={bend:lerp(x.bend||0,y.bend||0,p),slide:lerp(x.slide||0,y.slide||0,p)};}
