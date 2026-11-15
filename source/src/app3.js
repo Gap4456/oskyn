@@ -2043,13 +2043,23 @@ function askCloseProject(id){
     '<p>Save this project before closing? Unsaved changes will be lost if you choose “Don’t save”.</p>',
     [{label:'Cancel'},{label:'Don’t save',fn:()=>closeOpenProject(id,false)},{label:'Save',primary:true,fn:()=>closeOpenProject(id,true)}]);
 }
+function toggleProjectMenu(open){
+  const button=$('#projectToggle'),box=$('#projectButtons');
+  const expanded=typeof open==='boolean'?open:button.getAttribute('aria-expanded')!=='true';
+  box.hidden=!expanded;button.setAttribute('aria-expanded',String(expanded));
+  button.title=expanded?'Close projects menu':'Open projects menu';button.setAttribute('aria-label',button.title);
+}
+$('#projectToggle').addEventListener('click',()=>toggleProjectMenu());
+$('#projectDrawer').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#projectButtons').hidden){e.stopPropagation();toggleProjectMenu(false);$('#projectToggle').focus();}});
 function renderProjectButtons(){
   if(!S.doc)return;
   const ps=projectSession(),active=ps.items.find(p=>p.id===ps.active);
   active.name=S.doc.name||'Untitled';active.dirty=unsaved;
   const signature=JSON.stringify([ps.active,ps.items.map(p=>[p.id,p.name,p.dirty])]);
   if(signature===ps.signature)return;ps.signature=signature;
-  const box=$('#projectButtons');if(!box)return;box.replaceChildren();
+  const box=$('#projectButtons');if(!box)return;
+  $('#projectDrawer').style.setProperty('--project-handle-size',(40+ps.items.length*28)+'px');
+  box.replaceChildren();
   for(const p of ps.items){
     const row=document.createElement('div');row.className='project-row';
     const b=document.createElement('button');b.type='button';b.textContent=p.name+(p.dirty?' *':'');b.title=p.name+(p.dirty?' — unsaved changes':'');b.dataset.project=p.id;b.setAttribute('aria-pressed',String(p.id===ps.active));b.addEventListener('click',()=>switchProject(p.id));row.appendChild(b);

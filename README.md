@@ -10,7 +10,7 @@ Save projects explicitly with **Save project** (`.oskyn.json`). Legacy Onionskyn
 
 ## Multiple open projects
 
-**File → Open project** adds another project without replacing the current one. Choose a small named button at the bottom-right of the stage to switch projects; **+** creates another blank project. Each project keeps its playhead, view, symbol-editing context and Undo/Redo history. The buttons are editor controls and do not appear in exports.
+**File → Open project** adds another project without replacing the current one. Click the narrow handle at the right edge of the stage to reveal the project buttons, then choose a name to switch projects. The menu starts collapsed; the handle grows taller as more projects are opened. Click the handle again (or press Escape while focused in the menu) to hide it; **+** creates another blank project. Each project keeps its playhead, view, symbol-editing context and Undo/Redo history. The buttons are editor controls and do not appear in exports.
 
 Select objects, press **Ctrl+C**, switch projects and press **Ctrl+V**. Referenced symbols (including their timelines), bitmap pixels and symbol sounds travel with the objects. Existing destination assets are preserved when names collide. Copy/Paste also works between separate oskyn windows through the system clipboard. This copies the selected objects at the current frame; it does not copy their outer timeline animation. Use the existing Copy Frames / Paste Frames commands for timeline work; layer copying has not changed.
 
