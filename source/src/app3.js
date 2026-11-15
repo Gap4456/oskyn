@@ -3450,6 +3450,7 @@ function applyTheme(mode) {
   readTheme();if(S.doc)syncOnionUI();invalidate();
 }
 function init() {
+  document.title='oskyn '+APP_VERSION;
   initDesktopClose();
   readTheme();
   let theme = 'sepia';

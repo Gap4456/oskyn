@@ -28,7 +28,7 @@ npx playwright install chromium
 npm test
 ```
 
-The build reproduces `index.html` and `oskyn.html` from source without changing the application version (`0.14.2-beta`). Edit the source and rebuild rather than editing generated HTML alone.
+The build reproduces `index.html` and `oskyn.html` from source without changing the application version (`1.0.1`). Edit the source and rebuild rather than editing generated HTML alone.
 
 ## Included features
 

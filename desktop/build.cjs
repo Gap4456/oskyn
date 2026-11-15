@@ -6,7 +6,7 @@ const root=path.join(__dirname,'..'),out=path.join(__dirname,'dist'),app=path.jo
   for(const name of ['main.cjs','preload.cjs'])fs.copyFileSync(path.join(__dirname,name),path.join(app,name));
   for(const name of ['oskyn.html','LICENSE','THIRD-PARTY.md'])fs.copyFileSync(path.join(root,name),path.join(app,name));
   fs.cpSync(path.join(root,'licenses'),path.join(app,'licenses'),{recursive:true});
-  fs.writeFileSync(path.join(app,'package.json'),JSON.stringify({name:'oskyn',version:'0.14.2-beta',main:'main.cjs'},null,2)+'\n');
+  fs.writeFileSync(path.join(app,'package.json'),JSON.stringify({name:'oskyn',version:require('./package.json').version,main:'main.cjs'},null,2)+'\n');
   await require('@electron/asar').createPackage(app,path.join(out,'app.asar'));
   console.log('Built '+path.join(out,'app.asar'));
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,6 +1,6 @@
 {
   "name": "oskyn",
-  "version": "0.14.2-beta",
+  "version": "1.0.1",
   "private": true,
   "description": "oskyn browser animation editor source and regression tests",
   "license": "SEE LICENSE IN ../LICENSE",

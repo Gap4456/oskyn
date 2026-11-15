@@ -1,6 +1,6 @@
 {
   "name": "oskyn-desktop",
-  "version": "0.14.2-beta",
+  "version": "1.0.1",
   "private": true,
   "description": "Electron wrapper for oskyn",
   "main": "main.cjs",
