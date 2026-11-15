@@ -51,7 +51,7 @@ An ellipse/Pac-Man now uses two stages: the first double-click ends angle editin
 
 ## Selection and drawing colour
 
-In Selection mode, hold **Shift before grabbing an already selected object** to hide scale/rotation handles, the pivot and parametric controls, and drag freely. Releasing Shift restores them. Shift still adds an unselected object to the selection; Node and Star tool modifiers retain their own behaviour.
+In Selection mode, hold **Shift before grabbing an already selected object** to hide scale/rotation handles, the pivot and parametric controls, and drag freely. Releasing Shift restores them. In Node mode, hold **Ctrl+Shift** while dragging an anchor or curve handle to constrain movement horizontally or vertically. Anchors also snap to nearby coordinates of other unselected anchors in the same object. Ctrl alone retains marquee selection. Shift still adds an unselected object to the selection; Node and Star tool modifiers retain their own behaviour.
 
 Brush and Fluid Brush share the last explicitly chosen drawing colour, including Fill, Stroke, eyedropper and either brush's colour field. Switching tools no longer resets their ink to the initial dark colour.
 

@@ -235,6 +235,9 @@ function onDown(e) {
   // Ctrl selection must win before pivots, handles, curves and object hit-tests.
   if(e.ctrlKey&&['select','node','mirror'].includes(S.tool)){
     const one=singleSel(),nodes=S.tool==='node'&&nodeEditable(one?.o)&&!one.o.arc&&!one.o.skel&&!one.o.skin&&!getLayer(one.lid)?.locked;
+    if(nodes&&e.shiftKey&&hitNodePart(one.o,p.sx,p.sy)){
+      nodeDown({shiftKey:false,altKey:e.altKey,ctrlKey:true},p);return;
+    }
     S.drag=nodes?{type:'node-marquee',start:p.w,cur:p.w,lid:one.lid,id:one.id,base:e.shiftKey?kNodeKeys().slice():[],forceMarquee:true,clickTool:S.tool}:{type:'marquee',start:p.w,cur:p.w,base:e.shiftKey?S.sel.slice():[],forceMarquee:true,clickTool:S.tool};
     stage.style.cursor='crosshair';invalidate();return;
   }
@@ -1474,7 +1477,30 @@ function nodeDrag(w, e) {
     d.p0 = mapply(d.inv, d.start.x, d.start.y);
     d.started = true;
   }
-  if (d.part === 'anchor' && GRID.visible && GRID.snap) {
+  const constrained=e.ctrlKey&&e.shiftKey;
+  if(constrained){
+    const m=matOf(d.o.t);
+    if(d.part==='anchor'){
+      let dx=w.x-d.start.x,dy=w.y-d.start.y;
+      const axis=Math.abs(dx)>=Math.abs(dy)?0:1;
+      const origin=mapply(m,d.n0.x,d.n0.y);
+      let target=origin[axis]+(axis===0?dx:dy);
+      if(GRID.visible&&GRID.snap){const g=gridPoint({x:origin[0]+dx,y:origin[1]+dy});target=axis===0?g.x:g.y;}
+      // Align the grabbed anchor with another anchor without moving the locked axis.
+      const excluded=new Set(d.groupKeys||[d.ci+':'+d.ni]);
+      const unsnapped=target;let distance=8/S.view.z;
+      for(let ci=0;ci<d.o.contours.length;ci++)for(let ni=0;ni<d.o.contours[ci].nodes.length;ni++){
+        if(excluded.has(ci+':'+ni))continue;
+        const n=d.o.contours[ci].nodes[ni],v=mapply(m,n.x,n.y)[axis],gap=Math.abs(v-unsnapped);
+        if(gap<distance){distance=gap;target=v;}
+      }
+      w=axis===0?{x:d.start.x+target-origin[0],y:d.start.y}:{x:d.start.x,y:d.start.y+target-origin[1]};
+    }else{
+      const anchor=mapply(m,d.n.x,d.n.y);
+      w=Math.abs(w.x-anchor[0])>=Math.abs(w.y-anchor[1])?{x:w.x,y:anchor[1]}:{x:anchor[0],y:w.y};
+    }
+  }
+  if (!constrained && d.part === 'anchor' && GRID.visible && GRID.snap) {
     const m = matOf(d.o.t), origin = mapply(m, d.n0.x, d.n0.y);
     const target = gridPoint({ x: origin[0] + w.x - d.start.x, y: origin[1] + w.y - d.start.y });
     w = { x: d.start.x + target.x - origin[0], y: d.start.y + target.y - origin[1] };
