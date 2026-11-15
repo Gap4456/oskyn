@@ -18,7 +18,7 @@ let unsaved = false, lastSaveAt = Date.now(), nagAt = 0, autosaveWarned = false;
 let desktopCloseBridge = null, desktopSaveInProgress = false;
 function notifyDesktopDirty() {
   if (!desktopCloseBridge) return;
-  try { desktopCloseBridge.setDirty(unsaved); }
+  try { desktopCloseBridge.setDirty(anyProjectsDirty()); }
   catch (_) { desktopCloseBridge = null; } // Keep the browser close guard if IPC fails.
 }
 function initDesktopClose() {
@@ -28,26 +28,28 @@ function initDesktopClose() {
     bridge.onSaveBeforeClose(async () => {
       if (desktopSaveInProgress) return;
       desktopSaveInProgress = true;
-      let ok = false;
+      let ok = false, count = 1;
       try {
         if (REC.armed) recordSetArmed(false);
         // Electron waits for the download's completed event before closing.
         // Keep dirty true here so cancelling/failing the file dialog stays safe.
-        ok = await saveProject({ keepDirty: true });
+        if(bridge.saveAllBeforeClose){const result=await saveAllProjectsBeforeClose();ok=result.ok;count=result.count;}
+        else if(inactiveProjectsDirty())toast('Save the other open projects before closing the app.');
+        else ok = await saveProject({ keepDirty: true });
       } catch (error) {
         logPush(FCLOG.errs,'Save before close: '+String(error && error.message || error));
       } finally {
         desktopSaveInProgress = false;
-        bridge.saveRequestResult(!!ok);
+        bridge.saveRequestResult(!!ok,count);
       }
     });
-    bridge.setDirty(unsaved);
+    bridge.setDirty(anyProjectsDirty());
     desktopCloseBridge = bridge;
   } catch (_) { desktopCloseBridge = null; }
 }
-function markDirty() { if (!unsaved) { unsaved = true; notifyDesktopDirty(); lastSaveAt = Date.now(); const b = document.getElementById('mFile'); if (b) b.classList.add('dirty'); } }
-function clearDirty() { unsaved = false; notifyDesktopDirty(); lastSaveAt = Date.now(); const b = document.getElementById('mFile'); if (b) b.classList.remove('dirty'); }
-window.addEventListener('beforeunload', (e) => { if (unsaved && !desktopCloseBridge) { e.preventDefault(); e.returnValue = ''; } });
+function markDirty() { S.changeSerial=(S.changeSerial||0)+1; if (!unsaved) { unsaved = true; notifyDesktopDirty(); lastSaveAt = Date.now(); const b = document.getElementById('mFile'); if (b) b.classList.add('dirty'); } }
+function clearDirty() { unsaved = false; invalidate(); notifyDesktopDirty(); lastSaveAt = Date.now(); const b = document.getElementById('mFile'); if (b) b.classList.remove('dirty'); }
+window.addEventListener('beforeunload', (e) => { if (anyProjectsDirty() && !desktopCloseBridge) { e.preventDefault(); e.returnValue = ''; } });
 setInterval(() => {
   const now = Date.now();
   if (unsaved && now - lastSaveAt > 600000 && now - nagAt > 600000) { nagAt = now; toast('You have unsaved changes. File → Save project (Ctrl+S) keeps a copy you can reopen anywhere.'); }
@@ -575,7 +577,7 @@ let dirty = false;
 function invalidate() {
   if (dirty) return;
   dirty = true;
-  requestAnimationFrame(() => { dirty=false;C.beginRenderEval();try{renderStage();drawTimeline();}finally{C.endRenderEval();} });
+  requestAnimationFrame(() => { dirty=false;C.beginRenderEval();try{renderStage();drawTimeline();renderProjectButtons();}finally{C.endRenderEval();} });
 }
 let saveTimer = 0;
 /* keep attached symbols in step with their bones; one the user just moved is re-attached from its new spot */

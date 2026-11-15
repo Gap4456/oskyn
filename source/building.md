@@ -34,4 +34,4 @@ To use an installed Chromium instead, set `CHROMIUM_PATH` to its executable path
 
 `test/legacy/` preserves tests and fixtures from the supplied upstream archive. They are historical references, not part of `npm test`; several rely on unavailable old fixtures or paths. No claim is made that the complete upstream suite passes.
 
-Keep compatibility identifiers such as `FCCore`, `flashcraft.*` and `onionskynDesktop` unless performing a deliberate migration. The build does not touch any Electron wrapper.
+Keep compatibility identifiers such as `FCCore`, `flashcraft.*` and `onionskynDesktop` unless performing a deliberate migration. The browser build does not modify the Electron wrapper. Build `desktop/dist/app.asar` separately using [desktop/README.md](../desktop/README.md).

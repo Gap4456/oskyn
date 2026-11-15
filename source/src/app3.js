@@ -1310,11 +1310,105 @@ function deleteSel() {
   for (const { kf, ids } of editableSel()) kf.objs = kf.objs.filter((o) => !ids.includes(o.id));
   S.sel = []; S.nodeSel = null; commit();
 }
+/* Portable object clipboard: selected poses plus their symbol/media closure. */
+let objectTransfer=null;
+const clipboardDocs=new WeakMap();
+function clipboardDocumentId(){
+  if(S.projects)return S.projects.active;
+  if(!clipboardDocs.has(S.doc))clipboardDocs.set(S.doc,uid());
+  return clipboardDocs.get(S.doc);
+}
+function walkTransfer(value,fn){
+  if(!value||typeof value!=='object')return;
+  fn(value);
+  for(const child of Object.values(value))if(child&&typeof child==='object')walkTransfer(child,fn);
+}
+function makeObjectTransfer(objects){
+  const bundle={format:'oskyn-objects',version:1,source:clipboardDocumentId(),space:clipboardSpace,objects:clone(objects),lib:Object.create(null),images:Object.create(null),sounds:Object.create(null)};
+  const visit=value=>walkTransfer(value,o=>{
+    if(o.kind==='clip'&&typeof o.sym==='string'&&!Object.hasOwn(bundle.lib,o.sym)&&Object.hasOwn(S.doc.lib,o.sym)){
+      const def=clone(S.doc.lib[o.sym]);bundle.lib[o.sym]=def;visit(def);
+    }
+    if(o.kind==='image'&&typeof o.img==='string'&&Object.hasOwn(S.doc.images,o.img))bundle.images[o.img]=clone(S.doc.images[o.img]);
+    if(o.sound?.name&&Object.hasOwn(S.doc.sounds,o.sound.name))bundle.sounds[o.sound.name]=clone(S.doc.sounds[o.sound.name]);
+  });
+  visit(bundle.objects);
+  const ids=new Set();walkTransfer(bundle.objects,o=>{if(o.id)ids.add(o.id);});
+  // An unselected rig stays behind; its selected follower keeps the visible pose.
+  walkTransfer(bundle.objects,o=>{if(o.sbind&&!ids.has(o.sbind.to))delete o.sbind;if(o.bind&&!ids.has(o.bind.to))delete o.bind;});
+  return bundle;
+}
+function parseObjectTransfer(text){
+  if(!text||text[0]!=='{')return null;
+  try{
+    const b=JSON.parse(text);
+    if(b.format!=='oskyn-objects'||b.version!==1||!Array.isArray(b.objects)||!b.objects.length||!b.lib||typeof b.lib!=='object'||Array.isArray(b.lib))return null;
+    if(!b.objects.every(o=>o&&typeof o.kind==='string'&&o.t&&Number.isFinite(o.t.x)&&Number.isFinite(o.t.y)))return null;
+    if(!Object.values(b.lib).every(d=>d&&Array.isArray(d.layers)))return null;
+    b.images=b.images&&typeof b.images==='object'&&!Array.isArray(b.images)?b.images:{};
+    b.sounds=b.sounds&&typeof b.sounds==='object'&&!Array.isArray(b.sounds)?b.sounds:{};
+    return b;
+  }catch(_){return null;}
+}
+function freshTransferIds(value){
+  const ids=new Map();walkTransfer(value,o=>{if(typeof o.id==='string'&&!ids.has(o.id))ids.set(o.id,uid());});
+  const refs=new Set(['id','parent','to','joint','bone','ref','layer']);
+  walkTransfer(value,o=>{
+    for(const [key,v] of Object.entries(o)){
+      if(refs.has(key)&&typeof v==='string'&&ids.has(v))o[key]=ids.get(v);
+      else if(['order','ids','bones'].includes(key)&&Array.isArray(v))o[key]=v.map(x=>typeof x==='string'&&ids.has(x)?ids.get(x):x);
+      else if(key==='deltas'&&v&&typeof v==='object'&&!Array.isArray(v))o[key]=Object.fromEntries(Object.entries(v).map(([id,x])=>[ids.get(id)||id,x]));
+    }
+  });
+  return ids;
+}
+function transferUniqueName(name,dict){
+  const base=String(name||'Copy');let n=base,i=2;
+  while(Object.hasOwn(dict,n)||['__proto__','constructor','prototype'].includes(n))n=base+' '+i++;
+  return n;
+}
+function prepareObjectImport(bundle){
+  const b=clone(bundle),names={lib:new Map(),images:new Map(),sounds:new Map()};
+  for(const kind of ['lib','images','sounds']){
+    const occupied={...S.doc[kind]};
+    for(const [name,record] of Object.entries(b[kind])){
+      // Media is immutable: identical records can be shared; symbols get independent definitions.
+      const same=kind!=='lib'&&Object.hasOwn(occupied,name)&&JSON.stringify(occupied[name])===JSON.stringify(record);
+      const dest=same?name:transferUniqueName(name,occupied);names[kind].set(name,dest);occupied[dest]=record;
+    }
+  }
+  walkTransfer([b.objects,b.lib],o=>{
+    if(o.kind==='clip'&&names.lib.has(o.sym))o.sym=names.lib.get(o.sym);
+    if(o.kind==='image'&&names.images.has(o.img))o.img=names.images.get(o.img);
+    if(o.sound&&names.sounds.has(o.sound.name))o.sound.name=names.sounds.get(o.sound.name);
+  });
+  freshTransferIds([b.objects,b.lib]);
+  return {bundle:b,names};
+}
+function pastePortableObjects(bundle,inPlace){
+  const l=curLayer();if(!l||l.locked||!l.visible){toast('Pick an unlocked, visible layer to paste into.');return;}
+  const destination=inPlace?frameSpaceMatrix():null;
+  if(inPlace&&(!Array.isArray(bundle.space)||bundle.space.length!==6||!bundle.space.every(Number.isFinite)||!destination)){toast('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
+  const prepared=prepareObjectImport(bundle),b=prepared.bundle;
+  pushUndo();
+  for(const kind of ['lib','images','sounds'])for(const [name,record] of Object.entries(b[kind])){
+    const dest=prepared.names[kind].get(name);S.doc[kind][dest]=record;
+  }
+  C.setLib(S.doc.lib);C.setImages(S.doc.images);persistImages();persistSounds();
+  const key=C.ensureEditable(l,S.frame),placement=inPlace?mmul(minv(destination),bundle.space):null;
+  for(const o of b.objects){if(placement)C.setObjMatrix(o,mmul(placement,matOf(o.t)));key.objs.push(o);}
+  S.sel=b.objects.map(o=>({lid:l.id,id:o.id}));S.nodeSel=null;
+  commit();refreshAll();renderLibrary(true);C.preloadImages().then(()=>invalidate()).catch(()=>{});
+  toast('Pasted '+b.objects.length+' object'+(b.objects.length===1?'':'s'));
+}
+
 let clipboardSpace = null;
-function copySel() { clipboardSpace = frameSpaceMatrix(); pasteN = 0; S.clipboard = selEval().map((s) => {const o=clone(C.softView(s.o));delete o.skin;return o;}); if (S.clipboard.length) toast('Copied ' + S.clipboard.length + (S.clipboard.length > 1 ? ' objects' : ' object')); }
+function copySel() { clipboardSpace = frameSpaceMatrix(); pasteN = 0; S.clipboard = selEval().map((s) => {const o=clone(C.softView(s.o));delete o.skin;return o;}); objectTransfer=S.clipboard.length?makeObjectTransfer(S.clipboard):objectTransfer; if (S.clipboard.length) toast('Copied ' + S.clipboard.length + (S.clipboard.length > 1 ? ' objects' : ' object')); }
 let pasteN = 0;
 function pasteClip(inPlace = false) {
+  if(objectTransfer&&objectTransfer.source!==clipboardDocumentId()){pastePortableObjects(objectTransfer,inPlace);return;}
   if (!S.clipboard.length) return;
+  if(pasteWouldCreateSymbolCycle({startObjs:S.clipboard})){toast('Paste blocked: a symbol cannot contain itself.');return;}
   const l = curLayer();
   if (!l || l.locked || !l.visible) { toast('Pick an unlocked, visible layer to paste into.'); return; }
   const destination = inPlace ? frameSpaceMatrix() : null;
@@ -1849,19 +1943,123 @@ async function saveFile(name, data) {
     return false;
   }
   if (hasClaude) { toast('Saving files is not available in this view.'); return false; }
+  let downloadTicket=null;
+  if(desktopCloseBridge?.prepareDownload&&desktopCloseBridge?.downloadResult){
+    try{downloadTicket=await desktopCloseBridge.prepareDownload(name);}catch(_){toast('Could not start the desktop save.');return false;}
+  }
   const blob = data instanceof Blob ? data : new Blob([data]);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  if(downloadTicket!==null){try{return !!await desktopCloseBridge.downloadResult(downloadTicket);}catch(_){return false;}}
   return true;
 }
 function saveProject(options) {
   exitAllSyms();
+  const savedProject=S.projects?.active,savedDoc=S.doc,savedSerial=S.changeSerial||0;
   const name = safeName(S.doc.name);
   if (window.kroganSyncProjectPalette) window.kroganSyncProjectPalette();
   if (missingMedia().images + missingMedia().sounds) toast('Warning: some images or sounds are missing from this project (they couldn’t be restored after reload), so they will not be in the saved file.');
-  return saveFile(name + '.oskyn.json', JSON.stringify({ app: 'oskyn', version: PROJECT_VERSION, appVersion: APP_VERSION, saved: new Date().toISOString(), doc: S.doc })).then((ok) => { if (ok && !(options && options.keepDirty)) clearDirty(); return !!ok; });
+  return saveFile(name + '.oskyn.json', JSON.stringify({ app: 'oskyn', version: PROJECT_VERSION, appVersion: APP_VERSION, saved: new Date().toISOString(), doc: S.doc })).then((ok) => {
+    if(ok&&!(options&&options.keepDirty)){
+      if(savedProject&&S.projects?.active!==savedProject){
+        const p=S.projects.items.find(p=>p.id===savedProject);if(p&&p.serial===savedSerial)p.dirty=false;
+        notifyDesktopDirty();renderProjectButtons();
+      }else if((savedProject?S.projects?.active===savedProject:S.doc===savedDoc)&&(S.changeSerial||0)===savedSerial)clearDirty();
+    }
+    return !!ok;
+  });
 }
+/* Open projects live only in memory. Saving remains explicit. */
+function projectSession(){
+  if(!S.projects)S.projects={active:uid(),items:[],signature:''};
+  const ps=S.projects;
+  if(!ps.items.length)ps.items.push({id:ps.active,name:S.doc.name||'Project 1',dirty:unsaved});
+  return ps;
+}
+function inactiveProjectsDirty(){return !!S.projects?.items.some(p=>p.id!==S.projects.active&&p.dirty);}
+function anyProjectsDirty(){return unsaved||inactiveProjectsDirty();}
+function captureProject(){
+  stopPlay();if(REC.armed)recordSetArmed(false);endTextEdit(true);
+  if(S.pen)finishPen(false);
+  mirrorCancel();S.drag=null;S.draw=null;editGesture=false;
+  const ps=projectSession(),p=ps.items.find(p=>p.id===ps.active);
+  const entries=S.edit.map(({sym,frame,layerId,timelineLeft,timelineTop})=>({sym,frame,layerId,timelineLeft,timelineTop}));
+  const path=unwind(),doc=clone(S.doc);rewind(path);
+  entries.forEach((entry,i)=>Object.assign(S.edit[i],entry));
+  Object.assign(p,{name:doc.name,dirty:unsaved,serial:S.changeSerial||0,doc,entries,frame:S.frame,layerId:S.layerId,sel:clone(S.sel),nodeSel:clone(S.nodeSel),kNodeSelection:clone(S.kNodeSelection||[]),fsel:clone(S.fsel||null),view:{...S.view},autoFit:S.autoFit,onion:clone(S.onion),tool:S.tool,history:H.stack.slice(),redo:H.redo.slice(),left:tlScroll.scrollLeft,top:tlScroll.scrollTop,starHudOffsets:new Map(S.starHudOffsets||[])});
+  return p;
+}
+function switchProject(id){
+  const ps=projectSession();if(id===ps.active)return;
+  const target=ps.items.find(p=>p.id===id);if(!target?.doc)return;
+  captureProject();ps.active=id;
+  loadDoc(clone(target.doc));
+  rewind(target.entries.map(e=>e.sym));target.entries.forEach((entry,i)=>{if(S.edit[i])Object.assign(S.edit[i],entry);});
+  S.frame=clamp(target.frame,0,S.doc.frames-1);S.layerId=target.layerId;
+  S.sel=clone(target.sel);S.nodeSel=clone(target.nodeSel);S.kNodeSelection=clone(target.kNodeSelection);S.fsel=clone(target.fsel);
+  S.view={...target.view};S.autoFit=target.autoFit;S.onion=clone(target.onion);S.starHudOffsets=new Map(target.starHudOffsets);
+  H.stack=target.history.slice();H.redo=target.redo.slice();
+  setTool(target.tool);S.changeSerial=target.serial||0;unsaved=target.dirty;$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();
+  pruneSel();updateCrumb();refreshAll();renderLibrary(true);updateZoom();
+  tlScroll.scrollLeft=target.left;tlScroll.scrollTop=target.top;renderProjectButtons();
+}
+function openProjectDoc(doc){
+  const ps=projectSession();captureProject();
+  const p={id:uid(),name:doc.name||'Untitled',dirty:false};ps.items.push(p);ps.active=p.id;
+  loadDoc(doc);renderLibrary(true);renderProjectButtons();notifyDesktopDirty();
+}
+function newOpenProject(){const ps=projectSession(),d=C.mkDoc();let n=ps.items.length+1;while(ps.items.some(p=>p.name==='Project '+n))n++;d.name='Project '+n;openProjectDoc(d);}
+async function saveAllProjectsBeforeClose(){
+  const ps=projectSession();captureProject();
+  const pending=ps.items.filter(p=>p.dirty).map(p=>({id:p.id,serial:p.serial}));let count=0;
+  for(const p of pending){
+    if(!ps.items.some(x=>x.id===p.id))return {ok:false,count};
+    switchProject(p.id);
+    if((S.changeSerial||0)!==p.serial||!await saveProject({keepDirty:true}))return {ok:false,count};
+    count++;captureProject();
+  }
+  const changed=ps.items.some(p=>p.dirty&&!pending.some(x=>x.id===p.id&&x.serial===p.serial));
+  return {ok:!changed,count};
+}
+async function closeOpenProject(id,save){
+  const ps=projectSession();if(!ps.items.some(p=>p.id===id))return;
+  if(save){
+    switchProject(id);
+    if(!await saveProject()){toast('Project stays open because it was not saved.');return;}
+    const saved=ps.items.find(p=>p.id===id);
+    if(saved&&(ps.active===id?unsaved:saved.dirty)){toast('Project changed during saving and stays open. Save the latest changes before closing.');return;}
+  }
+  if(ps.active===id){
+    const index=ps.items.findIndex(p=>p.id===id),other=ps.items[index-1]||ps.items[index+1];
+    if(other)switchProject(other.id);else newOpenProject();
+  }
+  ps.items=ps.items.filter(p=>p.id!==id);renderProjectButtons();notifyDesktopDirty();
+}
+function askCloseProject(id){
+  const ps=projectSession(),p=ps.items.find(p=>p.id===id);if(!p)return;
+  if(id===ps.active){endTextEdit(true);if(S.pen)finishPen(false);}
+  openModal('Close '+(id===ps.active?S.doc.name:p.name)+'?',
+    '<p>Save this project before closing? Unsaved changes will be lost if you choose “Don’t save”.</p>',
+    [{label:'Cancel'},{label:'Don’t save',fn:()=>closeOpenProject(id,false)},{label:'Save',primary:true,fn:()=>closeOpenProject(id,true)}]);
+}
+function renderProjectButtons(){
+  if(!S.doc)return;
+  const ps=projectSession(),active=ps.items.find(p=>p.id===ps.active);
+  active.name=S.doc.name||'Untitled';active.dirty=unsaved;
+  const signature=JSON.stringify([ps.active,ps.items.map(p=>[p.id,p.name,p.dirty])]);
+  if(signature===ps.signature)return;ps.signature=signature;
+  const box=$('#projectButtons');if(!box)return;box.replaceChildren();
+  for(const p of ps.items){
+    const row=document.createElement('div');row.className='project-row';
+    const b=document.createElement('button');b.type='button';b.textContent=p.name+(p.dirty?' *':'');b.title=p.name+(p.dirty?' — unsaved changes':'');b.dataset.project=p.id;b.setAttribute('aria-pressed',String(p.id===ps.active));b.addEventListener('click',()=>switchProject(p.id));row.appendChild(b);
+    const close=document.createElement('button');close.type='button';close.className='project-close';close.textContent='×';close.title='Close '+p.name;close.setAttribute('aria-label','Close '+p.name);close.addEventListener('click',()=>askCloseProject(p.id));row.appendChild(close);box.appendChild(row);
+  }
+  const actions=document.createElement('div');actions.className='project-actions';
+  for(const [label,title,fn] of [['+','New project',newOpenProject],['Open…','Open another project',pickFile]]){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.addEventListener('click',fn);actions.appendChild(b);}
+  box.appendChild(actions);
+}
+
 function loadDoc(doc) {
   mirrorCancel();
   if (REC.armed) recordSetArmed(false);
@@ -1871,6 +2069,7 @@ function loadDoc(doc) {
   doc.lib = doc.lib || {}; doc.sounds = doc.sounds || {}; doc.images = doc.images || {};
   clearTimeout(SK.badgeTimer);SK.badgeTimer=0;SK.rigidPick=null;SK.angleEdit=null;SK.angleHover=null;SK.baseline.clear();SK.placeReady=false;SK.add=false;SK.binding=false;SK.bindTarget=null;SK.active=null;SK.hover=null;SK.dismissed=null;SK.actionDrag=null;S.drag=null;
   S.doc = doc; C.setLib(doc.lib); C.setImages(doc.images); persistSounds(); persistImages(); sndSig = null; libSig = ''; autosaveWarned = false; clearDirty(); S.frame = 0; S.sel = []; S.nodeSel = null; S.pen = null; S.draw = null;
+  S.changeSerial=0;S.fsel=null;S.kNodeSelection=[];
   S.layerId = doc.layers[doc.layers.length - 1].id;
   if(onionPins().length)S.onion.on=true;
   H.stack = []; H.redo = [];
@@ -1928,9 +2127,9 @@ function confirmReplace(what, go) {
   openModal(what, '<p>This replaces your current animation. Use <b>File → Save project</b> first if you want to keep it.</p>', [{ label: 'Cancel' }, { label: 'Replace', primary: true, fn: go }]);
 }
 $('#fileIn').addEventListener('change', async (e) => {
-  const f = e.target.files && e.target.files[0];
+  const files = Array.from(e.target.files||[]);
   e.target.value = '';
-  if (f) openFile(f);
+  for(const file of files)await openFile(file);
 });
 async function openFile(file) {
   let buf;
@@ -1946,7 +2145,7 @@ async function openFile(file) {
     if (j.version > PROJECT_VERSION) toast('This project was saved by a newer oskyn (' + (j.appVersion || 'v' + j.version) + '). Some things may not load correctly.');
     C.normalizeDoc(doc);
     if (!doc.name) doc.name = file.name.replace(/\.[^.]+$/, '').replace(/\.(flashcraft|onionskyn|oskyn)$/i, '');
-    loadDoc(doc); toast('Opened ' + file.name);
+    openProjectDoc(doc); toast('Opened ' + file.name);
   } catch (err) { toast('That file is not an oskyn project or a .fla.'); }
 }
 async function importFLAFile(buf, fname) {
@@ -1956,7 +2155,7 @@ async function importFLAFile(buf, fname) {
   try {
     const { doc, report } = await C.importFLA(buf);
     doc.name = fname.replace(/\.[^.]+$/, '');
-    loadDoc(doc);
+    openProjectDoc(doc);
     const notes = [];
     const plural = (n, s) => n + ' ' + s + (n === 1 ? '' : 's');
     if (report.animatedSyms.length) notes.push(plural(report.animatedSyms.length, 'animated symbol') + ' imported with their inner timelines (e.g. ' + report.animatedSyms.slice(0, 3).join(', ') + '); they play on their own.');
@@ -1993,7 +2192,7 @@ async function importFLAFile(buf, fname) {
 function pickFile() { $('#fileIn').click(); }
 const stageWrap = $('#stagewrap');
 ['dragenter', 'dragover'].forEach((ev) => window.addEventListener(ev, (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { e.preventDefault(); $('#drop').classList.add('on'); } }));
-['dragleave', 'drop'].forEach((ev) => window.addEventListener(ev, (e) => { if (ev === 'drop') { e.preventDefault(); const fl = Array.from((e.dataTransfer && e.dataTransfer.files) || []); const imgs = fl.filter(isImageFile); if (imgs.length > 1 && imgs.length === fl.length) importImages(imgs); else if (fl[0]) openFile(fl[0]); } if (ev === 'drop' || e.target === document.documentElement || !e.relatedTarget) $('#drop').classList.remove('on'); }));
+['dragleave', 'drop'].forEach((ev) => window.addEventListener(ev, async (e) => { if (ev === 'drop') { e.preventDefault(); const fl = Array.from((e.dataTransfer && e.dataTransfer.files) || []); const imgs = fl.filter(isImageFile); if (imgs.length > 1 && imgs.length === fl.length) importImages(imgs); else for(const file of fl)await openFile(file); } if (ev === 'drop' || e.target === document.documentElement || !e.relatedTarget) $('#drop').classList.remove('on'); }));
 
 /* ---------- export ---------- */
 const tickMs = (ms) => new Promise((r) => setTimeout(r, ms || 0));
@@ -2998,20 +3197,25 @@ function bindLib() {
   });
   const inClipboardField = t => t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
   const objectClipboardType = 'application/x-onionskyn-objects';
-  // Native copy/cut replaces an older system screenshot with an object marker.
-  // The object data itself stays in the editor's existing internal clipboard.
+  // Both formats carry real data, including media, for another oskyn window.
   for (const event of ['copy','cut']) window.addEventListener(event, e => {
     if (inClipboardField(e.target) || modalBg.classList.contains('on') || !e.clipboardData) return;
     copySel();
     if (!S.clipboard.length) return;
     e.preventDefault();
-    e.clipboardData.setData(objectClipboardType,'1');
+    const portable=JSON.stringify(objectTransfer);
+    e.clipboardData.setData(objectClipboardType,portable);
+    e.clipboardData.setData('text/plain',portable);
     if (event === 'cut') deleteSel();
   });
   window.addEventListener('paste', async (e) => {
     if (inClipboardField(e.target) || modalBg.classList.contains('on')) return;
     const data = e.clipboardData;
     if (!data) return;
+    const portable=parseObjectTransfer(data.getData(objectClipboardType))||parseObjectTransfer(data.getData('text/plain'));
+    if(portable){
+      e.preventDefault();objectTransfer=portable;S.clipboard=clone(portable.objects);clipboardSpace=portable.space;pasteN=0;pasteClip();return;
+    }
     if (data.getData(objectClipboardType) === '1' && S.clipboard.length) {
       e.preventDefault(); pasteClip(); return;
     }
@@ -3356,8 +3560,8 @@ function init() {
   $('#lMask').addEventListener('click', toggleMask);
   $('#lUp').addEventListener('click', () => layerOp('up')); $('#lDown').addEventListener('click', () => layerOp('down')); $('#lDel').addEventListener('click', () => layerOp('del'));
   $('#mFile').addEventListener('click', (e) => showMenu(e.currentTarget, [
-    { label: 'New animation', fn: () => confirmReplace('New animation', newDoc) },
-    { label: 'Load sample animation', fn: () => confirmReplace('Load sample', () => loadDoc(buildSample())) },
+    { label: 'New animation', fn: newOpenProject },
+    { label: 'Load sample animation', fn: () => openProjectDoc(buildSample()) },
     '-',
     { label: 'Open project or .fla…', fn: pickFile },
     { label: 'Import image…', fn: () => $('#imgIn').click() },

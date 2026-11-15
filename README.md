@@ -8,6 +8,14 @@ Download this repository and open **oskyn.html** (or **index.html**) in a curren
 
 Save projects explicitly with **Save project** (`.oskyn.json`). Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
 
+## Multiple open projects
+
+**File → Open project** adds another project without replacing the current one. Choose a small named button at the bottom-right of the stage to switch projects; **+** creates another blank project. Each project keeps its playhead, view, symbol-editing context and Undo/Redo history. The buttons are editor controls and do not appear in exports.
+
+Select objects, press **Ctrl+C**, switch projects and press **Ctrl+V**. Referenced symbols (including their timelines), bitmap pixels and symbol sounds travel with the objects. Existing destination assets are preserved when names collide. Copy/Paste also works between separate oskyn windows through the system clipboard. This copies the selected objects at the current frame; it does not copy their outer timeline animation. Use the existing Copy Frames / Paste Frames commands for timeline work; layer copying has not changed.
+
+Use **×** beside a project name to choose **Save**, **Don’t save** or **Cancel**. Projects remain in memory until you close the editor: save each project explicitly to keep it. Asterisks mark unsaved changes, including on inactive projects. Object-file export/import is deferred.
+
 ## Develop
 
 The editable source lives in [`source/src`](source/src). Build instructions and tests: [source/building.md](source/building.md).
@@ -67,7 +75,7 @@ Bitmap masks can still show a thin seam in some edge-overlap situations. A separ
 
 ## Desktop distribution
 
-Electron wrappers and packaged executables are not included in this initial source repository. Keep desktop release ZIPs in GitHub Releases and include the original project and dependency licences with them.
+The [Electron wrapper and build instructions](desktop/README.md) produce an `app.asar` with the current editor and a native Save / Don’t Save / Cancel close dialog. It waits for every unsaved project to finish saving before closing. The Electron runtime and packaged executables are separate; keep desktop release ZIPs in GitHub Releases and include the original project and dependency licences with them.
 
 ## Origin and notices
 
