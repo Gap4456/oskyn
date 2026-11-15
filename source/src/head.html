@@ -455,7 +455,7 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 #boneRigid { left:38px; top:-38px; }
 #boneAttach { left:38px; top:38px; }
 #bonePin { left:0; top:36px; }
-#boneSoftZones[aria-pressed="true"], #bonePin[aria-pressed="true"], #boneRigid[aria-pressed="true"] { background:var(--accent-soft); box-shadow:inset 0 0 0 3px var(--accent),0 0 0 2px var(--accent); }
+#boneMenu button[aria-pressed="true"], #boneAngle[aria-pressed="true"] { background:color-mix(in srgb,var(--panel) 68%,#000); box-shadow:inset 0 0 0 3px var(--accent),0 0 0 2px var(--accent); }
 #boneMode { left:0; top:-36px; }
 :is(#boneAngle,#boneAngleRemove)[hidden] { display:none !important; }
 :is(#boneAngle,#boneAngleRemove) { z-index:9; }

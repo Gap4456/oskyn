@@ -2286,6 +2286,7 @@ function skeletonAngleMenuSync() {
   if(button.hidden)return;
   const p=skeletonAngleButtonPoint(r);button.style.left=p[0]+'px';button.style.top=p[1]+'px';button.disabled=REC.armed;
   if(!remove.hidden){const q=skeletonAngleRemovePoint(r);remove.style.left=q[0]+'px';remove.style.top=q[1]+'px';remove.disabled=REC.armed;}
+  button.setAttribute('aria-pressed',String(!!C.skeletonJointLimit(r.o.skel,r.joint)));
   button.setAttribute('aria-expanded',String(skeletonAngleKey(r)===skeletonAngleKey(SK.angleEdit)));
 }
 function skeletonRemoveLimit(ref){
@@ -2447,6 +2448,13 @@ function skeletonSoftDetachObject(o,pose) {
   else {o.contours=clone(pose.contours);o.t={...pose.t};delete o.skin;}
 }
 
+function skeletonSoftAdaptiveToggle(r){
+  if(REC.armed||getLayer(r.lid)?.locked)return;
+  const figures=skeletonSoftFigures(r).filter(q=>!getLayer(q.lid).locked);if(!figures.length)return;
+  const enabled=!figures.every(q=>q.o.skin.adaptive===true);pushUndo();
+  for(const q of figures){const l=getLayer(q.lid);if(!C.kfAt(l,S.frame))C.insertKeyframe(l,S.frame,false);const o=findEditable(q.lid,q.o.id);o.skin=clone(q.o.skin);if(enabled)o.skin.adaptive=true;else delete o.skin.adaptive;}
+  commit();skeletonMenuSync();toast(enabled?'Experimental adaptive soft contour enabled. Original nodes are preserved.':'Adaptive contour off; original deformation restored.');
+}
 function skeletonSoftAdjust(r,delta) {
   const figures=skeletonSoftFigures(r).filter(q=>!getLayer(q.lid).locked);if(!figures.length)return;
   const affected=figures.flatMap(q=>q.o.skin.bones.filter(b=>b.id===r.joint||(r.o.skel.nodes.find(n=>n.id===r.joint)?.parent==null&&b.parent===r.joint)));
@@ -2619,18 +2627,25 @@ function skeletonMenuSync() {
   const poseOpen=SK.poseOpen===r.id+':'+r.joint;
   $('#bonePose').hidden=choosing;$('#bonePhoto').hidden=choosing||!poseOpen;$('#boneLibrary').hidden=choosing||!poseOpen;
   $('#boneSoft').hidden=choosing;
+  const attachedSoft=skeletonSoftFigures(r);
+  $('#boneSoft').setAttribute('aria-pressed',String(attachedSoft.length>0));
   const softOpen=SK.softOpen===r.id+':'+r.joint;
+  $('#boneSoft').setAttribute('aria-expanded',String(softOpen));
+  $('#bonePose').setAttribute('aria-pressed',String(poseOpen));
+  $('#boneSoftBind').setAttribute('aria-pressed',String(attachedSoft.length>0));
+  $('#boneAttach').setAttribute('aria-pressed',String(skeletonBindings().has(r.id+':'+r.joint)));
   $('#boneSoftBind').hidden=choosing||!softOpen||!editing;
   const orderedFigures=softOpen?skeletonSoftFigures(r).filter(q=>!getLayer(q.lid).locked&&q.o.skin.regions&&q.o.skin.base.length===1&&q.o.skin.base[0].closed&&C.softGroups(q.o.skin).length>1&&C.softJointGroup(q.o.skin,r.joint)):[];
   for(const id of ['boneSoftUp','boneSoftDown']){const b=$('#'+id);b.hidden=choosing||!softOpen;b.dataset.available=String(orderedFigures.length>0);b.title=(id==='boneSoftUp'?'Bring this body part forward':'Send this body part backward')+(orderedFigures.length?' — saved on this keyframe':' — needs a branched soft body with one outer contour');}
-  const softFigures=softOpen?skeletonSoftFigures(r):[];
+  const softFigures=softOpen?attachedSoft:[];
+  const adaptive=$('#boneSoftAdaptive');adaptive.hidden=choosing||!softOpen;adaptive.dataset.available=String(softFigures.some(q=>!getLayer(q.lid).locked));adaptive.setAttribute('aria-pressed',String(softFigures.length>0&&softFigures.every(q=>q.o.skin.adaptive===true)));
   const zones=$('#boneSoftZones'),zoneOn=skeletonZoneActive(r),zoneAvailable=softFigures.filter(q=>!getLayer(q.lid).mask&&!q.o.invisMask).some(q=>C.softGroups(q.o.skin).length===1||(q.o.skin.regions&&q.o.skin.base.length===1&&q.o.skin.base[0].closed));
   zones.hidden=choosing||!softOpen;zones.dataset.available=String(zoneAvailable||zoneOn);zones.setAttribute('aria-pressed',String(zoneOn));zones.setAttribute('aria-label',zoneOn?'Hide influence zones':'Show influence zones');zones.title=zoneOn?'Hide influence zones':zoneAvailable?'Show matching body/bone colors (editor only)':'Attach a soft body with one outer contour, or one unbranched chain, to show its zones';
   for(const [id,sign] of [['boneSoftPlus',1],['boneSoftMinus',-1]]){const b=$('#'+id);b.hidden=choosing||!softOpen;const values=softFigures.flatMap(q=>q.o.skin.bones.filter(b=>b.id===r.joint||(n.parent==null&&b.parent===r.joint)).map(b=>b.stiffness));b.dataset.available=String(values.length>0&&values.some(v=>sign>0?v<1:v>0));b.title=(sign>0?'Stiffer':'Softer')+' bend'+(values.length?' ('+Math.round(values[0]*100)+'%)':' — attach a soft body first');}
   $('#boneRigid').hidden=!editing;
   $('#boneRigid').setAttribute('aria-label',choosing?'Confirm fixed joints':'Fix joints together');
   $('#boneRigid').title=choosing?'Click joints to select or remove them, including the first joint. Click this icon again to confirm. Fewer than two joints removes the group.':'Fix joints together: select joints, then click this icon again.';
-  $('#boneRigid').setAttribute('aria-pressed',String(choosing));
+  $('#boneRigid').setAttribute('aria-pressed',String(choosing||C.skeletonRigidGroups(r.o.skel).some(g=>g.points.some(p=>p.id===r.joint))));
   toggle.hidden=choosing;$('#bonePin').hidden=choosing;
   $('#boneAttach').hidden=!editing||choosing;
   $('#boneAdd').hidden=!editing||choosing;$('#boneRemove').hidden=!editing||choosing||degree>1;
@@ -2651,6 +2666,7 @@ function skeletonMenuSync() {
   const sl=Math.hypot(sx,sy)||1,ux=sx/sl,uy=sy/sl;
   for(const [id,side] of [['boneSoftBind',0],['boneSoftMinus',-34],['boneSoftPlus',34]]){const b=$('#'+id);b.style.left=(sx+38*ux-side*uy)+'px';b.style.top=(sy+38*uy+side*ux)+'px';}
   for(const [id,offset] of [['boneSoftUp',-34],['boneSoftZones',0],['boneSoftDown',34]]){const side=offset*(ux<0?-1:1),b=$('#'+id);b.style.left=(sx+70*ux-side*uy)+'px';b.style.top=(sy+70*uy+side*ux)+'px';}
+  {const b=$('#boneSoftAdaptive');b.style.left=(sx+102*ux)+'px';b.style.top=(sy+102*uy)+'px';}
   for(const b of menu.querySelectorAll('button'))b.disabled=REC.armed||(b.id.startsWith('boneSoft')&&b.dataset.available==='false');
 }
 function skeletonPanel(){document.body.classList.toggle('skel-selected',!!singleSel()?.o.skel);skeletonMenuSync();}
@@ -2880,7 +2896,7 @@ function skeletonBindUI() {
     if(SK.ctrlHeld!==(e.ctrlKey||e.metaKey)||SK.shiftHeld!==e.shiftKey)skeletonHudModifiers(e.ctrlKey||e.metaKey,e.shiftKey);
     if(e.target.closest?.('#bonePoseGallery'))return;
     const p=stagePt(e),d=SK.actionDrag;
-    if(d){const r=d.r,n=r?.o.skel.nodes.find(n=>n.id===r.joint),q=d.angle?d.anchor:n&&skeletonScreen(r,n);if(q&&Math.hypot(p.sx-q[0],p.sy-q[1])>BONE_MENU_REACH+(SK.softOpen===r.id+':'+r.joint?20:0)){d.dismissed=true;SK.dismissed=d.key;SK.rigidPick=null;invalidate();SK.angleHover=null;SK.angleEdit=null;skeletonMenuSync();}return;}
+    if(d){const r=d.r,n=r?.o.skel.nodes.find(n=>n.id===r.joint),q=d.angle?d.anchor:n&&skeletonScreen(r,n);if(q&&Math.hypot(p.sx-q[0],p.sy-q[1])>BONE_MENU_REACH+(SK.softOpen===r.id+':'+r.joint?50:0)){d.dismissed=true;SK.dismissed=d.key;SK.rigidPick=null;invalidate();SK.angleHover=null;SK.angleEdit=null;skeletonMenuSync();}return;}
     if(e.target.closest?.('#boneAngle,#boneAngleRemove')){skeletonAngleMenuSync();return;}
     skeletonHoverAt(p,!!e.target.closest?.('#boneMenu'));if(SK.add)invalidate();
   });
@@ -2894,7 +2910,7 @@ function skeletonBindUI() {
     e.preventDefault();e.stopPropagation();b.setPointerCapture(e.pointerId);SK.actionDrag={button:b,key:skeletonKey(r),r,dismissed:false};
   });
   window.addEventListener('pointerup',e=>{
-    const d=SK.actionDrag;if(d){SK.actionDrag=null;if(!d.dismissed){if(d.button.id==='boneSoft'){SK.poseOpen=null;SK.softOpen=SK.softOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='boneSoftBind')skeletonSoftBindStart(d.r);else if(d.button.id==='boneSoftZones')skeletonZoneToggle(d.r);else if(d.button.id==='boneSoftUp')skeletonSoftOrder(d.r,1);else if(d.button.id==='boneSoftDown')skeletonSoftOrder(d.r,-1);else if(d.button.id==='boneSoftPlus')skeletonSoftAdjust(d.r,.1);else if(d.button.id==='boneSoftMinus')skeletonSoftAdjust(d.r,-.1);else if(d.button.id==='bonePose'){SK.softOpen=null;$('#bonePoseGallery').hidden=true;SK.poseOpen=SK.poseOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='bonePhoto')skeletonPoseSave(d.r);else if(d.button.id==='boneLibrary')skeletonPoseGallery(d.r);else if(d.button.id==='boneRigid')skeletonRigidStart(d.r);else if(d.button.id==='boneAttach')skeletonBindStart(d.r);else if(d.button.id==='bonePin')skeletonTogglePin(d.r);else if(d.button.id==='boneAngleRemove')skeletonRemoveLimit(d.r);else if(d.button.id==='boneAngle')skeletonOpenAngle(d.r);else if(d.button.id==='boneMode')skeletonToggleMode(d.r);else if(d.button.id==='boneAdd'){SK.angleHover=null;SK.angleEdit=null;SK.add={lid:d.r.lid,id:d.r.id,joint:d.r.joint};SK.hover=null;invalidate();}else skeletonRemove(d.r);}skeletonMenuSync();return;}
+    const d=SK.actionDrag;if(d){SK.actionDrag=null;if(!d.dismissed){if(d.button.id==='boneSoft'){SK.poseOpen=null;SK.softOpen=SK.softOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='boneSoftBind')skeletonSoftBindStart(d.r);else if(d.button.id==='boneSoftAdaptive')skeletonSoftAdaptiveToggle(d.r);else if(d.button.id==='boneSoftZones')skeletonZoneToggle(d.r);else if(d.button.id==='boneSoftUp')skeletonSoftOrder(d.r,1);else if(d.button.id==='boneSoftDown')skeletonSoftOrder(d.r,-1);else if(d.button.id==='boneSoftPlus')skeletonSoftAdjust(d.r,.1);else if(d.button.id==='boneSoftMinus')skeletonSoftAdjust(d.r,-.1);else if(d.button.id==='bonePose'){SK.softOpen=null;$('#bonePoseGallery').hidden=true;SK.poseOpen=SK.poseOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='bonePhoto')skeletonPoseSave(d.r);else if(d.button.id==='boneLibrary')skeletonPoseGallery(d.r);else if(d.button.id==='boneRigid')skeletonRigidStart(d.r);else if(d.button.id==='boneAttach')skeletonBindStart(d.r);else if(d.button.id==='bonePin')skeletonTogglePin(d.r);else if(d.button.id==='boneAngleRemove')skeletonRemoveLimit(d.r);else if(d.button.id==='boneAngle')skeletonOpenAngle(d.r);else if(d.button.id==='boneMode')skeletonToggleMode(d.r);else if(d.button.id==='boneAdd'){SK.angleHover=null;SK.angleEdit=null;SK.add={lid:d.r.lid,id:d.r.id,joint:d.r.joint};SK.hover=null;invalidate();}else skeletonRemove(d.r);}skeletonMenuSync();return;}
     if(S.tool==='bone')skeletonHoverAt(stagePt(e));
   });
   window.addEventListener('pointercancel',()=>{SK.actionDrag=null;skeletonMenuSync();});

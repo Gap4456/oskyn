@@ -902,9 +902,101 @@ function softParts(o,contours,rig) {
   }
   return parts.length>1?parts:null;
 }
-function softWithParts(o,contours,rig) {
+/* Experimental, pose-only contour repair. Bind geometry is never rewritten.
+   Small new backtracking loops are removed before bounded-error cubic fitting. */
+function softBaseCorner(nodes,i,closed){
+  if(!closed&&(i===0||i===nodes.length-1))return true;
+  const p=nodes[(i+nodes.length-1)%nodes.length],n=nodes[i],q=nodes[(i+1)%nodes.length];
+  const ax=n.ix||n.iy?-n.ix:n.x-p.x,ay=n.ix||n.iy?-n.iy:n.y-p.y;
+  const bx=n.ox||n.oy?n.ox:q.x-n.x,by=n.ox||n.oy?n.oy:q.y-n.y;
+  const length=Math.hypot(ax,ay)*Math.hypot(bx,by);
+  return length>1e-12&&(ax*bx+ay*by)/length<Math.cos(Math.PI/5);
+}
+function softAdaptiveContour(contour,scale){
+  const tolerance=clamp(scale*.003,.015,.65),source=contour.nodes,closed=!!contour.closed;
+  if(source.length<2)return contour;
+  const points=[],dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const lineDistance=(p,a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,d=dx*dx+dy*dy,t=d?clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/d,0,1):0;return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);};
+  const push=p=>{if(points.length&&dist(points.at(-1),p)<1e-9){points.at(-1).corner||=p.corner;return;}points.push(p);};
+  const flatten=(a,b,c,d,depth=0)=>{
+    if(depth>=9||Math.max(lineDistance(b,a,d),lineDistance(c,a,d))<=tolerance*.2){push(d);return;}
+    const mix=(p,q)=>({x:(p.x+q.x)/2,y:(p.y+q.y)/2}),ab=mix(a,b),bc=mix(b,c),cd=mix(c,d),abc=mix(ab,bc),bcd=mix(bc,cd),mid=mix(abc,bcd);
+    flatten(a,ab,abc,mid,depth+1);flatten(mid,bcd,cd,d,depth+1);
+  };
+  push({x:source[0].x,y:source[0].y,corner:!!source[0].softCorner});
+  for(let i=0;i<(closed?source.length:source.length-1);i++){
+    const a=source[i],b=source[(i+1)%source.length];
+    flatten({x:a.x,y:a.y},{x:a.x+a.ox,y:a.y+a.oy},{x:b.x+b.ix,y:b.y+b.iy},{x:b.x,y:b.y,corner:!!b.softCorner});
+    if(points.length>4096)return contour;
+  }
+  if(closed&&dist(points[0],points.at(-1))<1e-8)points.pop();
+  // Do not bridge large limb crossings or erase intentional bind-time corners.
+  for(let pass=0;pass<12;pass++){
+    let repaired=false;const n=points.length,count=closed?n:n-1;
+    for(let i=0;i<count&&!repaired;i++){
+      const a=points[i],b=points[(i+1)%n];let arc=dist(a,b);
+      for(let j=i+2;j<count&&arc<scale*1.25;j++){
+        arc+=dist(points[j-1],points[j]);if(closed&&i===0&&j===n-1)continue;
+        const c=points[j],d=points[(j+1)%n],rx=b.x-a.x,ry=b.y-a.y,sx=d.x-c.x,sy=d.y-c.y,det=rx*sy-ry*sx;
+        if(Math.abs(det)<1e-12)continue;
+        const dx=c.x-a.x,dy=c.y-a.y,t=(dx*sy-dy*sx)/det,u=(dx*ry-dy*rx)/det;
+        if(t<=1e-7||t>=1-1e-7||u<=1e-7||u>=1-1e-7)continue;
+        const q={x:a.x+t*rx,y:a.y+t*ry},loop=[q,...points.slice(i+1,j+1)];
+        if(loop.some(p=>p.corner))continue;
+        let area=0;for(let k=0;k<loop.length;k++){const p=loop[k],z=loop[(k+1)%loop.length];area+=p.x*z.y-p.y*z.x;}
+        if(Math.abs(area)/2>scale*scale*.08)continue;
+        points.splice(i+1,j-i,q);repaired=true;break;
+      }
+    }
+    if(!repaired)break;
+  }
+  if(points.length<(closed?3:2))return contour;
+  const unit=(x,y)=>{const l=Math.hypot(x,y);return l>1e-12?[x/l,y/l]:[1,0];};
+  const tangent=i=>{const n=points.length,p=points[(i+n-1)%n],q=points[i],r=points[(i+1)%n];if(!closed&&i===0)return unit(r.x-q.x,r.y-q.y);if(!closed&&i===n-1)return unit(q.x-p.x,q.y-p.y);const a=unit(q.x-p.x,q.y-p.y),b=unit(r.x-q.x,r.y-q.y);return unit(a[0]+b[0],a[1]+b[1]);};
+  const cuts=new Set(points.flatMap((p,i)=>p.corner?[i]:[]));
+  if(closed){for(const key of ['x','y'])for(const sign of [-1,1]){let best=0;for(let i=1;i<points.length;i++)if(sign*points[i][key]>sign*points[best][key])best=i;cuts.add(best);}cuts.add(0);}else {cuts.add(0);cuts.add(points.length-1);}
+  const indices=[...cuts].sort((a,b)=>a-b),nodes=[];
+  const emit=(a,c1,c2,b)=>{if(!nodes.length)nodes.push(node(a.x,a.y));const last=nodes.at(-1);last.ox=c1.x-a.x;last.oy=c1.y-a.y;last.s=!a.corner;const next={...node(b.x,b.y),ix:c2.x-b.x,iy:c2.y-b.y};next.s=!b.corner;nodes.push(next);};
+  const fit=(pts,t0,t1,depth=0)=>{
+    const a=pts[0],b=pts.at(-1),lengths=[0];for(let i=1;i<pts.length;i++)lengths.push(lengths.at(-1)+dist(pts[i-1],pts[i]));
+    const length=lengths.at(-1),ts=lengths.map(x=>length?x/length:0);let aa=0,ab=0,bb=0,ra=0,rb=0;
+    for(let i=1;i<pts.length-1;i++){
+      const t=ts[i],u=1-t,A=3*u*u*t,B=3*u*t*t,dx=pts[i].x-(u*u*u+A)*a.x-(B+t*t*t)*b.x,dy=pts[i].y-(u*u*u+A)*a.y-(B+t*t*t)*b.y;
+      aa+=A*A;ab-=A*B*(t0[0]*t1[0]+t0[1]*t1[1]);bb+=B*B;ra+=A*(t0[0]*dx+t0[1]*dy);rb-=B*(t1[0]*dx+t1[1]*dy);
+    }
+    const det=aa*bb-ab*ab,chord=dist(a,b);let alpha=det>1e-14?(ra*bb-rb*ab)/det:chord/3,beta=det>1e-14?(rb*aa-ra*ab)/det:chord/3;
+    if(alpha<0||beta<0||alpha>length*1.5||beta>length*1.5)alpha=beta=chord/3;
+    const c1={x:a.x+t0[0]*alpha,y:a.y+t0[1]*alpha},c2={x:b.x-t1[0]*beta,y:b.y-t1[1]*beta};
+    const point=t=>{const u=1-t;return {x:u*u*u*a.x+3*u*u*t*c1.x+3*u*t*t*c2.x+t*t*t*b.x,y:u*u*u*a.y+3*u*u*t*c1.y+3*u*t*t*c2.y+t*t*t*b.y};};
+    let error=0,split=Math.floor(pts.length/2);
+    for(let i=1;i<pts.length-1;i++){const e=dist(point(ts[i]),pts[i]);if(e>error){error=e;split=i;}}
+    if(error<=tolerance)for(let i=1;i<16;i++){const p=point(i/16);let e=Infinity;for(let j=1;j<pts.length;j++)e=Math.min(e,lineDistance(p,pts[j-1],pts[j]));error=Math.max(error,e);}
+    if(error<=tolerance){emit(a,c1,c2,b);return;}
+    if(pts.length===2||depth>=16){for(let i=1;i<pts.length;i++){const p=pts[i-1],q=pts[i];emit(p,{x:lerp(p.x,q.x,1/3),y:lerp(p.y,q.y,1/3)},{x:lerp(p.x,q.x,2/3),y:lerp(p.y,q.y,2/3)},q);}return;}
+    split=clamp(split,1,pts.length-2);const before=pts[split-1],after=pts[split+1],middle=unit(after.x-before.x,after.y-before.y);
+    fit(pts.slice(0,split+1),t0,middle,depth+1);fit(pts.slice(split),middle,t1,depth+1);
+  };
+  for(let j=0;j<(closed?indices.length:indices.length-1);j++){
+    const start=indices[j],end=j+1<indices.length?indices[j+1]:points.length,pts=[];
+    for(let i=start;i<=end;i++)pts.push(points[i%points.length]);
+    const a=pts[0],b=pts.at(-1),t0=a.corner?unit(pts[1].x-a.x,pts[1].y-a.y):tangent(start),last=end%points.length,t1=b.corner?unit(b.x-pts.at(-2).x,b.y-pts.at(-2).y):tangent(last);
+    fit(pts,t0,t1);
+  }
+  if(closed){const last=nodes.pop();nodes[0].ix=last.ix;nodes[0].iy=last.iy;}
+  if(nodes.length<(closed?3:2)||nodes.some(n=>!['x','y','ix','iy','ox','oy'].every(k=>Number.isFinite(n[k]))))return contour;
+  return {...contour,nodes};
+}
+const softAdaptiveCache=new WeakMap();
+
+function softWithParts(o,contours,rig,adaptive=true) {
   const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.contours=contours;delete copy.arc;delete copy.ellipseFrame;
-  const parts=softParts(o,contours,rig);if(parts)Object.defineProperty(copy,'_softParts',{value:parts,enumerable:false,configurable:true});else if(copy._softParts)delete copy._softParts;
+  let parts=softParts(o,contours,rig);
+  if(adaptive&&o.skin.adaptive){
+    let clean=softAdaptiveCache.get(contours);
+    if(!clean){const scale=Math.min(...o.skin.bones.map(b=>Math.hypot(b.bx-b.ax,b.by-b.ay)));clean={contours:contours.map(c=>softAdaptiveContour(c,scale)),parts:parts?.map(p=>({...p,outline:p.outline.map(c=>softAdaptiveContour(c,scale))}))};softAdaptiveCache.set(contours,clean);}
+    copy.contours=clean.contours;parts=clean.parts;
+  }
+  if(parts)Object.defineProperty(copy,'_softParts',{value:parts,enumerable:false,configurable:true});else if(copy._softParts)delete copy._softParts;
   return copy;
 }
 function softView(o) {
@@ -923,7 +1015,7 @@ function softView(o) {
 
 function softValid(s) {
   const matrix=m=>Array.isArray(m)&&m.length===6&&m.every(Number.isFinite)&&Math.abs(m[0]*m[3]-m[1]*m[2])>1e-10;
-  return !!s&&s.version===1&&typeof s.to==='string'&&matrix(s.object)&&Array.isArray(s.bones)&&s.bones.length>0&&s.bones.length<=255&&s.bones.every(b=>b&&typeof b.id==='string'&&typeof b.parent==='string'&&[b.ax,b.ay,b.bx,b.by,b.stiffness].every(Number.isFinite)&&Math.hypot(b.bx-b.ax,b.by-b.ay)>1e-5)&&Array.isArray(s.base)&&s.base.length>0&&s.base.reduce((n,c)=>n+(c?.nodes?.length||0),0)<=512&&s.base.every(c=>c&&Array.isArray(c.nodes)&&c.nodes.length>1&&c.nodes.every(n=>['x','y','ix','iy','ox','oy'].every(k=>Number.isFinite(n[k]))))&&softRegionsValid(s)&&(s.order==null||(Array.isArray(s.order)&&s.order.length<=s.bones.length&&new Set(s.order).size===s.order.length&&s.order.every(id=>typeof id==='string'&&softGroups(s).some(g=>g.id===id))));
+  return !!s&&s.version===1&&(s.adaptive==null||typeof s.adaptive==='boolean')&&typeof s.to==='string'&&matrix(s.object)&&Array.isArray(s.bones)&&s.bones.length>0&&s.bones.length<=255&&s.bones.every(b=>b&&typeof b.id==='string'&&typeof b.parent==='string'&&[b.ax,b.ay,b.bx,b.by,b.stiffness].every(Number.isFinite)&&Math.hypot(b.bx-b.ax,b.by-b.ay)>1e-5)&&Array.isArray(s.base)&&s.base.length>0&&s.base.reduce((n,c)=>n+(c?.nodes?.length||0),0)<=512&&s.base.every(c=>c&&Array.isArray(c.nodes)&&c.nodes.length>1&&c.nodes.every(n=>['x','y','ix','iy','ox','oy'].every(k=>Number.isFinite(n[k]))))&&softRegionsValid(s)&&(s.order==null||(Array.isArray(s.order)&&s.order.length<=s.bones.length&&new Set(s.order).size===s.order.length&&s.order.every(id=>typeof id==='string'&&softGroups(s).some(g=>g.id===id))));
 }
 function softBind(o,rig) {
   if(o.kind!=='path'||o.skel||o.rig||o.mirror||!rig.skel)return null;
@@ -940,13 +1032,13 @@ function softBind(o,rig) {
 const softPoseCache=new WeakMap();
 function softPoseObject(o,rig) {
   const skin=o.skin;if(!skin||!rig?.skel)return o;
-  const key=JSON.stringify([rig.t,rig.skel.nodes.map(n=>[n.id,n.parent,n.x,n.y]),skin.order]),cached=softPoseCache.get(skin);
-  if(cached?.key===key)return softWithParts(o,cached.contours,rig);
+  const key=JSON.stringify([rig.t,rig.skel.nodes.map(n=>[n.id,n.parent,n.x,n.y]),skin.order,!!skin.adaptive]),cached=softPoseCache.get(skin);
+  if(cached?.key===key)return softWithParts(o,cached.contours,rig,cached.adaptive);
   const byId=new Map(rig.skel.nodes.map(n=>[n.id,n])),m=mmul(minv(skin.object),matOf(rig.t)),bones=[];
   for(const b of skin.bones){const p=byId.get(b.parent),n=byId.get(b.id);if(!p||!n)return o;const a=mapply(m,p.x,p.y),z=mapply(m,n.x,n.y),dx=b.bx-b.ax,dy=b.by-b.ay,L=Math.hypot(dx,dy),q=Math.hypot(z[0]-a[0],z[1]-a[1]);if(q<1e-6)return o;const angle=Math.atan2(z[1]-a[1],z[0]-a[0])-Math.atan2(dy,dx);bones.push({...b,a,z,L,ux:dx/L,uy:dy/L,c:Math.cos(angle),s:Math.sin(angle),stretch:q/L,radius:L*(.025+.28*(1-clamp(b.stiffness,0,1)))});}
-  const finish=contours=>{softPoseCache.set(skin,{key,contours});return softWithParts(o,contours,rig);};
+  const finish=(contours,adaptive=true)=>{softPoseCache.set(skin,{key,contours,adaptive});return softWithParts(o,contours,rig,adaptive);};
   const transforms=bones.map(b=>{const f=(x,y)=>{const dx=x-b.ax,dy=y-b.ay,along=dx*b.ux+dy*b.uy,across=-dx*b.uy+dy*b.ux,vx=b.ux*along*b.stretch-b.uy*across,vy=b.uy*along*b.stretch+b.ux*across;return [b.a[0]+b.c*vx-b.s*vy,b.a[1]+b.s*vx+b.c*vy];},a=f(0,0),x=f(1,0),y=f(0,1);return [x[0]-a[0],x[1]-a[1],y[0]-a[0],y[1]-a[1],a[0],a[1]];});
-  if(!(skin.order&&skin.regions)&&transforms.every(m=>m.every((v,i)=>Math.abs(v-transforms[0][i])<1e-8))){const M=transforms[0];if(M.every((v,i)=>Math.abs(v-[1,0,0,1,0,0][i])<1e-8))return finish(skin.base);return finish(skin.base.map(c=>({...c,nodes:c.nodes.map(n=>{const p=mapply(M,n.x,n.y);return {...n,x:p[0],y:p[1],ix:M[0]*n.ix+M[2]*n.iy,iy:M[1]*n.ix+M[3]*n.iy,ox:M[0]*n.ox+M[2]*n.oy,oy:M[1]*n.ox+M[3]*n.oy};})})));}
+  if(!(skin.order&&skin.regions)&&transforms.every(m=>m.every((v,i)=>Math.abs(v-transforms[0][i])<1e-8))){const M=transforms[0];if(M.every((v,i)=>Math.abs(v-[1,0,0,1,0,0][i])<1e-8))return finish(skin.base,false);return finish(skin.base.map(c=>({...c,nodes:c.nodes.map(n=>{const p=mapply(M,n.x,n.y);return {...n,x:p[0],y:p[1],ix:M[0]*n.ix+M[2]*n.iy,iy:M[1]*n.ix+M[3]*n.iy,ox:M[0]*n.ox+M[2]*n.oy,oy:M[1]*n.ox+M[3]*n.oy};})})),false);}
   const regionWeights=sample=>{
     const nearest=sample[0],reach=Math.max(.5,bones[nearest[0]].L*.55),floor=nearest[1];let total=0;
     const values=sample.map(([i,d])=>{const b=bones[i],fade=clamp(1-(d-floor)/reach,0,1),w=fade*fade*(3-2*fade)/Math.pow(d*d+b.radius*b.radius+1e-8,2);total+=w;return [i,w];});return values.map(([i,w])=>[i,w/total]);
@@ -965,7 +1057,7 @@ function softPoseObject(o,rig) {
       const sample=t=>{
         if(region){const point=bezPt(a,b,t),q=map(...point,influenceAt(t)),lo=Math.max(0,t-epsilon),hi=Math.min(1,t+epsilon),p0=map(...bezPt(a,b,lo),influenceAt(lo)),p1=map(...bezPt(a,b,hi),influenceAt(hi));return {x:q[0],y:q[1],vx:(p1[0]-p0[0])/((hi-lo)*3*N),vy:(p1[1]-p0[1])/((hi-lo)*3*N)};}
 const p=bezPt(a,b,t),q=map(...p),u=1-t,dx=3*(u*u*a.ox+2*u*t*(b.x+b.ix-a.x-a.ox)+t*t*(-b.ix)),dy=3*(u*u*a.oy+2*u*t*(b.y+b.iy-a.y-a.oy)+t*t*(-b.iy)),d0=map(p[0]-epsilon*dx,p[1]-epsilon*dy),d1=map(p[0]+epsilon*dx,p[1]+epsilon*dy);return {x:q[0],y:q[1],vx:(d1[0]-d0[0])/(2*epsilon*3*N),vy:(d1[1]-d0[1])/(2*epsilon*3*N)};};
-      for(let j=0;j<=N;j++){const p=sample(j/N);if(j===0&&nodes.length){nodes.at(-1).ox=p.vx;nodes.at(-1).oy=p.vy;continue;}nodes.push({x:p.x,y:p.y,ix:j?-p.vx:0,iy:j?-p.vy:0,ox:j<N?p.vx:0,oy:j<N?p.vy:0,s:j>0&&j<N});}
+      for(let j=0;j<=N;j++){const p=sample(j/N);if(j===0&&nodes.length){nodes.at(-1).ox=p.vx;nodes.at(-1).oy=p.vy;continue;}nodes.push({x:p.x,y:p.y,ix:j?-p.vx:0,iy:j?-p.vy:0,ox:j<N?p.vx:0,oy:j<N?p.vy:0,s:j>0&&j<N,...(skin.adaptive&&((j===0&&softBaseCorner(source,i,c.closed))||(j===N&&softBaseCorner(source,(i+1)%source.length,c.closed)))?{softCorner:true}:{})});}
     }
     if(c.closed){const last=nodes.pop();nodes[0].ix=last.ix;nodes[0].iy=last.iy;}
     return {closed:c.closed,nodes};
@@ -3165,7 +3257,7 @@ root.FCCore = {
   skeletonRigidGroups, skeletonRigidValid, skeletonPoseRigid,
   skeletonGraph, skeletonPath, skeletonPinTargets, skeletonPinsValid, skeletonPosePinned,
   skeletonUnwrap, skeletonJointLimit, skeletonLimitDirection, skeletonApplyLimits,
-  softGroups, softJointGroup, softOrder, softView, softValid, softBind, softPoseObject,
+  softGroups, softJointGroup, softOrder, softView, softValid, softBind, softPoseObject, softAdaptiveContour,
   setSkeletonScope, skeletonValid, skeletonBuild, skeletonFrame, skeletonOffsets, skeletonBoundPose, skeletonPoseObject,
   rigSolve, rigBuild, rigValid, boneFrame, bindBone, unbindBone, setRigGhost, settleBinds, freeBind, notGhost, resolveBinds, clearKeyframe, moveKeyframe, reverseFrames, moveKeyframes, setTweenAt, drawObj, hitObj, frameSVG, objSVG, quantize, lzw, gifWriter, parseNum, parseEdges, assembleLoops,
   as1Looks, as1StripTypes, as1Prepare, importFLA, setImages, preloadImages, setLib, setMeasure, kidsOf, layoutText

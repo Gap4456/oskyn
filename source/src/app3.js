@@ -3268,7 +3268,7 @@ function bindLib() {
 
 
 /* ---------- report a problem ---------- */
-const SUPPORT_EMAIL = 'onionskyn.support@gmail.com';
+const ISSUES_URL = 'https://github.com/Gap4456/oskyn/issues';
 function diagnostics() {
   const d = S.doc, snd = Object.values(d.sounds || {}), sb = snd.reduce((a, x) => a + (x.size || 0), 0);
   const feat = [['indexedDB', typeof indexedDB !== 'undefined'], ['MediaRecorder', typeof MediaRecorder !== 'undefined'], ['WebM VP9', typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')], ['MP4', typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/mp4')], ['clipboard', !!(navigator.clipboard && navigator.clipboard.writeText)], ['JSZip', typeof JSZip !== 'undefined']].map((x) => x[0] + ':' + (x[1] ? 'yes' : 'no')).join(' ');
@@ -3283,23 +3283,29 @@ function diagnostics() {
     'Recent errors:' + (FCLOG.errs.length ? '\n  ' + FCLOG.errs.join('\n  ') : ' none'),
     'Recent messages:' + (FCLOG.msgs.length ? '\n  ' + FCLOG.msgs.slice(-8).join('\n  ') : ' none')].join('\n');
 }
+function reportIssueURL(text){
+  const url=new URL(ISSUES_URL+'/new');url.searchParams.set('title','oskyn '+APP_VERSION+' problem report');url.searchParams.set('body',text);
+  let shortened=false;
+  if(url.href.length>7500){
+    const suffix='\n\n[Report shortened for the link. Use Copy report to paste the full text.]';let lo=0,hi=text.length;
+    while(lo<hi){const mid=Math.ceil((lo+hi)/2);url.searchParams.set('body',text.slice(0,mid)+suffix);if(url.href.length<=7500)lo=mid;else hi=mid-1;}
+    url.searchParams.set('body',text.slice(0,lo)+suffix);shortened=true;
+  }
+  return {url:url.href,shortened};
+}
 function showReport() {
-  const body = openModal('Report a problem', '<p style="margin:0 0 6px">Describe what happened and what you expected. The details below are included with it. They contain no drawing content, file names or personal data.</p><textarea id="rpText" rows="4" placeholder="What did you do, and what went wrong?" aria-label="What went wrong" style="width:100%;box-sizing:border-box"></textarea><textarea id="rpDiag" rows="10" readonly aria-label="Diagnostic details" style="width:100%;box-sizing:border-box;margin-top:8px;font:11px ui-monospace,monospace"></textarea><div class="hint" id="rpMsg"></div>',
-    [{ label: 'Close' }, { label: 'Email report', primary: true, keep: true, fn: () => {
-      const txt = ($('#rpText').value.trim() ? $('#rpText').value.trim() + '\n\n' : '') + $('#rpDiag').value;
-      const cut = txt.length > 1800, a = document.createElement('a');
-      a.href = 'mailto:' + SUPPORT_EMAIL + '?subject=' + encodeURIComponent('oskyn ' + APP_VERSION + ' problem report') + '&body=' + encodeURIComponent(cut ? txt.slice(0, 1800) + '\n[…trimmed. Use Copy report and paste the rest]' : txt);
-      document.body.appendChild(a); a.click(); a.remove();
-      $('#rpMsg').textContent = 'Opening your email app to ' + SUPPORT_EMAIL + '. ' + (cut ? 'The report was long, so it was trimmed; use Copy report and paste the full text if you can. ' : '') + 'No email app? Use Copy report and send it to that address.';
-    } }, { label: 'Copy report', keep: true, fn: async () => {
-      const txt = ($('#rpText').value.trim() ? $('#rpText').value.trim() + '\n\n' : '') + $('#rpDiag').value;
-      let ok = false;
-      try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) { /* fall back */ }
-      if (!ok) { const t = $('#rpDiag'); t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch (e) { ok = false; } }
-      $('#rpMsg').textContent = ok ? 'Copied. Paste it into an email to ' + SUPPORT_EMAIL + '.' : 'Couldn’t copy automatically. Select the text above and copy it by hand.';
-    } }]);
-  $('#rpDiag').value = diagnostics();
-  $('#rpText').focus();
+  const reportText=()=>($('#rpText').value.trim()?$('#rpText').value.trim()+'\n\n':'')+$('#rpDiag').value;
+  openModal('Report a problem', '<p style="margin:0 0 6px">Describe what happened and what you expected. Review the description and diagnostic details before posting them to oskyn’s public GitHub Issues page.</p><textarea id="rpText" rows="4" placeholder="What did you do, and what went wrong?" aria-label="What went wrong" style="width:100%;box-sizing:border-box"></textarea><textarea id="rpDiag" rows="10" readonly aria-label="Diagnostic details" style="width:100%;box-sizing:border-box;margin-top:8px;font:11px ui-monospace,monospace"></textarea><div class="hint" id="rpMsg"></div>',
+    [{label:'Close'},{label:'Report on GitHub',primary:true,keep:true,fn:()=>{
+      const report=reportIssueURL(reportText()),a=document.createElement('a');a.href=report.url;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
+      $('#rpMsg').textContent='Opening Gap4456/oskyn → Issues. Review the report and click Submit new issue on GitHub. '+(report.shortened?'The link contains shortened text; use Copy report to paste the full report. ':'')+'Nothing is submitted automatically.';
+    }},{label:'Copy report',keep:true,fn:async()=>{
+      const txt=reportText();let ok=false;
+      try{await navigator.clipboard.writeText(txt);ok=true;}catch(_){/* Local files may need the copy fallback. */}
+      if(!ok){const t=document.createElement('textarea');t.value=txt;t.style.cssText='position:fixed;left:-10000px;top:0';document.body.appendChild(t);t.select();try{ok=document.execCommand('copy');}catch(_){}t.remove();$('#rpText').focus();}
+      $('#rpMsg').textContent=ok?'Copied. Paste it into a new issue at '+ISSUES_URL+'.':'Could not copy automatically. Select the description and diagnostic details above and copy them by hand.';
+    }}]);
+  $('#rpDiag').value=diagnostics();$('#rpText').focus();
 }
 
 /* ---------- keyboard ---------- */

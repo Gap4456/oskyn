@@ -87,6 +87,18 @@ In Selection mode, hold **Shift before grabbing an already selected object** to 
 
 Brush and Fluid Brush share the last explicitly chosen drawing colour, including Fill, Stroke, eyedropper and either brush's colour field. Switching tools no longer resets their ink to the initial dark colour.
 
+## Bone HUD and experimental soft contours
+
+Configured joint actions (pin, rigid group, attached drawing/soft body and angle limits) use darker button backgrounds when their menu appears. Open Pose actions and enabled influence-zone/adaptive controls are also marked.
+
+Open a joint's **Soft body** submenu and click **≈** to enable the **experimental adaptive contour** for its attached editable soft bodies. It refits the posed outline with fewer cubic nodes and removes small new backtracking loops, while protecting original corners and retaining the bind geometry. Click again to return to the original deformation. The setting is saved on the current keyframe, inserts a key when needed, supports Undo/Redo, and follows the animation into exports. It starts off for existing/new soft bodies; the toggle is disabled during Record.
+
+This remains experimental: deep folds, large limb crossings and complex silhouettes can still need manual adjustment. Branched-body overlap order and fill pieces are retained; their visible outlines are fitted separately. The original bind nodes are never replaced with the automatically generated contour.
+
+## Report a problem
+
+**File → Report a problem → Report on GitHub** opens a prefilled issue in [Gap4456/oskyn](https://github.com/Gap4456/oskyn/issues). The user reviews and submits it on GitHub; no issue is posted automatically and the original author's support email is not used. **Copy report** copies the description and diagnostic details for manual posting.
+
 ## Bitmap erasing: frame by frame
 
 Bitmap Eraser masks do **not** interpolate through Shape tweens. They stay at their keyframe state until the next keyframe; object transforms can still animate normally. Erasing a held bitmap frame inserts a keyframe at that frame instead of changing its earlier exposure. Using Eraser marks that bitmap's masks across the current layer's keyframes for this held behaviour.

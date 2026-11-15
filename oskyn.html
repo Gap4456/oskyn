@@ -455,7 +455,7 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 #boneRigid { left:38px; top:-38px; }
 #boneAttach { left:38px; top:38px; }
 #bonePin { left:0; top:36px; }
-#boneSoftZones[aria-pressed="true"], #bonePin[aria-pressed="true"], #boneRigid[aria-pressed="true"] { background:var(--accent-soft); box-shadow:inset 0 0 0 3px var(--accent),0 0 0 2px var(--accent); }
+#boneMenu button[aria-pressed="true"], #boneAngle[aria-pressed="true"] { background:color-mix(in srgb,var(--panel) 68%,#000); box-shadow:inset 0 0 0 3px var(--accent),0 0 0 2px var(--accent); }
 #boneMode { left:0; top:-36px; }
 :is(#boneAngle,#boneAngleRemove)[hidden] { display:none !important; }
 :is(#boneAngle,#boneAngleRemove) { z-index:9; }
@@ -579,7 +579,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <button id="projectToggle" type="button" aria-label="Open projects menu" aria-controls="projectButtons" aria-expanded="false" title="Open projects menu"></button>
       <nav id="projectButtons" aria-label="Open projects" hidden></nav>
     </div>
-    <div id="bonePoseGallery" role="group" aria-label="Saved poses" hidden></div><div id="boneMenu" role="group" aria-label="Joint actions" hidden><button id="boneSoft" type="button" aria-label="Soft body actions" title="Soft body actions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16c0-7 4-11 9-11s9 4 9 11c-2 4-16 4-18 0Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8"/><path d="m15 8 3 1" stroke="var(--panel)" stroke-width="2.5" stroke-linecap="round"/></svg></button><button id="boneSoftBind" type="button" aria-label="Attach or detach soft body" title="Attach soft body: click here, then a vector figure. Same figure detaches.">◇</button><button id="boneSoftUp" type="button" aria-label="Bring body part forward" title="Bring body part forward"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 7-8 7 8h-4v7H9v-7Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button><button id="boneSoftDown" type="button" aria-label="Send body part backward" title="Send body part backward"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 11 7 8 7-8h-4V4H9v7Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button><button id="boneSoftZones" type="button" aria-label="Show influence zones" aria-pressed="false" title="Show influence zones (editor only)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.5" fill="#ef796f" stroke="currentColor"/><circle cx="16" cy="8" r="3.5" fill="#e7b648" stroke="currentColor"/><circle cx="8" cy="16" r="3.5" fill="#49ba9a" stroke="currentColor"/><circle cx="16" cy="16" r="3.5" fill="#56a9e4" stroke="currentColor"/></svg></button><button id="boneSoftMinus" type="button" aria-label="Softer bend" title="Softer bend">−</button><button id="boneSoftPlus" type="button" aria-label="Stiffer bend" title="Stiffer bend">+</button><button id="bonePose" type="button" aria-label="Pose actions" title="Pose actions">✦</button><button id="bonePhoto" type="button" aria-label="Save pose" title="Save a new pose">▣</button><button id="boneLibrary" type="button" aria-label="Pose library" title="Open pose library">▰</button><button id="boneMode" type="button" aria-label="Switch to Animate" title="Switch to Animate"></button><button id="boneRigid" type="button" aria-label="Fix joints together" title="Fix joints together: select joints, then click this icon again."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v9l-8 5-8-5V7Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 5 8-5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="7.5" rx="3" ry="1.8" fill="var(--accent-soft)" stroke="currentColor"/></svg></button><button id="boneAttach" type="button" aria-label="Attach or detach drawing" title="Attach drawing: click here, then click artwork. Choose the same drawing again to detach."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 8 8-8 8-8-8Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7"/><path d="M8 9 3 4m0 4V4h4m9 5 5-5m-4 0h4v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button><button id="bonePin" type="button" aria-label="Pin joint in place" aria-pressed="false" title="Pin this joint in Animate. Click again to release."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 15 5-7 3-3 9-1-12Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button><button id="boneAdd" type="button" aria-label="Add bone" title="Add bone: click, then choose the new end. Drag this icon away to hide the menu.">+</button><button id="boneRemove" type="button" aria-label="Remove end joint" title="Remove this end joint and its bone. Drag this icon away to hide the menu.">−</button></div>
+    <div id="bonePoseGallery" role="group" aria-label="Saved poses" hidden></div><div id="boneMenu" role="group" aria-label="Joint actions" hidden><button id="boneSoft" type="button" aria-label="Soft body actions" title="Soft body actions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16c0-7 4-11 9-11s9 4 9 11c-2 4-16 4-18 0Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8"/><path d="m15 8 3 1" stroke="var(--panel)" stroke-width="2.5" stroke-linecap="round"/></svg></button><button id="boneSoftBind" type="button" aria-label="Attach or detach soft body" title="Attach soft body: click here, then a vector figure. Same figure detaches.">◇</button><button id="boneSoftUp" type="button" aria-label="Bring body part forward" title="Bring body part forward"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 7-8 7 8h-4v7H9v-7Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button><button id="boneSoftDown" type="button" aria-label="Send body part backward" title="Send body part backward"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 11 7 8 7-8h-4V4H9v7Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button><button id="boneSoftZones" type="button" aria-label="Show influence zones" aria-pressed="false" title="Show influence zones (editor only)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.5" fill="#ef796f" stroke="currentColor"/><circle cx="16" cy="8" r="3.5" fill="#e7b648" stroke="currentColor"/><circle cx="8" cy="16" r="3.5" fill="#49ba9a" stroke="currentColor"/><circle cx="16" cy="16" r="3.5" fill="#56a9e4" stroke="currentColor"/></svg></button><button id="boneSoftAdaptive" type="button" aria-label="Experimental adaptive soft contour" aria-pressed="false" title="Experimental adaptive contour: smooth small folds and reduce nodes">≈</button><button id="boneSoftMinus" type="button" aria-label="Softer bend" title="Softer bend">−</button><button id="boneSoftPlus" type="button" aria-label="Stiffer bend" title="Stiffer bend">+</button><button id="bonePose" type="button" aria-label="Pose actions" title="Pose actions">✦</button><button id="bonePhoto" type="button" aria-label="Save pose" title="Save a new pose">▣</button><button id="boneLibrary" type="button" aria-label="Pose library" title="Open pose library">▰</button><button id="boneMode" type="button" aria-label="Switch to Animate" title="Switch to Animate"></button><button id="boneRigid" type="button" aria-label="Fix joints together" title="Fix joints together: select joints, then click this icon again."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v9l-8 5-8-5V7Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 5 8-5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="7.5" rx="3" ry="1.8" fill="var(--accent-soft)" stroke="currentColor"/></svg></button><button id="boneAttach" type="button" aria-label="Attach or detach drawing" title="Attach drawing: click here, then click artwork. Choose the same drawing again to detach."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 8 8-8 8-8-8Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7"/><path d="M8 9 3 4m0 4V4h4m9 5 5-5m-4 0h4v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button><button id="bonePin" type="button" aria-label="Pin joint in place" aria-pressed="false" title="Pin this joint in Animate. Click again to release."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 15 5-7 3-3 9-1-12Z" fill="var(--panel)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button><button id="boneAdd" type="button" aria-label="Add bone" title="Add bone: click, then choose the new end. Drag this icon away to hide the menu.">+</button><button id="boneRemove" type="button" aria-label="Remove end joint" title="Remove this end joint and its bone. Drag this icon away to hide the menu.">−</button></div>
     <button id="boneAngleRemove" type="button" aria-label="Remove joint angle limits" title="Remove this joint’s movement limit" hidden>−</button>
     <button id="boneAngle" type="button" aria-label="Set joint angle limits" aria-expanded="false" title="Set joint angle limits: click, then drag either boundary. Click again or outside to finish." hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="var(--panel)" stroke="currentColor" stroke-width="1.5"/><path d="M9 6a6 6 0 1 1-3 8M12 12 4 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="2" fill="var(--accent-soft)" stroke="currentColor"/></svg></button>
     <div id="toolopts" aria-label="Tool options"><label data-for="rect">Corner <input type="number" id="radius" min="0" max="500" step="1"></label><label data-for="brush">Size <input type="range" id="bsizeR" min="1" max="200" aria-label="Brush size"><input type="number" id="bsize" min="1" max="500" step="1" aria-label="Brush size in pixels"></label><label data-for="brush">Shape <select id="bshape" aria-label="Brush shape"></select></label><label data-for="brush">Angle <input type="range" id="bangleR" min="0" max="180" aria-label="Brush angle"><input type="number" id="bangle" min="0" max="180" step="1" aria-label="Brush angle in degrees">°</label><label data-for="brush">Colour <input type="color" id="bcolor" aria-label="Brush colour"></label><label data-for="brush"><input type="checkbox" id="bpress"> Pressure</label><label data-for="brush"><input type="checkbox" id="bmerge"> Merge strokes</label><label data-for="eraser">Size <input type="range" id="esizeR" min="1" max="200" aria-label="Eraser size"><input type="number" id="esize" min="1" max="500" step="1" aria-label="Eraser size in pixels"></label><label data-for="bucket">Gap size <select id="bgap" aria-label="Gap size for region fill"><option value="none">Close no gaps</option><option value="small">Close small gaps</option><option value="medium">Close medium gaps</option><option value="large">Close large gaps</option></select></label><label data-for="bucket"><input type="checkbox" id="ball"> All layers</label><label data-for="pencil brush">Smoothing <input type="range" id="smooth" min="0" max="100"></label></div>
@@ -1711,9 +1711,101 @@ function softParts(o,contours,rig) {
   }
   return parts.length>1?parts:null;
 }
-function softWithParts(o,contours,rig) {
+/* Experimental, pose-only contour repair. Bind geometry is never rewritten.
+   Small new backtracking loops are removed before bounded-error cubic fitting. */
+function softBaseCorner(nodes,i,closed){
+  if(!closed&&(i===0||i===nodes.length-1))return true;
+  const p=nodes[(i+nodes.length-1)%nodes.length],n=nodes[i],q=nodes[(i+1)%nodes.length];
+  const ax=n.ix||n.iy?-n.ix:n.x-p.x,ay=n.ix||n.iy?-n.iy:n.y-p.y;
+  const bx=n.ox||n.oy?n.ox:q.x-n.x,by=n.ox||n.oy?n.oy:q.y-n.y;
+  const length=Math.hypot(ax,ay)*Math.hypot(bx,by);
+  return length>1e-12&&(ax*bx+ay*by)/length<Math.cos(Math.PI/5);
+}
+function softAdaptiveContour(contour,scale){
+  const tolerance=clamp(scale*.003,.015,.65),source=contour.nodes,closed=!!contour.closed;
+  if(source.length<2)return contour;
+  const points=[],dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const lineDistance=(p,a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,d=dx*dx+dy*dy,t=d?clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/d,0,1):0;return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);};
+  const push=p=>{if(points.length&&dist(points.at(-1),p)<1e-9){points.at(-1).corner||=p.corner;return;}points.push(p);};
+  const flatten=(a,b,c,d,depth=0)=>{
+    if(depth>=9||Math.max(lineDistance(b,a,d),lineDistance(c,a,d))<=tolerance*.2){push(d);return;}
+    const mix=(p,q)=>({x:(p.x+q.x)/2,y:(p.y+q.y)/2}),ab=mix(a,b),bc=mix(b,c),cd=mix(c,d),abc=mix(ab,bc),bcd=mix(bc,cd),mid=mix(abc,bcd);
+    flatten(a,ab,abc,mid,depth+1);flatten(mid,bcd,cd,d,depth+1);
+  };
+  push({x:source[0].x,y:source[0].y,corner:!!source[0].softCorner});
+  for(let i=0;i<(closed?source.length:source.length-1);i++){
+    const a=source[i],b=source[(i+1)%source.length];
+    flatten({x:a.x,y:a.y},{x:a.x+a.ox,y:a.y+a.oy},{x:b.x+b.ix,y:b.y+b.iy},{x:b.x,y:b.y,corner:!!b.softCorner});
+    if(points.length>4096)return contour;
+  }
+  if(closed&&dist(points[0],points.at(-1))<1e-8)points.pop();
+  // Do not bridge large limb crossings or erase intentional bind-time corners.
+  for(let pass=0;pass<12;pass++){
+    let repaired=false;const n=points.length,count=closed?n:n-1;
+    for(let i=0;i<count&&!repaired;i++){
+      const a=points[i],b=points[(i+1)%n];let arc=dist(a,b);
+      for(let j=i+2;j<count&&arc<scale*1.25;j++){
+        arc+=dist(points[j-1],points[j]);if(closed&&i===0&&j===n-1)continue;
+        const c=points[j],d=points[(j+1)%n],rx=b.x-a.x,ry=b.y-a.y,sx=d.x-c.x,sy=d.y-c.y,det=rx*sy-ry*sx;
+        if(Math.abs(det)<1e-12)continue;
+        const dx=c.x-a.x,dy=c.y-a.y,t=(dx*sy-dy*sx)/det,u=(dx*ry-dy*rx)/det;
+        if(t<=1e-7||t>=1-1e-7||u<=1e-7||u>=1-1e-7)continue;
+        const q={x:a.x+t*rx,y:a.y+t*ry},loop=[q,...points.slice(i+1,j+1)];
+        if(loop.some(p=>p.corner))continue;
+        let area=0;for(let k=0;k<loop.length;k++){const p=loop[k],z=loop[(k+1)%loop.length];area+=p.x*z.y-p.y*z.x;}
+        if(Math.abs(area)/2>scale*scale*.08)continue;
+        points.splice(i+1,j-i,q);repaired=true;break;
+      }
+    }
+    if(!repaired)break;
+  }
+  if(points.length<(closed?3:2))return contour;
+  const unit=(x,y)=>{const l=Math.hypot(x,y);return l>1e-12?[x/l,y/l]:[1,0];};
+  const tangent=i=>{const n=points.length,p=points[(i+n-1)%n],q=points[i],r=points[(i+1)%n];if(!closed&&i===0)return unit(r.x-q.x,r.y-q.y);if(!closed&&i===n-1)return unit(q.x-p.x,q.y-p.y);const a=unit(q.x-p.x,q.y-p.y),b=unit(r.x-q.x,r.y-q.y);return unit(a[0]+b[0],a[1]+b[1]);};
+  const cuts=new Set(points.flatMap((p,i)=>p.corner?[i]:[]));
+  if(closed){for(const key of ['x','y'])for(const sign of [-1,1]){let best=0;for(let i=1;i<points.length;i++)if(sign*points[i][key]>sign*points[best][key])best=i;cuts.add(best);}cuts.add(0);}else {cuts.add(0);cuts.add(points.length-1);}
+  const indices=[...cuts].sort((a,b)=>a-b),nodes=[];
+  const emit=(a,c1,c2,b)=>{if(!nodes.length)nodes.push(node(a.x,a.y));const last=nodes.at(-1);last.ox=c1.x-a.x;last.oy=c1.y-a.y;last.s=!a.corner;const next={...node(b.x,b.y),ix:c2.x-b.x,iy:c2.y-b.y};next.s=!b.corner;nodes.push(next);};
+  const fit=(pts,t0,t1,depth=0)=>{
+    const a=pts[0],b=pts.at(-1),lengths=[0];for(let i=1;i<pts.length;i++)lengths.push(lengths.at(-1)+dist(pts[i-1],pts[i]));
+    const length=lengths.at(-1),ts=lengths.map(x=>length?x/length:0);let aa=0,ab=0,bb=0,ra=0,rb=0;
+    for(let i=1;i<pts.length-1;i++){
+      const t=ts[i],u=1-t,A=3*u*u*t,B=3*u*t*t,dx=pts[i].x-(u*u*u+A)*a.x-(B+t*t*t)*b.x,dy=pts[i].y-(u*u*u+A)*a.y-(B+t*t*t)*b.y;
+      aa+=A*A;ab-=A*B*(t0[0]*t1[0]+t0[1]*t1[1]);bb+=B*B;ra+=A*(t0[0]*dx+t0[1]*dy);rb-=B*(t1[0]*dx+t1[1]*dy);
+    }
+    const det=aa*bb-ab*ab,chord=dist(a,b);let alpha=det>1e-14?(ra*bb-rb*ab)/det:chord/3,beta=det>1e-14?(rb*aa-ra*ab)/det:chord/3;
+    if(alpha<0||beta<0||alpha>length*1.5||beta>length*1.5)alpha=beta=chord/3;
+    const c1={x:a.x+t0[0]*alpha,y:a.y+t0[1]*alpha},c2={x:b.x-t1[0]*beta,y:b.y-t1[1]*beta};
+    const point=t=>{const u=1-t;return {x:u*u*u*a.x+3*u*u*t*c1.x+3*u*t*t*c2.x+t*t*t*b.x,y:u*u*u*a.y+3*u*u*t*c1.y+3*u*t*t*c2.y+t*t*t*b.y};};
+    let error=0,split=Math.floor(pts.length/2);
+    for(let i=1;i<pts.length-1;i++){const e=dist(point(ts[i]),pts[i]);if(e>error){error=e;split=i;}}
+    if(error<=tolerance)for(let i=1;i<16;i++){const p=point(i/16);let e=Infinity;for(let j=1;j<pts.length;j++)e=Math.min(e,lineDistance(p,pts[j-1],pts[j]));error=Math.max(error,e);}
+    if(error<=tolerance){emit(a,c1,c2,b);return;}
+    if(pts.length===2||depth>=16){for(let i=1;i<pts.length;i++){const p=pts[i-1],q=pts[i];emit(p,{x:lerp(p.x,q.x,1/3),y:lerp(p.y,q.y,1/3)},{x:lerp(p.x,q.x,2/3),y:lerp(p.y,q.y,2/3)},q);}return;}
+    split=clamp(split,1,pts.length-2);const before=pts[split-1],after=pts[split+1],middle=unit(after.x-before.x,after.y-before.y);
+    fit(pts.slice(0,split+1),t0,middle,depth+1);fit(pts.slice(split),middle,t1,depth+1);
+  };
+  for(let j=0;j<(closed?indices.length:indices.length-1);j++){
+    const start=indices[j],end=j+1<indices.length?indices[j+1]:points.length,pts=[];
+    for(let i=start;i<=end;i++)pts.push(points[i%points.length]);
+    const a=pts[0],b=pts.at(-1),t0=a.corner?unit(pts[1].x-a.x,pts[1].y-a.y):tangent(start),last=end%points.length,t1=b.corner?unit(b.x-pts.at(-2).x,b.y-pts.at(-2).y):tangent(last);
+    fit(pts,t0,t1);
+  }
+  if(closed){const last=nodes.pop();nodes[0].ix=last.ix;nodes[0].iy=last.iy;}
+  if(nodes.length<(closed?3:2)||nodes.some(n=>!['x','y','ix','iy','ox','oy'].every(k=>Number.isFinite(n[k]))))return contour;
+  return {...contour,nodes};
+}
+const softAdaptiveCache=new WeakMap();
+
+function softWithParts(o,contours,rig,adaptive=true) {
   const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.contours=contours;delete copy.arc;delete copy.ellipseFrame;
-  const parts=softParts(o,contours,rig);if(parts)Object.defineProperty(copy,'_softParts',{value:parts,enumerable:false,configurable:true});else if(copy._softParts)delete copy._softParts;
+  let parts=softParts(o,contours,rig);
+  if(adaptive&&o.skin.adaptive){
+    let clean=softAdaptiveCache.get(contours);
+    if(!clean){const scale=Math.min(...o.skin.bones.map(b=>Math.hypot(b.bx-b.ax,b.by-b.ay)));clean={contours:contours.map(c=>softAdaptiveContour(c,scale)),parts:parts?.map(p=>({...p,outline:p.outline.map(c=>softAdaptiveContour(c,scale))}))};softAdaptiveCache.set(contours,clean);}
+    copy.contours=clean.contours;parts=clean.parts;
+  }
+  if(parts)Object.defineProperty(copy,'_softParts',{value:parts,enumerable:false,configurable:true});else if(copy._softParts)delete copy._softParts;
   return copy;
 }
 function softView(o) {
@@ -1732,7 +1824,7 @@ function softView(o) {
 
 function softValid(s) {
   const matrix=m=>Array.isArray(m)&&m.length===6&&m.every(Number.isFinite)&&Math.abs(m[0]*m[3]-m[1]*m[2])>1e-10;
-  return !!s&&s.version===1&&typeof s.to==='string'&&matrix(s.object)&&Array.isArray(s.bones)&&s.bones.length>0&&s.bones.length<=255&&s.bones.every(b=>b&&typeof b.id==='string'&&typeof b.parent==='string'&&[b.ax,b.ay,b.bx,b.by,b.stiffness].every(Number.isFinite)&&Math.hypot(b.bx-b.ax,b.by-b.ay)>1e-5)&&Array.isArray(s.base)&&s.base.length>0&&s.base.reduce((n,c)=>n+(c?.nodes?.length||0),0)<=512&&s.base.every(c=>c&&Array.isArray(c.nodes)&&c.nodes.length>1&&c.nodes.every(n=>['x','y','ix','iy','ox','oy'].every(k=>Number.isFinite(n[k]))))&&softRegionsValid(s)&&(s.order==null||(Array.isArray(s.order)&&s.order.length<=s.bones.length&&new Set(s.order).size===s.order.length&&s.order.every(id=>typeof id==='string'&&softGroups(s).some(g=>g.id===id))));
+  return !!s&&s.version===1&&(s.adaptive==null||typeof s.adaptive==='boolean')&&typeof s.to==='string'&&matrix(s.object)&&Array.isArray(s.bones)&&s.bones.length>0&&s.bones.length<=255&&s.bones.every(b=>b&&typeof b.id==='string'&&typeof b.parent==='string'&&[b.ax,b.ay,b.bx,b.by,b.stiffness].every(Number.isFinite)&&Math.hypot(b.bx-b.ax,b.by-b.ay)>1e-5)&&Array.isArray(s.base)&&s.base.length>0&&s.base.reduce((n,c)=>n+(c?.nodes?.length||0),0)<=512&&s.base.every(c=>c&&Array.isArray(c.nodes)&&c.nodes.length>1&&c.nodes.every(n=>['x','y','ix','iy','ox','oy'].every(k=>Number.isFinite(n[k]))))&&softRegionsValid(s)&&(s.order==null||(Array.isArray(s.order)&&s.order.length<=s.bones.length&&new Set(s.order).size===s.order.length&&s.order.every(id=>typeof id==='string'&&softGroups(s).some(g=>g.id===id))));
 }
 function softBind(o,rig) {
   if(o.kind!=='path'||o.skel||o.rig||o.mirror||!rig.skel)return null;
@@ -1749,13 +1841,13 @@ function softBind(o,rig) {
 const softPoseCache=new WeakMap();
 function softPoseObject(o,rig) {
   const skin=o.skin;if(!skin||!rig?.skel)return o;
-  const key=JSON.stringify([rig.t,rig.skel.nodes.map(n=>[n.id,n.parent,n.x,n.y]),skin.order]),cached=softPoseCache.get(skin);
-  if(cached?.key===key)return softWithParts(o,cached.contours,rig);
+  const key=JSON.stringify([rig.t,rig.skel.nodes.map(n=>[n.id,n.parent,n.x,n.y]),skin.order,!!skin.adaptive]),cached=softPoseCache.get(skin);
+  if(cached?.key===key)return softWithParts(o,cached.contours,rig,cached.adaptive);
   const byId=new Map(rig.skel.nodes.map(n=>[n.id,n])),m=mmul(minv(skin.object),matOf(rig.t)),bones=[];
   for(const b of skin.bones){const p=byId.get(b.parent),n=byId.get(b.id);if(!p||!n)return o;const a=mapply(m,p.x,p.y),z=mapply(m,n.x,n.y),dx=b.bx-b.ax,dy=b.by-b.ay,L=Math.hypot(dx,dy),q=Math.hypot(z[0]-a[0],z[1]-a[1]);if(q<1e-6)return o;const angle=Math.atan2(z[1]-a[1],z[0]-a[0])-Math.atan2(dy,dx);bones.push({...b,a,z,L,ux:dx/L,uy:dy/L,c:Math.cos(angle),s:Math.sin(angle),stretch:q/L,radius:L*(.025+.28*(1-clamp(b.stiffness,0,1)))});}
-  const finish=contours=>{softPoseCache.set(skin,{key,contours});return softWithParts(o,contours,rig);};
+  const finish=(contours,adaptive=true)=>{softPoseCache.set(skin,{key,contours,adaptive});return softWithParts(o,contours,rig,adaptive);};
   const transforms=bones.map(b=>{const f=(x,y)=>{const dx=x-b.ax,dy=y-b.ay,along=dx*b.ux+dy*b.uy,across=-dx*b.uy+dy*b.ux,vx=b.ux*along*b.stretch-b.uy*across,vy=b.uy*along*b.stretch+b.ux*across;return [b.a[0]+b.c*vx-b.s*vy,b.a[1]+b.s*vx+b.c*vy];},a=f(0,0),x=f(1,0),y=f(0,1);return [x[0]-a[0],x[1]-a[1],y[0]-a[0],y[1]-a[1],a[0],a[1]];});
-  if(!(skin.order&&skin.regions)&&transforms.every(m=>m.every((v,i)=>Math.abs(v-transforms[0][i])<1e-8))){const M=transforms[0];if(M.every((v,i)=>Math.abs(v-[1,0,0,1,0,0][i])<1e-8))return finish(skin.base);return finish(skin.base.map(c=>({...c,nodes:c.nodes.map(n=>{const p=mapply(M,n.x,n.y);return {...n,x:p[0],y:p[1],ix:M[0]*n.ix+M[2]*n.iy,iy:M[1]*n.ix+M[3]*n.iy,ox:M[0]*n.ox+M[2]*n.oy,oy:M[1]*n.ox+M[3]*n.oy};})})));}
+  if(!(skin.order&&skin.regions)&&transforms.every(m=>m.every((v,i)=>Math.abs(v-transforms[0][i])<1e-8))){const M=transforms[0];if(M.every((v,i)=>Math.abs(v-[1,0,0,1,0,0][i])<1e-8))return finish(skin.base,false);return finish(skin.base.map(c=>({...c,nodes:c.nodes.map(n=>{const p=mapply(M,n.x,n.y);return {...n,x:p[0],y:p[1],ix:M[0]*n.ix+M[2]*n.iy,iy:M[1]*n.ix+M[3]*n.iy,ox:M[0]*n.ox+M[2]*n.oy,oy:M[1]*n.ox+M[3]*n.oy};})})),false);}
   const regionWeights=sample=>{
     const nearest=sample[0],reach=Math.max(.5,bones[nearest[0]].L*.55),floor=nearest[1];let total=0;
     const values=sample.map(([i,d])=>{const b=bones[i],fade=clamp(1-(d-floor)/reach,0,1),w=fade*fade*(3-2*fade)/Math.pow(d*d+b.radius*b.radius+1e-8,2);total+=w;return [i,w];});return values.map(([i,w])=>[i,w/total]);
@@ -1774,7 +1866,7 @@ function softPoseObject(o,rig) {
       const sample=t=>{
         if(region){const point=bezPt(a,b,t),q=map(...point,influenceAt(t)),lo=Math.max(0,t-epsilon),hi=Math.min(1,t+epsilon),p0=map(...bezPt(a,b,lo),influenceAt(lo)),p1=map(...bezPt(a,b,hi),influenceAt(hi));return {x:q[0],y:q[1],vx:(p1[0]-p0[0])/((hi-lo)*3*N),vy:(p1[1]-p0[1])/((hi-lo)*3*N)};}
 const p=bezPt(a,b,t),q=map(...p),u=1-t,dx=3*(u*u*a.ox+2*u*t*(b.x+b.ix-a.x-a.ox)+t*t*(-b.ix)),dy=3*(u*u*a.oy+2*u*t*(b.y+b.iy-a.y-a.oy)+t*t*(-b.iy)),d0=map(p[0]-epsilon*dx,p[1]-epsilon*dy),d1=map(p[0]+epsilon*dx,p[1]+epsilon*dy);return {x:q[0],y:q[1],vx:(d1[0]-d0[0])/(2*epsilon*3*N),vy:(d1[1]-d0[1])/(2*epsilon*3*N)};};
-      for(let j=0;j<=N;j++){const p=sample(j/N);if(j===0&&nodes.length){nodes.at(-1).ox=p.vx;nodes.at(-1).oy=p.vy;continue;}nodes.push({x:p.x,y:p.y,ix:j?-p.vx:0,iy:j?-p.vy:0,ox:j<N?p.vx:0,oy:j<N?p.vy:0,s:j>0&&j<N});}
+      for(let j=0;j<=N;j++){const p=sample(j/N);if(j===0&&nodes.length){nodes.at(-1).ox=p.vx;nodes.at(-1).oy=p.vy;continue;}nodes.push({x:p.x,y:p.y,ix:j?-p.vx:0,iy:j?-p.vy:0,ox:j<N?p.vx:0,oy:j<N?p.vy:0,s:j>0&&j<N,...(skin.adaptive&&((j===0&&softBaseCorner(source,i,c.closed))||(j===N&&softBaseCorner(source,(i+1)%source.length,c.closed)))?{softCorner:true}:{})});}
     }
     if(c.closed){const last=nodes.pop();nodes[0].ix=last.ix;nodes[0].iy=last.iy;}
     return {closed:c.closed,nodes};
@@ -3974,7 +4066,7 @@ root.FCCore = {
   skeletonRigidGroups, skeletonRigidValid, skeletonPoseRigid,
   skeletonGraph, skeletonPath, skeletonPinTargets, skeletonPinsValid, skeletonPosePinned,
   skeletonUnwrap, skeletonJointLimit, skeletonLimitDirection, skeletonApplyLimits,
-  softGroups, softJointGroup, softOrder, softView, softValid, softBind, softPoseObject,
+  softGroups, softJointGroup, softOrder, softView, softValid, softBind, softPoseObject, softAdaptiveContour,
   setSkeletonScope, skeletonValid, skeletonBuild, skeletonFrame, skeletonOffsets, skeletonBoundPose, skeletonPoseObject,
   rigSolve, rigBuild, rigValid, boneFrame, bindBone, unbindBone, setRigGhost, settleBinds, freeBind, notGhost, resolveBinds, clearKeyframe, moveKeyframe, reverseFrames, moveKeyframes, setTweenAt, drawObj, hitObj, frameSVG, objSVG, quantize, lzw, gifWriter, parseNum, parseEdges, assembleLoops,
   as1Looks, as1StripTypes, as1Prepare, importFLA, setImages, preloadImages, setLib, setMeasure, kidsOf, layoutText
@@ -7869,6 +7961,7 @@ function skeletonAngleMenuSync() {
   if(button.hidden)return;
   const p=skeletonAngleButtonPoint(r);button.style.left=p[0]+'px';button.style.top=p[1]+'px';button.disabled=REC.armed;
   if(!remove.hidden){const q=skeletonAngleRemovePoint(r);remove.style.left=q[0]+'px';remove.style.top=q[1]+'px';remove.disabled=REC.armed;}
+  button.setAttribute('aria-pressed',String(!!C.skeletonJointLimit(r.o.skel,r.joint)));
   button.setAttribute('aria-expanded',String(skeletonAngleKey(r)===skeletonAngleKey(SK.angleEdit)));
 }
 function skeletonRemoveLimit(ref){
@@ -8030,6 +8123,13 @@ function skeletonSoftDetachObject(o,pose) {
   else {o.contours=clone(pose.contours);o.t={...pose.t};delete o.skin;}
 }
 
+function skeletonSoftAdaptiveToggle(r){
+  if(REC.armed||getLayer(r.lid)?.locked)return;
+  const figures=skeletonSoftFigures(r).filter(q=>!getLayer(q.lid).locked);if(!figures.length)return;
+  const enabled=!figures.every(q=>q.o.skin.adaptive===true);pushUndo();
+  for(const q of figures){const l=getLayer(q.lid);if(!C.kfAt(l,S.frame))C.insertKeyframe(l,S.frame,false);const o=findEditable(q.lid,q.o.id);o.skin=clone(q.o.skin);if(enabled)o.skin.adaptive=true;else delete o.skin.adaptive;}
+  commit();skeletonMenuSync();toast(enabled?'Experimental adaptive soft contour enabled. Original nodes are preserved.':'Adaptive contour off; original deformation restored.');
+}
 function skeletonSoftAdjust(r,delta) {
   const figures=skeletonSoftFigures(r).filter(q=>!getLayer(q.lid).locked);if(!figures.length)return;
   const affected=figures.flatMap(q=>q.o.skin.bones.filter(b=>b.id===r.joint||(r.o.skel.nodes.find(n=>n.id===r.joint)?.parent==null&&b.parent===r.joint)));
@@ -8202,18 +8302,25 @@ function skeletonMenuSync() {
   const poseOpen=SK.poseOpen===r.id+':'+r.joint;
   $('#bonePose').hidden=choosing;$('#bonePhoto').hidden=choosing||!poseOpen;$('#boneLibrary').hidden=choosing||!poseOpen;
   $('#boneSoft').hidden=choosing;
+  const attachedSoft=skeletonSoftFigures(r);
+  $('#boneSoft').setAttribute('aria-pressed',String(attachedSoft.length>0));
   const softOpen=SK.softOpen===r.id+':'+r.joint;
+  $('#boneSoft').setAttribute('aria-expanded',String(softOpen));
+  $('#bonePose').setAttribute('aria-pressed',String(poseOpen));
+  $('#boneSoftBind').setAttribute('aria-pressed',String(attachedSoft.length>0));
+  $('#boneAttach').setAttribute('aria-pressed',String(skeletonBindings().has(r.id+':'+r.joint)));
   $('#boneSoftBind').hidden=choosing||!softOpen||!editing;
   const orderedFigures=softOpen?skeletonSoftFigures(r).filter(q=>!getLayer(q.lid).locked&&q.o.skin.regions&&q.o.skin.base.length===1&&q.o.skin.base[0].closed&&C.softGroups(q.o.skin).length>1&&C.softJointGroup(q.o.skin,r.joint)):[];
   for(const id of ['boneSoftUp','boneSoftDown']){const b=$('#'+id);b.hidden=choosing||!softOpen;b.dataset.available=String(orderedFigures.length>0);b.title=(id==='boneSoftUp'?'Bring this body part forward':'Send this body part backward')+(orderedFigures.length?' — saved on this keyframe':' — needs a branched soft body with one outer contour');}
-  const softFigures=softOpen?skeletonSoftFigures(r):[];
+  const softFigures=softOpen?attachedSoft:[];
+  const adaptive=$('#boneSoftAdaptive');adaptive.hidden=choosing||!softOpen;adaptive.dataset.available=String(softFigures.some(q=>!getLayer(q.lid).locked));adaptive.setAttribute('aria-pressed',String(softFigures.length>0&&softFigures.every(q=>q.o.skin.adaptive===true)));
   const zones=$('#boneSoftZones'),zoneOn=skeletonZoneActive(r),zoneAvailable=softFigures.filter(q=>!getLayer(q.lid).mask&&!q.o.invisMask).some(q=>C.softGroups(q.o.skin).length===1||(q.o.skin.regions&&q.o.skin.base.length===1&&q.o.skin.base[0].closed));
   zones.hidden=choosing||!softOpen;zones.dataset.available=String(zoneAvailable||zoneOn);zones.setAttribute('aria-pressed',String(zoneOn));zones.setAttribute('aria-label',zoneOn?'Hide influence zones':'Show influence zones');zones.title=zoneOn?'Hide influence zones':zoneAvailable?'Show matching body/bone colors (editor only)':'Attach a soft body with one outer contour, or one unbranched chain, to show its zones';
   for(const [id,sign] of [['boneSoftPlus',1],['boneSoftMinus',-1]]){const b=$('#'+id);b.hidden=choosing||!softOpen;const values=softFigures.flatMap(q=>q.o.skin.bones.filter(b=>b.id===r.joint||(n.parent==null&&b.parent===r.joint)).map(b=>b.stiffness));b.dataset.available=String(values.length>0&&values.some(v=>sign>0?v<1:v>0));b.title=(sign>0?'Stiffer':'Softer')+' bend'+(values.length?' ('+Math.round(values[0]*100)+'%)':' — attach a soft body first');}
   $('#boneRigid').hidden=!editing;
   $('#boneRigid').setAttribute('aria-label',choosing?'Confirm fixed joints':'Fix joints together');
   $('#boneRigid').title=choosing?'Click joints to select or remove them, including the first joint. Click this icon again to confirm. Fewer than two joints removes the group.':'Fix joints together: select joints, then click this icon again.';
-  $('#boneRigid').setAttribute('aria-pressed',String(choosing));
+  $('#boneRigid').setAttribute('aria-pressed',String(choosing||C.skeletonRigidGroups(r.o.skel).some(g=>g.points.some(p=>p.id===r.joint))));
   toggle.hidden=choosing;$('#bonePin').hidden=choosing;
   $('#boneAttach').hidden=!editing||choosing;
   $('#boneAdd').hidden=!editing||choosing;$('#boneRemove').hidden=!editing||choosing||degree>1;
@@ -8234,6 +8341,7 @@ function skeletonMenuSync() {
   const sl=Math.hypot(sx,sy)||1,ux=sx/sl,uy=sy/sl;
   for(const [id,side] of [['boneSoftBind',0],['boneSoftMinus',-34],['boneSoftPlus',34]]){const b=$('#'+id);b.style.left=(sx+38*ux-side*uy)+'px';b.style.top=(sy+38*uy+side*ux)+'px';}
   for(const [id,offset] of [['boneSoftUp',-34],['boneSoftZones',0],['boneSoftDown',34]]){const side=offset*(ux<0?-1:1),b=$('#'+id);b.style.left=(sx+70*ux-side*uy)+'px';b.style.top=(sy+70*uy+side*ux)+'px';}
+  {const b=$('#boneSoftAdaptive');b.style.left=(sx+102*ux)+'px';b.style.top=(sy+102*uy)+'px';}
   for(const b of menu.querySelectorAll('button'))b.disabled=REC.armed||(b.id.startsWith('boneSoft')&&b.dataset.available==='false');
 }
 function skeletonPanel(){document.body.classList.toggle('skel-selected',!!singleSel()?.o.skel);skeletonMenuSync();}
@@ -8463,7 +8571,7 @@ function skeletonBindUI() {
     if(SK.ctrlHeld!==(e.ctrlKey||e.metaKey)||SK.shiftHeld!==e.shiftKey)skeletonHudModifiers(e.ctrlKey||e.metaKey,e.shiftKey);
     if(e.target.closest?.('#bonePoseGallery'))return;
     const p=stagePt(e),d=SK.actionDrag;
-    if(d){const r=d.r,n=r?.o.skel.nodes.find(n=>n.id===r.joint),q=d.angle?d.anchor:n&&skeletonScreen(r,n);if(q&&Math.hypot(p.sx-q[0],p.sy-q[1])>BONE_MENU_REACH+(SK.softOpen===r.id+':'+r.joint?20:0)){d.dismissed=true;SK.dismissed=d.key;SK.rigidPick=null;invalidate();SK.angleHover=null;SK.angleEdit=null;skeletonMenuSync();}return;}
+    if(d){const r=d.r,n=r?.o.skel.nodes.find(n=>n.id===r.joint),q=d.angle?d.anchor:n&&skeletonScreen(r,n);if(q&&Math.hypot(p.sx-q[0],p.sy-q[1])>BONE_MENU_REACH+(SK.softOpen===r.id+':'+r.joint?50:0)){d.dismissed=true;SK.dismissed=d.key;SK.rigidPick=null;invalidate();SK.angleHover=null;SK.angleEdit=null;skeletonMenuSync();}return;}
     if(e.target.closest?.('#boneAngle,#boneAngleRemove')){skeletonAngleMenuSync();return;}
     skeletonHoverAt(p,!!e.target.closest?.('#boneMenu'));if(SK.add)invalidate();
   });
@@ -8477,7 +8585,7 @@ function skeletonBindUI() {
     e.preventDefault();e.stopPropagation();b.setPointerCapture(e.pointerId);SK.actionDrag={button:b,key:skeletonKey(r),r,dismissed:false};
   });
   window.addEventListener('pointerup',e=>{
-    const d=SK.actionDrag;if(d){SK.actionDrag=null;if(!d.dismissed){if(d.button.id==='boneSoft'){SK.poseOpen=null;SK.softOpen=SK.softOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='boneSoftBind')skeletonSoftBindStart(d.r);else if(d.button.id==='boneSoftZones')skeletonZoneToggle(d.r);else if(d.button.id==='boneSoftUp')skeletonSoftOrder(d.r,1);else if(d.button.id==='boneSoftDown')skeletonSoftOrder(d.r,-1);else if(d.button.id==='boneSoftPlus')skeletonSoftAdjust(d.r,.1);else if(d.button.id==='boneSoftMinus')skeletonSoftAdjust(d.r,-.1);else if(d.button.id==='bonePose'){SK.softOpen=null;$('#bonePoseGallery').hidden=true;SK.poseOpen=SK.poseOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='bonePhoto')skeletonPoseSave(d.r);else if(d.button.id==='boneLibrary')skeletonPoseGallery(d.r);else if(d.button.id==='boneRigid')skeletonRigidStart(d.r);else if(d.button.id==='boneAttach')skeletonBindStart(d.r);else if(d.button.id==='bonePin')skeletonTogglePin(d.r);else if(d.button.id==='boneAngleRemove')skeletonRemoveLimit(d.r);else if(d.button.id==='boneAngle')skeletonOpenAngle(d.r);else if(d.button.id==='boneMode')skeletonToggleMode(d.r);else if(d.button.id==='boneAdd'){SK.angleHover=null;SK.angleEdit=null;SK.add={lid:d.r.lid,id:d.r.id,joint:d.r.joint};SK.hover=null;invalidate();}else skeletonRemove(d.r);}skeletonMenuSync();return;}
+    const d=SK.actionDrag;if(d){SK.actionDrag=null;if(!d.dismissed){if(d.button.id==='boneSoft'){SK.poseOpen=null;SK.softOpen=SK.softOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='boneSoftBind')skeletonSoftBindStart(d.r);else if(d.button.id==='boneSoftAdaptive')skeletonSoftAdaptiveToggle(d.r);else if(d.button.id==='boneSoftZones')skeletonZoneToggle(d.r);else if(d.button.id==='boneSoftUp')skeletonSoftOrder(d.r,1);else if(d.button.id==='boneSoftDown')skeletonSoftOrder(d.r,-1);else if(d.button.id==='boneSoftPlus')skeletonSoftAdjust(d.r,.1);else if(d.button.id==='boneSoftMinus')skeletonSoftAdjust(d.r,-.1);else if(d.button.id==='bonePose'){SK.softOpen=null;$('#bonePoseGallery').hidden=true;SK.poseOpen=SK.poseOpen===d.r.id+':'+d.r.joint?null:d.r.id+':'+d.r.joint;}else if(d.button.id==='bonePhoto')skeletonPoseSave(d.r);else if(d.button.id==='boneLibrary')skeletonPoseGallery(d.r);else if(d.button.id==='boneRigid')skeletonRigidStart(d.r);else if(d.button.id==='boneAttach')skeletonBindStart(d.r);else if(d.button.id==='bonePin')skeletonTogglePin(d.r);else if(d.button.id==='boneAngleRemove')skeletonRemoveLimit(d.r);else if(d.button.id==='boneAngle')skeletonOpenAngle(d.r);else if(d.button.id==='boneMode')skeletonToggleMode(d.r);else if(d.button.id==='boneAdd'){SK.angleHover=null;SK.angleEdit=null;SK.add={lid:d.r.lid,id:d.r.id,joint:d.r.joint};SK.hover=null;invalidate();}else skeletonRemove(d.r);}skeletonMenuSync();return;}
     if(S.tool==='bone')skeletonHoverAt(stagePt(e));
   });
   window.addEventListener('pointercancel',()=>{SK.actionDrag=null;skeletonMenuSync();});
@@ -11934,7 +12042,7 @@ function bindLib() {
 
 
 /* ---------- report a problem ---------- */
-const SUPPORT_EMAIL = 'onionskyn.support@gmail.com';
+const ISSUES_URL = 'https://github.com/Gap4456/oskyn/issues';
 function diagnostics() {
   const d = S.doc, snd = Object.values(d.sounds || {}), sb = snd.reduce((a, x) => a + (x.size || 0), 0);
   const feat = [['indexedDB', typeof indexedDB !== 'undefined'], ['MediaRecorder', typeof MediaRecorder !== 'undefined'], ['WebM VP9', typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')], ['MP4', typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/mp4')], ['clipboard', !!(navigator.clipboard && navigator.clipboard.writeText)], ['JSZip', typeof JSZip !== 'undefined']].map((x) => x[0] + ':' + (x[1] ? 'yes' : 'no')).join(' ');
@@ -11949,23 +12057,29 @@ function diagnostics() {
     'Recent errors:' + (FCLOG.errs.length ? '\n  ' + FCLOG.errs.join('\n  ') : ' none'),
     'Recent messages:' + (FCLOG.msgs.length ? '\n  ' + FCLOG.msgs.slice(-8).join('\n  ') : ' none')].join('\n');
 }
+function reportIssueURL(text){
+  const url=new URL(ISSUES_URL+'/new');url.searchParams.set('title','oskyn '+APP_VERSION+' problem report');url.searchParams.set('body',text);
+  let shortened=false;
+  if(url.href.length>7500){
+    const suffix='\n\n[Report shortened for the link. Use Copy report to paste the full text.]';let lo=0,hi=text.length;
+    while(lo<hi){const mid=Math.ceil((lo+hi)/2);url.searchParams.set('body',text.slice(0,mid)+suffix);if(url.href.length<=7500)lo=mid;else hi=mid-1;}
+    url.searchParams.set('body',text.slice(0,lo)+suffix);shortened=true;
+  }
+  return {url:url.href,shortened};
+}
 function showReport() {
-  const body = openModal('Report a problem', '<p style="margin:0 0 6px">Describe what happened and what you expected. The details below are included with it. They contain no drawing content, file names or personal data.</p><textarea id="rpText" rows="4" placeholder="What did you do, and what went wrong?" aria-label="What went wrong" style="width:100%;box-sizing:border-box"></textarea><textarea id="rpDiag" rows="10" readonly aria-label="Diagnostic details" style="width:100%;box-sizing:border-box;margin-top:8px;font:11px ui-monospace,monospace"></textarea><div class="hint" id="rpMsg"></div>',
-    [{ label: 'Close' }, { label: 'Email report', primary: true, keep: true, fn: () => {
-      const txt = ($('#rpText').value.trim() ? $('#rpText').value.trim() + '\n\n' : '') + $('#rpDiag').value;
-      const cut = txt.length > 1800, a = document.createElement('a');
-      a.href = 'mailto:' + SUPPORT_EMAIL + '?subject=' + encodeURIComponent('oskyn ' + APP_VERSION + ' problem report') + '&body=' + encodeURIComponent(cut ? txt.slice(0, 1800) + '\n[…trimmed. Use Copy report and paste the rest]' : txt);
-      document.body.appendChild(a); a.click(); a.remove();
-      $('#rpMsg').textContent = 'Opening your email app to ' + SUPPORT_EMAIL + '. ' + (cut ? 'The report was long, so it was trimmed; use Copy report and paste the full text if you can. ' : '') + 'No email app? Use Copy report and send it to that address.';
-    } }, { label: 'Copy report', keep: true, fn: async () => {
-      const txt = ($('#rpText').value.trim() ? $('#rpText').value.trim() + '\n\n' : '') + $('#rpDiag').value;
-      let ok = false;
-      try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) { /* fall back */ }
-      if (!ok) { const t = $('#rpDiag'); t.focus(); t.select(); try { ok = document.execCommand('copy'); } catch (e) { ok = false; } }
-      $('#rpMsg').textContent = ok ? 'Copied. Paste it into an email to ' + SUPPORT_EMAIL + '.' : 'Couldn’t copy automatically. Select the text above and copy it by hand.';
-    } }]);
-  $('#rpDiag').value = diagnostics();
-  $('#rpText').focus();
+  const reportText=()=>($('#rpText').value.trim()?$('#rpText').value.trim()+'\n\n':'')+$('#rpDiag').value;
+  openModal('Report a problem', '<p style="margin:0 0 6px">Describe what happened and what you expected. Review the description and diagnostic details before posting them to oskyn’s public GitHub Issues page.</p><textarea id="rpText" rows="4" placeholder="What did you do, and what went wrong?" aria-label="What went wrong" style="width:100%;box-sizing:border-box"></textarea><textarea id="rpDiag" rows="10" readonly aria-label="Diagnostic details" style="width:100%;box-sizing:border-box;margin-top:8px;font:11px ui-monospace,monospace"></textarea><div class="hint" id="rpMsg"></div>',
+    [{label:'Close'},{label:'Report on GitHub',primary:true,keep:true,fn:()=>{
+      const report=reportIssueURL(reportText()),a=document.createElement('a');a.href=report.url;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
+      $('#rpMsg').textContent='Opening Gap4456/oskyn → Issues. Review the report and click Submit new issue on GitHub. '+(report.shortened?'The link contains shortened text; use Copy report to paste the full report. ':'')+'Nothing is submitted automatically.';
+    }},{label:'Copy report',keep:true,fn:async()=>{
+      const txt=reportText();let ok=false;
+      try{await navigator.clipboard.writeText(txt);ok=true;}catch(_){/* Local files may need the copy fallback. */}
+      if(!ok){const t=document.createElement('textarea');t.value=txt;t.style.cssText='position:fixed;left:-10000px;top:0';document.body.appendChild(t);t.select();try{ok=document.execCommand('copy');}catch(_){}t.remove();$('#rpText').focus();}
+      $('#rpMsg').textContent=ok?'Copied. Paste it into a new issue at '+ISSUES_URL+'.':'Could not copy automatically. Select the description and diagnostic details above and copy them by hand.';
+    }}]);
+  $('#rpDiag').value=diagnostics();$('#rpText').focus();
 }
 
 /* ---------- keyboard ---------- */
