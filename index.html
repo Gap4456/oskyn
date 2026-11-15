@@ -9766,7 +9766,7 @@ function bindProps() {
     commit();
   };
   on('#easeType', 'change', easeEdit); on('#easeAmt', 'input', easeEdit);
-  on('#dname', 'input', (e) => { beginEditOnce(); S.doc.name = e.target.value.slice(0, 60); clearTimeout(saveTimer); saveTimer = 0; });
+  on('#dname', 'input', (e) => { beginEditOnce(); S.doc.name = e.target.value.slice(0, 60); invalidate(); clearTimeout(saveTimer); saveTimer = 0; });
   const docNum = (id, key, lo, hi) => on('#' + id, 'change', (e) => {
     let v = Math.round(parseFloat(e.target.value));
     if (!isFinite(v)) { refreshProps(); return; }
@@ -10623,7 +10623,8 @@ async function saveFile(name, data) {
 function saveProject(options) {
   exitAllSyms();
   const savedProject=S.projects?.active,savedDoc=S.doc,savedSerial=S.changeSerial||0;
-  const name = safeName(S.doc.name);
+  const activeProject=S.projects?.items.find(p=>p.id===S.projects.active);if(activeProject)syncProjectName(activeProject);
+  const name = safeName(activeProject?.name||S.doc.name);
   if (window.kroganSyncProjectPalette) window.kroganSyncProjectPalette();
   if (missingMedia().images + missingMedia().sounds) toast('Warning: some images or sounds are missing from this project (they couldn’t be restored after reload), so they will not be in the saved file.');
   return saveFile(name + '.oskyn.json', JSON.stringify({ app: 'oskyn', version: PROJECT_VERSION, appVersion: APP_VERSION, saved: new Date().toISOString(), doc: S.doc })).then((ok) => {
@@ -10640,8 +10641,11 @@ function saveProject(options) {
 function projectSession(){
   if(!S.projects)S.projects={active:uid(),items:[],signature:''};
   const ps=S.projects;
-  if(!ps.items.length)ps.items.push({id:ps.active,name:S.doc.name||'Project 1',dirty:unsaved});
+  if(!ps.items.length)ps.items.push({id:ps.active,name:S.doc.name||'Project 1',documentName:S.doc.name,dirty:unsaved});
   return ps;
+}
+function syncProjectName(p){
+  if(p.documentName!==S.doc.name){p.name=S.doc.name||'Untitled';p.documentName=S.doc.name;}
 }
 function inactiveProjectsDirty(){return !!S.projects?.items.some(p=>p.id!==S.projects.active&&p.dirty);}
 function anyProjectsDirty(){return unsaved||inactiveProjectsDirty();}
@@ -10649,11 +10653,11 @@ function captureProject(){
   stopPlay();if(REC.armed)recordSetArmed(false);endTextEdit(true);
   if(S.pen)finishPen(false);
   mirrorCancel();S.drag=null;S.draw=null;editGesture=false;
-  const ps=projectSession(),p=ps.items.find(p=>p.id===ps.active);
+  const ps=projectSession(),p=ps.items.find(p=>p.id===ps.active);syncProjectName(p);
   const entries=S.edit.map(({sym,frame,layerId,timelineLeft,timelineTop})=>({sym,frame,layerId,timelineLeft,timelineTop}));
   const path=unwind(),doc=clone(S.doc);rewind(path);
   entries.forEach((entry,i)=>Object.assign(S.edit[i],entry));
-  Object.assign(p,{name:doc.name,dirty:unsaved,serial:S.changeSerial||0,doc,entries,frame:S.frame,layerId:S.layerId,sel:clone(S.sel),nodeSel:clone(S.nodeSel),kNodeSelection:clone(S.kNodeSelection||[]),fsel:clone(S.fsel||null),view:{...S.view},autoFit:S.autoFit,onion:clone(S.onion),tool:S.tool,history:H.stack.slice(),redo:H.redo.slice(),left:tlScroll.scrollLeft,top:tlScroll.scrollTop,starHudOffsets:new Map(S.starHudOffsets||[])});
+  Object.assign(p,{dirty:unsaved,serial:S.changeSerial||0,doc,entries,frame:S.frame,layerId:S.layerId,sel:clone(S.sel),nodeSel:clone(S.nodeSel),kNodeSelection:clone(S.kNodeSelection||[]),fsel:clone(S.fsel||null),view:{...S.view},autoFit:S.autoFit,onion:clone(S.onion),tool:S.tool,history:H.stack.slice(),redo:H.redo.slice(),left:tlScroll.scrollLeft,top:tlScroll.scrollTop,starHudOffsets:new Map(S.starHudOffsets||[])});
   return p;
 }
 function switchProject(id){
@@ -10670,9 +10674,9 @@ function switchProject(id){
   pruneSel();updateCrumb();refreshAll();renderLibrary(true);updateZoom();
   tlScroll.scrollLeft=target.left;tlScroll.scrollTop=target.top;renderProjectButtons();
 }
-function openProjectDoc(doc){
+function openProjectDoc(doc,fileName){
   const ps=projectSession();captureProject();
-  const p={id:uid(),name:doc.name||'Untitled',dirty:false};ps.items.push(p);ps.active=p.id;
+  const p={id:uid(),name:fileName||doc.name||'Untitled',documentName:doc.name,dirty:false};ps.items.push(p);ps.active=p.id;
   loadDoc(doc);renderLibrary(true);renderProjectButtons();notifyDesktopDirty();
 }
 function newOpenProject(){const ps=projectSession(),d=C.mkDoc();let n=ps.items.length+1;while(ps.items.some(p=>p.name==='Project '+n))n++;d.name='Project '+n;openProjectDoc(d);}
@@ -10705,7 +10709,8 @@ async function closeOpenProject(id,save){
 function askCloseProject(id){
   const ps=projectSession(),p=ps.items.find(p=>p.id===id);if(!p)return;
   if(id===ps.active){endTextEdit(true);if(S.pen)finishPen(false);}
-  openModal('Close '+(id===ps.active?S.doc.name:p.name)+'?',
+  if(id===ps.active)syncProjectName(p);
+  openModal('Close '+p.name+'?',
     '<p>Save this project before closing? Unsaved changes will be lost if you choose “Don’t save”.</p>',
     [{label:'Cancel'},{label:'Don’t save',fn:()=>closeOpenProject(id,false)},{label:'Save',primary:true,fn:()=>closeOpenProject(id,true)}]);
 }
@@ -10720,7 +10725,7 @@ $('#projectDrawer').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#pro
 function renderProjectButtons(){
   if(!S.doc)return;
   const ps=projectSession(),active=ps.items.find(p=>p.id===ps.active);
-  active.name=S.doc.name||'Untitled';active.dirty=unsaved;
+  syncProjectName(active);active.dirty=unsaved;
   const signature=JSON.stringify([ps.active,ps.items.map(p=>[p.id,p.name,p.dirty])]);
   if(signature===ps.signature)return;ps.signature=signature;
   const box=$('#projectButtons');if(!box)return;
@@ -10820,8 +10825,9 @@ async function openFile(file) {
     if (!doc || !Array.isArray(doc.layers)) throw new Error('x');
     if (j.version > PROJECT_VERSION) toast('This project was saved by a newer oskyn (' + (j.appVersion || 'v' + j.version) + '). Some things may not load correctly.');
     C.normalizeDoc(doc);
-    if (!doc.name) doc.name = file.name.replace(/\.[^.]+$/, '').replace(/\.(flashcraft|onionskyn|oskyn)$/i, '');
-    openProjectDoc(doc); toast('Opened ' + file.name);
+    const fileName=file.name.replace(/\.[^.]+$/, '').replace(/\.(flashcraft|onionskyn|oskyn)$/i, '');
+    if (!doc.name) doc.name = fileName;
+    openProjectDoc(doc,fileName); toast('Opened ' + file.name);
   } catch (err) { toast('That file is not an oskyn project or a .fla.'); }
 }
 async function importFLAFile(buf, fname) {

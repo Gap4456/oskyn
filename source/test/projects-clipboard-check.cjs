@@ -22,7 +22,7 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
   });
   const portable=await p.evaluate(()=>{const data=new DataTransfer();window.dispatchEvent(new ClipboardEvent('copy',{clipboardData:data,cancelable:true}));return {custom:data.getData('application/x-onionskyn-objects'),text:data.getData('text/plain')};});
   assert.equal(JSON.parse(portable.text).format,'oskyn-objects');assert.deepEqual(Object.keys(JSON.parse(portable.text).lib).sort(),['Inner','Outer']);
-  await p.evaluate(async()=>{const d=T.C.mkDoc();d.name='Destination';d.lib.Outer={layers:[T.C.mkLayer('Existing')],frames:1};d.lib.Inner={layers:[T.C.mkLayer('Existing inner')],frames:1};d.images['pic.png']={name:'existing',mime:'image/png',b64:'different',w:1,h:1};d.sounds.beep={name:'old sound',b64:'different'};await T.openFile(new File([JSON.stringify({doc:d})],'destination.oskyn.json'));});
+  await p.evaluate(async()=>{const d=T.C.mkDoc();d.name='Destination';d.lib.Outer={layers:[T.C.mkLayer('Existing')],frames:1};d.lib.Inner={layers:[T.C.mkLayer('Existing inner')],frames:1};d.images['pic.png']={name:'existing',mime:'image/png',b64:'different',w:1,h:1};d.sounds.beep={name:'old sound',b64:'different'};await T.openFile(new File([JSON.stringify({doc:d})],'Destination.oskyn.json'));});
   const dest=await p.evaluate(()=>T.projectSession().active);assert.notEqual(dest,initial.id);assert.equal(await p.locator('#projectButtons [data-project]').count(),2);assert(await p.locator('#projectToggle').evaluate(e=>e.getBoundingClientRect().height)>handleHeight);
   await p.evaluate(()=>T.pasteClip());
   assert(await p.evaluate(()=>{const d=T.S.doc,o=d.layers[0].kfs[0].objs[0],nested=d.lib[o.sym].layers[0].kfs[0].objs[0],def=d.lib[nested.sym],img=def.layers[0].kfs[0].objs[0];return o.sym==='Outer 2'&&nested.sym==='Inner 2'&&img.img==='pic.png 2'&&d.images[img.img].b64!==d.images['pic.png'].b64&&def.layers[0].kfs[1].f===4&&def.layers[0].kfs[1].objs[0].id===img.id&&img.id!=='bitmap'&&d.sounds['beep 2'].b64==='UklGRg=='&&def.layers[0].kfs[0].sound.name==='beep 2'&&!d.lib.Unused&&o.t.x===215;}));
@@ -67,6 +67,16 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
   assert.equal(await q.evaluate(()=>T.projectSession().items.length),count);assert(await q.evaluate(()=>T.anyProjectsDirty()));
   await q.evaluate(()=>{delete window.claude;});
   assert.equal(await p.evaluate(()=>T.buildPlayer({sound:false}).html.includes('id="projectButtons"')),false);
+  await q.evaluate(async()=>{const d=T.C.mkDoc();d.name='Untitled';await T.openFile(new File([JSON.stringify({doc:d})],'Sniegpārsliņa.oskyn.json'));});
+  assert.equal(await q.evaluate(()=>T.projectSession().items.find(p=>p.id===T.projectSession().active).name),'Sniegpārsliņa');
+  const namedId=await q.evaluate(()=>T.projectSession().active);await q.evaluate(()=>T.newOpenProject());await q.evaluate(id=>T.switchProject(id),namedId);
+  assert.equal(await q.evaluate(()=>T.projectSession().items.find(p=>p.id===T.projectSession().active).name),'Sniegpārsliņa');
+  const longName='Sniegpārsliņas draugi un ļoti garš projekta nosaukums';
+  await q.evaluate(name=>{const e=document.getElementById('dname');e.value=name;e.dispatchEvent(new Event('input',{bubbles:true}));},longName);
+  await q.waitForFunction(name=>T.projectSession().items.find(p=>p.id===T.projectSession().active).name===name,longName);
+  const label=q.locator(`[data-project="${namedId}"]`);assert.equal(await label.getAttribute('title'),longName+' — unsaved changes');
+  assert(await label.evaluate(e=>getComputedStyle(e).textOverflow==='ellipsis'&&e.scrollWidth>e.clientWidth));
+  console.log('PASS renamed project filenames survive switching; Doc rename updates button immediately; long names truncate with ellipsis and expose full hover title');
   assert.deepEqual(errors,[]);console.log('PASS delayed saves do not clear another project or discard newer edits; project buttons excluded from exported player');console.log('PASS project close Cancel/Don’t save/Save; correct project download; inactive unsaved-work guard; closing final project leaves a fresh editable document; browser clean');
  }finally{await b.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
