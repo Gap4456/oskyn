@@ -1,0 +1,16 @@
+{
+  "name": "oskyn-mobile",
+  "version": "1.0.1",
+  "private": true,
+  "description": "Touch-first oskyn HTML preview using the shared editor and animation core",
+  "license": "SEE LICENSE IN ../LICENSE",
+  "scripts": {
+    "build": "node build.cjs",
+    "check": "node build.cjs --check",
+    "test": "node build.cjs --check && node test/mobile-check.cjs",
+    "serve": "node build.cjs && node serve.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

@@ -8,6 +8,12 @@ Download this repository and open **oskyn.html** (or **index.html**) in a curren
 
 Save projects explicitly with **Save project** (`.oskyn.json`). Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
 
+## Mobile preview
+
+A separate touch interface is available in **[mobile/index.html](mobile/index.html)**, using the same animation core and project format. It includes edge panels with their own navigation strips, persistent Undo/Redo, Shift/Control/Alt buttons, drag-to-record, larger frame cells and touch access to Node/Bone tools.
+
+[Mobile instructions and phone/PC testing](mobile/README.md). To rebuild it from the main folder: `node mobile/build.cjs`. To test over local Wi-Fi: `npm.cmd --prefix mobile run serve`. The preview has automated Chromium multi-touch coverage; real iPhone/Android testing is still required. The desktop layout is unchanged.
+
 ## Multiple open projects
 
 **File → Open project** adds another project without replacing the current one. Click the narrow handle at the right edge of the stage to reveal the project buttons, then choose a name to switch projects. The menu starts collapsed; the handle grows taller as more projects are opened. Click the handle again (or press Escape while focused in the menu) to hide it; **+** creates another blank project. Opened projects show their filename; changing the project name in Doc updates the button immediately. Long labels use an ellipsis, with the full name on hover. Each project keeps its playhead, view, symbol-editing context and Undo/Redo history. The buttons are editor controls and do not appear in exports.

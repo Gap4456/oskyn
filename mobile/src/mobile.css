@@ -1,0 +1,110 @@
+:root { --mobile-safe-top:env(safe-area-inset-top,0px); --mobile-safe-bottom:env(safe-area-inset-bottom,0px); --mobile-safe-left:env(safe-area-inset-left,0px); --mobile-safe-right:env(safe-area-inset-right,0px); }
+/* Touch layout, included only by mobile/build.cjs. */
+html,body { height:100%; overscroll-behavior:none; }
+body.oskyn-mobile { -webkit-tap-highlight-color:transparent; }
+body.oskyn-mobile #app { display:block; position:relative; height:100dvh; padding:0; overflow:hidden; }
+body.oskyn-mobile #stagewrap { position:absolute; inset:0; min-height:0; }
+body.oskyn-mobile #stage { touch-action:none; -webkit-touch-callout:none; }
+body.oskyn-mobile #top,body.oskyn-mobile #hud { display:none !important; }
+body.oskyn-mobile button { touch-action:manipulation; }
+#mobileTop { position:absolute; top:calc(8px + env(safe-area-inset-top)); left:calc(44px + env(safe-area-inset-left)); display:flex; gap:3px; z-index:20; }
+#mobileTop button,#mobileQuick button,.mobile-edge,#mobileModifiers button { min-height:44px; padding:0 10px; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; }
+#mobileTop button { min-width:44px; font-size:12px; }
+#mobileQuick { position:absolute; bottom:calc(16px + env(safe-area-inset-bottom)); left:calc(12px + env(safe-area-inset-left)); display:flex; gap:5px; z-index:45; }
+#mobileQuick button { width:48px; height:48px; display:grid; place-items:center; padding:0; }
+body.mobile-right-handed #mobileQuick { left:auto; right:calc(12px + env(safe-area-inset-right)); }
+#mobileReminders { position:absolute; top:calc(61px + env(safe-area-inset-top)); left:38px; right:38px; display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; font:600 15px var(--f-mono); z-index:19; pointer-events:none !important; }
+#mobileReminders * { pointer-events:none !important; }
+.mobile-reminder { opacity:.48; padding:3px 6px; background:var(--panel); border-radius:5px; }
+#mobileRecordStatus { padding:3px 7px; border-radius:5px; background:var(--panel); color:var(--danger); }
+#mobileRecordStatus.armed { animation:mobile-rec-pulse 1.5s ease-in-out infinite; }
+#mobileRecordStatus.running { animation:none; background:var(--danger); color:#fff; opacity:1; }
+#mobileRecordCount { font-size:12px; padding:3px 6px; background:var(--panel); color:var(--fg); border-radius:5px; }
+@keyframes mobile-rec-pulse { 0%,100%{opacity:.35} 50%{opacity:.9} }
+.mobile-edge { position:absolute; z-index:25; display:grid; place-items:center; width:28px; padding:0; min-height:64px; touch-action:none; font-size:16px; }
+#mobileToolsToggle { left:calc(8px + env(safe-area-inset-left)); top:calc(50% - 32px); }
+#mobilePropsToggle { right:calc(8px + env(safe-area-inset-right)); top:calc(44% - 32px); }
+#mobileTimelineToggle { left:calc(50% - 36px); bottom:calc(8px + env(safe-area-inset-bottom)); width:72px; min-height:28px; height:28px; font-size:12px; }
+.mobile-panel { position:absolute; z-index:35; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column; touch-action:none; }
+.mobile-panel[hidden] { display:none; }
+.mobile-panel-head { height:40px; min-height:40px; display:flex; align-items:center; gap:4px; background:var(--panel2); border-bottom:1px solid var(--line); touch-action:none; user-select:none; }
+.mobile-panel-head strong { flex:1; padding-left:8px; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mobile-panel-head button { min-width:36px; height:40px; border:0; border-left:1px solid var(--line); padding:0 7px; background:transparent; font-size:12px; }
+.mobile-panel-body { display:flex; flex:1; min-height:0; }
+.mobile-panel-viewport { flex:1; min-width:0; min-height:0; overflow:hidden; overflow:clip; touch-action:none; position:relative; }
+.mobile-panel-content { position:absolute; left:0; top:0; transform-origin:0 0; }
+.mobile-nav-pad { flex:0 0 44px; width:44px; border:0; border-left:1px solid var(--line); background:var(--panel2); color:var(--accent); touch-action:none; user-select:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; }
+.mobile-nav-pad span { font-size:22px; pointer-events:none; }
+.mobile-nav-pad small { writing-mode:vertical-rl; font-size:10px; letter-spacing:.06em; pointer-events:none; }
+.mobile-nav-pad:focus-visible { outline:2px solid var(--accent); outline-offset:-3px; }
+#mobilePanel-tools .mobile-panel-content { width:90px; }
+#mobilePanel-tools.two-columns .mobile-panel-content { width:138px; }
+body.oskyn-mobile #tools { position:static; display:grid; grid-template-columns:44px; grid-auto-rows:auto; justify-content:center; align-content:start; gap:3px; padding:4px; width:100%; overflow:visible; border:0; }
+body.oskyn-mobile #mobilePanel-tools.two-columns #tools { grid-template-columns:repeat(2,44px); }
+body.oskyn-mobile #tools .tool { width:44px; height:44px; }
+body.oskyn-mobile #tools .tool svg { width:23px; height:23px; }
+body.oskyn-mobile #tools .tool kbd { display:none; }
+body.oskyn-mobile #tools .swatches { position:static; display:flex; gap:3px; width:auto; margin:2px 0; grid-column:1 / -1; }
+body.oskyn-mobile #tools .swatches input { position:static; width:36px; height:36px; }
+body.oskyn-mobile #kToolLayout { grid-column:1 / -1; font-size:11px; width:auto; min-height:36px; margin:0; }
+#mobileModifiers { display:flex; flex-direction:column; gap:3px; grid-column:1 / -1; }
+#mobileModifiers button { width:100%; padding:0 3px; min-height:40px; font-weight:600; font-size:13px; }
+#mobileModifiers button[aria-pressed="true"] { background:color-mix(in srgb,var(--panel) 68%,#000); border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+#mobileModifiers #pRecord[aria-pressed="true"] { color:var(--danger); border-color:var(--danger); }
+#mobilePanel-props .mobile-panel-content { width:290px; }
+body.oskyn-mobile #props { position:static; display:flex; flex-direction:column; width:290px; height:auto; overflow:visible; transform:none; box-shadow:none; border:0; padding-bottom:8px; }
+body.oskyn-mobile #props .pane { overflow:visible; flex:none; height:auto; }
+body.oskyn-mobile #ptabs { flex-wrap:wrap; }
+body.oskyn-mobile #ptabs [role=tab] { min-width:40px; min-height:44px; }
+body.oskyn-mobile #props input:not([type="color"]):not([type="checkbox"]):not([type="range"]),body.oskyn-mobile #props select { font-size:16px; min-height:36px; }
+body.oskyn-mobile #props input[type="checkbox"] { width:22px; height:22px; }
+body.oskyn-mobile #toolopts { position:static; max-width:none; padding:7px; margin:0; border-radius:0; flex-wrap:wrap; }
+body.oskyn-mobile #toolopts label { flex-wrap:wrap; }
+#mobilePanel-timeline .mobile-panel-content { width:720px; }
+body.oskyn-mobile #tl { position:static; width:720px; height:auto; min-height:150px; border:0; overflow:visible; }
+body.oskyn-mobile .tl-bar { display:block; padding:0 4px; overflow:visible; }
+.mobile-timeline-row { display:flex; align-items:center; gap:2px; min-height:44px; width:max-content; }
+body.oskyn-mobile .tl-bar .tbtn { min-height:44px; height:44px; min-width:44px; font-size:12px; }
+body.oskyn-mobile #pRecordAudio { min-width:68px; }
+body.oskyn-mobile #pPlay { order:-6; }
+body.oskyn-mobile #pPrev { order:-5; }
+body.oskyn-mobile #pNext { order:-4; }
+body.oskyn-mobile #pLoop { order:-3; }
+body.oskyn-mobile #pOnion { order:-2; }
+body.oskyn-mobile #pUndo,body.oskyn-mobile #pRedo { display:none; }
+body.oskyn-mobile #tlScroll { flex:none; overflow:visible; }
+body.oskyn-mobile .tl-inner { grid-template-columns:132px max-content; grid-template-rows:40px max-content; }
+body.oskyn-mobile .tl-corner,body.oskyn-mobile #tlLayers,body.oskyn-mobile #tlRuler { position:static; }
+body.oskyn-mobile .tl-corner { flex-wrap:wrap; padding:0; }
+body.oskyn-mobile .tl-corner .tbtn { min-width:26px; height:36px; }
+body.oskyn-mobile #lUp,body.oskyn-mobile #lDown,body.oskyn-mobile #lVisAll,body.oskyn-mobile #lLockAll { display:none; }
+body.oskyn-mobile .lrow { height:44px; }
+body.oskyn-mobile .lrow .ib { width:28px; height:40px; flex:none; }
+body.oskyn-mobile #boneMenu button,body.oskyn-mobile #boneAngle,body.oskyn-mobile #boneAngleRemove { width:38px; height:38px; min-width:38px; }
+body.oskyn-mobile #crumb { top:calc(60px + env(safe-area-inset-top)); max-width:calc(100% - 70px); left:36px; }
+body.oskyn-mobile #projectDrawer { right:calc(8px + env(safe-area-inset-right)); bottom:calc(78px + env(safe-area-inset-bottom)); max-height:60%; z-index:36; }
+body.oskyn-mobile #projectToggle { flex-basis:28px; width:28px; min-height:64px; }
+body.oskyn-mobile #projectToggle::after { display:none; }
+body.oskyn-mobile #projectToggle svg { width:18px; height:22px; }
+body.oskyn-mobile #projectButtons { width:184px; }
+body.oskyn-mobile #projectButtons button { min-height:44px; }
+body.oskyn-mobile #projectButtons .project-row { flex-shrink:0; }
+body.oskyn-mobile #projectButtons .project-close { flex:0 0 40px; }
+body.oskyn-mobile .menu-pop { max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px); overflow:auto; }
+body.oskyn-mobile .menu-pop button { min-height:44px; }
+body.oskyn-mobile #modal { max-width:calc(100vw - 16px); max-height:calc(100dvh - 20px); }
+body.oskyn-mobile #modal button { min-height:44px; }
+body.oskyn-mobile #modal input,body.oskyn-mobile #modal textarea { font-size:16px; }
+@media(prefers-reduced-motion:reduce) { #mobileRecordStatus.armed { animation:none; opacity:.75; } }
+
+body.oskyn-mobile #props #kNodeBar,body.oskyn-mobile #props #kSelectBar { display:none; }
+body.oskyn-mobile #props #kNodeBar.on,body.oskyn-mobile #props #kSelectBar.on { display:flex; flex-wrap:wrap; gap:3px; padding:4px; }
+body.oskyn-mobile #props #kNodeBar button,body.oskyn-mobile #props #kSelectBar button { min-height:44px; font-size:12px; }
+
+body.oskyn-mobile #props input[type="range"] { min-height:36px; }
+body.oskyn-mobile #props input[type="color"] { min-height:36px; min-width:36px; }
+
+body.mobile-modifiers-visible #crumb { top:calc(96px + env(safe-area-inset-top)); }
+body.mobile-record-visible #crumb { top:calc(128px + env(safe-area-inset-top)); }
+/* A held modifier owns its finger; the browser must not turn it into pinch. */
+#mobileModifiers button { touch-action:none; }
