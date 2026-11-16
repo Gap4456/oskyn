@@ -12,7 +12,7 @@ Save projects explicitly with **Save project** (`.oskyn.json`). Legacy Onionskyn
 
 A separate touch interface is available in **[mobile/index.html](mobile/index.html)**, using the same animation core and project format. It includes edge panels with their own navigation strips, persistent Undo/Redo, Shift/Control/Alt buttons, drag-to-record, larger frame cells and touch access to Node/Bone tools.
 
-[Mobile instructions and phone/PC testing](mobile/README.md). To rebuild it from the main folder: `node mobile/build.cjs`. To test over local Wi-Fi: `npm.cmd --prefix mobile run serve`. The preview has automated Chromium multi-touch coverage; real iPhone/Android testing is still required. The desktop layout is unchanged.
+[Mobile instructions and phone/PC testing](mobile/README.md). To rebuild it from the main folder: `node mobile/build.cjs`. To test over local Wi-Fi: `npm.cmd --prefix mobile run serve`. The preview has automated Chromium multi-touch coverage; real iPhone/Android testing is still required. The desktop layout is unchanged. For a public phone link, enable GitHub Pages from `main` / `(root)` as described in the [publishing steps](mobile/README.md#publish-directly-from-github).
 
 ## Multiple open projects
 

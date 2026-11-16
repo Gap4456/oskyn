@@ -10,6 +10,17 @@ Download **Code → Download ZIP**, extract it, then open `mobile/index.html` in
 
 Single-mouse simulation does not prove a two-finger gesture works. The automated tests below send real simultaneous touch points through Chromium's DevTools protocol.
 
+## Publish directly from GitHub
+
+The repository includes `.nojekyll` so GitHub Pages serves the built HTML unchanged. A repository owner can enable hosting in GitHub:
+
+1. Open **Gap4456/oskyn → Settings → Pages**.
+2. Under **Build and deployment → Source**, select **Deploy from a branch**.
+3. Choose branch **main**, folder **/ (root)**, and click **Save**.
+4. Wait for the Pages deployment to finish. The mobile page will be **https://gap4456.github.io/oskyn/mobile/**; the desktop page will be **https://gap4456.github.io/oskyn/**.
+
+After it is enabled, commits to `main` redeploy the committed HTML. Rebuild `mobile/index.html` when changing its source before pushing. No Node.js installation, local server or downloaded HTML is needed to use the hosted page on a phone. This publishes the static application; project/media files remain local until explicitly saved/exported. PWA installation and an offline service worker are not included.
+
 ## Try it on a phone over Wi-Fi
 
 From the repository's main folder, with Node.js installed:
@@ -20,7 +31,7 @@ npm.cmd --prefix mobile run serve
 
 Open `http://localhost:8080` on that PC. On the phone, use `http://YOUR-PC-LAN-IP:8080` on the same Wi-Fi. Windows `ipconfig` shows the PC's LAN IPv4 address. If prompted by Windows Firewall, allow the local server on your private network. Ctrl+C stops the server.
 
-The server serves only the mobile HTML; it does not upload projects. A public website/PWA deployment is not included in this change. Browser fonts may use Google's font service; project drawing/media data stays in the editor until explicitly saved or exported.
+The server serves only the mobile HTML; it does not upload projects. GitHub Pages hosting can be enabled using the steps above; PWA/offline installation is not included. Browser fonts may use Google's font service; project drawing/media data stays in the editor until explicitly saved or exported.
 
 ## Touch controls
 
