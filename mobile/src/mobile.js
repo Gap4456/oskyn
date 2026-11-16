@@ -23,7 +23,15 @@ mobileButton('mobileDelete','Delete',()=>{
   else if(S.tool==='node'&&kNodeKeys().length)deleteNode();
   else deleteSel();
 },mobileTop);
+mobileButton('mobileMore','More',()=>{
+  mobileCommands.hidden=!mobileCommands.hidden;$('#mobileMore').setAttribute('aria-expanded',String(!mobileCommands.hidden));
+  for(const p of Object.values(mobile.panels))if(!p.box.hidden)mobilePlacePanel(p,true);
+},mobileTop);
+const mobileCommands=document.createElement('nav');mobileCommands.id='mobileCommands';mobileCommands.hidden=true;mobileCommands.setAttribute('aria-label','Editor commands');
+const mobileCommandRow=document.createElement('div');mobileCommandRow.className='mobile-command-row';mobileCommands.appendChild(mobileCommandRow);$('#stagewrap').appendChild(mobileCommands);
+for(const id of ['mPath','kSelectBar','kNodeBar','gridControls','zOut','zVal','zIn','bHelp','bTheme','kThemePalette'])mobileCommandRow.appendChild($('#'+id));
 $('#stagewrap').appendChild(mobileTop);
+$('#mobileMore').setAttribute('aria-expanded','false');$('#mobileMore').setAttribute('aria-controls','mobileCommands');
 const mobileQuick=document.createElement('div');mobileQuick.id='mobileQuick';mobileQuick.setAttribute('aria-label','Undo and redo');for(const id of ['bUndo','bRedo'])mobileQuick.appendChild($('#'+id));$('#stagewrap').appendChild(mobileQuick);
 const mobileReminders=document.createElement('div');mobileReminders.id='mobileReminders';mobileReminders.setAttribute('aria-label','Active modifiers and recording status');$('#stagewrap').appendChild(mobileReminders);
 for(const key of Object.keys(mobileMods)){const s=document.createElement('span');s.id='mobileReminder'+key;s.className='mobile-reminder';s.textContent=key==='Control'?'Ctrl':key;s.hidden=true;mobileReminders.appendChild(s);}
@@ -47,7 +55,7 @@ function mobileApplyPanel(p){
 }
 function mobileSafe(){const style=getComputedStyle(document.documentElement);return Object.fromEntries(['top','bottom','left','right'].map(k=>[k,parseFloat(style.getPropertyValue('--mobile-safe-'+k))||0]));}
 function mobilePlacePanel(p,reset=false){
-  const safe=mobileSafe(),W=stageW,H=stageH,safeTop=58+safe.top,safeBottom=76+safe.bottom;
+  const safe=mobileSafe(),W=stageW,H=stageH,safeTop=(mobileCommands.hidden?58:106)+safe.top,safeBottom=76+safe.bottom;
   p.box.style.width=Math.min(p.width,W-safe.left-safe.right-24)+'px';p.box.style.height=(p.side==='bottom'?Math.min(Math.max(240,H*.48),H-safeTop-safeBottom):Math.max(110,H-safeTop-safeBottom))+'px';
   if(reset||p.left===null){p.left=p.side==='right'?W-safe.right-p.box.offsetWidth-12:p.side==='bottom'?(W-p.box.offsetWidth)/2:safe.left+12;p.top=p.side==='bottom'?H-p.box.offsetHeight-safeBottom:safeTop;}
   p.left=clamp(p.left,4+safe.left,Math.max(4+safe.left,W-safe.right-p.box.offsetWidth-4));p.top=clamp(p.top,4+safe.top,Math.max(4+safe.top,H-safe.bottom-p.box.offsetHeight-4));p.box.style.left=p.left+'px';p.box.style.top=p.top+'px';
@@ -79,7 +87,7 @@ function mobilePanelGesture(p,area){
 }
 const tools=$('#tools'),props=$('#props'),timeline=$('#tl');
 const toolPanel=mobilePanel('tools','Tools',tools,92,'left');mobilePanel('props','Properties',props,302,'right');mobilePanel('timeline','Timeline',timeline,780,'bottom');
-props.prepend($('#kNodeBar'),$('#kSelectBar'),$('#toolopts'));
+props.prepend($('#toolopts'));
 const mobileRecordButton=$('#pRecord');
 const timelineBar=timeline.querySelector('.tl-bar'),playRow=document.createElement('div'),frameRow=document.createElement('div');playRow.className=frameRow.className='mobile-timeline-row';
 for(const id of ['pPlay','pPrev','pNext','pLoop','pOnion','pOnionOpt','pRecordAudio','pFirst','pLast','tcode'])playRow.appendChild($('#'+id));
@@ -126,6 +134,29 @@ function mobileEditMenu(pos){
     {label:'Touch help',fn:mobileTouchHelp}
   ],pos);
 }
+/* Mobile downloads need an explicit name before opening the native share/save UI. */
+const mobileNativeSave=saveProject;
+saveProject=options=>new Promise(resolve=>{queueMicrotask(()=>{
+  exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
+  let settled=false;
+  const body=openModal('Save project','<label for="mobileSaveName">Project name</label><input id="mobileSaveName" type="text" maxlength="60" autocomplete="off"><p>The project is downloaded as an .oskyn.json file.</p>',[
+    {label:'Cancel'},
+    {label:'Save',primary:true,keep:true,fn:()=>{
+      const name=$('#mobileSaveName').value.trim();if(!name){$('#mobileSaveName').focus();return;}
+      settled=true;closeModal();
+      if(S.doc.name!==name){pushUndo();S.doc.name=name;syncProjectName(project);refreshAll();renderProjectButtons();}
+      resolve(mobileNativeSave(options));
+    }}
+  ]);
+  modalCancel=()=>{if(!settled)resolve(false);};
+  const input=body.querySelector('input');input.value=project.name||S.doc.name||'Untitled';
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#mFoot .primary').click();}});
+});});
+function mobileResetPanels(){
+  mobile.navOwner=null;mobile.blocked.clear();mobileClosePanel();mobileCommands.hidden=true;$('#mobileMore').setAttribute('aria-expanded','false');
+  for(const p of Object.values(mobile.panels)){p.left=p.top=null;}
+  mobileViewport();
+}
 /* Preserve the desktop menu semantics while allowing its built-in properties
    shortcuts to reveal the mobile sheet as well. */
 $('#bProps').addEventListener('click',e=>{e.stopImmediatePropagation();mobileOpenPanel('props');},true);
@@ -135,7 +166,7 @@ $('#mFile').addEventListener('click',e=>{
     {label:'Import image…',fn:()=>$('#imgIn').click()},{label:'Save project',fn:saveProject},'-',
     {label:'Library & sounds…',fn:()=>{mobileOpenPanel('props');setTab('lib');}},
     {label:'Document settings…',fn:()=>{mobileOpenPanel('props');setTab('doc');}},
-    {label:'Preview animation',fn:openPreview},{label:'Report a problem…',fn:showReport},{label:'Touch help',fn:mobileTouchHelp}
+    {label:'Preview animation',fn:openPreview},{label:'Reset panel positions',fn:mobileResetPanels},{label:'Report a problem…',fn:showReport},{label:'Touch help',fn:mobileTouchHelp}
   ]);
 },true);
 
@@ -147,7 +178,7 @@ const nativeNodeHit=hitNodePart;hitNodePart=(o,x,y)=>{for(let ci=0;ci<o.contours
 const nativeSkeletonModifiers=skeletonHudModifiers;skeletonHudModifiers=(ctrl,shift)=>nativeSkeletonModifiers(ctrl||mobileKey('Control'),shift||mobileKey('Shift'));
 const nativeFitView=fitView;fitView=()=>{
   if(!stageW||!stageH){nativeFitView();return;}
-  const safe=mobileSafe(),b=S.edit.length?symBounds():{x0:0,y0:0,x1:S.doc.w,y1:S.doc.h},w=Math.max(20,b.x1-b.x0),h=Math.max(20,b.y1-b.y0),top=64+safe.top,bottom=70+safe.bottom;
+  const safe=mobileSafe(),b=S.edit.length?symBounds():{x0:0,y0:0,x1:S.doc.w,y1:S.doc.h},w=Math.max(20,b.x1-b.x0),h=Math.max(20,b.y1-b.y0),top=(mobileCommands.hidden?64:112)+safe.top,bottom=70+safe.bottom;
   S.view.z=clamp(Math.min((stageW-safe.left-safe.right-72)/w,Math.max(40,stageH-top-bottom)/h),.05,32);S.view.px=(stageW+safe.left-safe.right)/2-(b.x0+b.x1)/2*S.view.z;S.view.py=top+(stageH-top-bottom)/2-(b.y0+b.y1)/2*S.view.z;S.autoFit=true;updateZoom();invalidate();
 };
 
@@ -170,7 +201,7 @@ onDown=e=>{if(S.tool==='bone')skeletonHoverAt(stagePt(e),false,true);nativeOnDow
 onMove=e=>{if(S.drag&&S.drag.type!=='pan'&&REC.armed&&S.frame<899)REC.held=true;nativeOnMove(mobileEvent(e));};
 onUp=e=>{nativeOnUp(mobileEvent(e));REC.held=false;mobileSyncRecord();};
 
-const mobileTouch={points:new Map(),mode:null,timer:0,hold:0,first:null,last:null,checkpoint:null,pinch:null};
+const mobileTouch={points:new Map(),mode:null,timer:0,hold:0,first:null,last:null,checkpoint:null,pinch:null,lastTap:null,doubleAt:0};
 function mobileCheckpoint(){
   const entries=S.edit.map(({sym,frame,layerId,timelineLeft,timelineTop})=>({sym,frame,layerId,timelineLeft,timelineTop})),doc=snap();entries.forEach((e,i)=>Object.assign(S.edit[i],e));
   return {doc,entries,undo:H.stack.slice(),redo:H.redo.slice(),dirty:unsaved,serial:S.changeSerial||0,sel:clone(S.sel),nodeSel:clone(S.nodeSel),nodeKeys:clone(S.kNodeSelection||[]),view:{...S.view},autoFit:S.autoFit,recorded:[...mobile.recorded]};
@@ -187,7 +218,7 @@ function mobileStartSingle(){
   if(mobileTouch.mode!=='pending')return;mobileTouch.checkpoint=mobileCheckpoint();mobileTouch.mode='single';onDown(mobileTouch.first);if(mobileTouch.last!==mobileTouch.first)onMove(mobileTouch.last);
 }
 function mobileStartPinch(){
-  mobileCancelSingle();mobileTouch.mode='pinch';const [a,b]=[...mobileTouch.points.values()],r=stage.getBoundingClientRect(),x=(a.clientX+b.clientX)/2-r.left,y=(a.clientY+b.clientY)/2-r.top;
+  mobileTouch.lastTap=null;mobileCancelSingle();mobileTouch.mode='pinch';const [a,b]=[...mobileTouch.points.values()],r=stage.getBoundingClientRect(),x=(a.clientX+b.clientX)/2-r.left,y=(a.clientY+b.clientY)/2-r.top;
   mobileTouch.pinch={distance:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,z:S.view.z,wx:(x-S.view.px)/S.view.z,wy:(y-S.view.py)/S.view.z};
 }
 function mobileMovePinch(){
@@ -203,6 +234,11 @@ stage.addEventListener('pointerdown',e=>{
   for(const mod of Object.values(mobileMods))for(const h of mod.held.values())h.used=true;
   if(e.pointerType!=='touch')return;e.preventDefault();e.stopImmediatePropagation();stage.setPointerCapture(e.pointerId);stage.focus({preventScroll:true});mobileTouch.points.set(e.pointerId,e);
   if(mobileTouch.points.size===2){mobileStartPinch();return;}if(mobileTouch.points.size>2){mobileTouch.mode='blocked';return;}
+  const tap=mobileTouch.lastTap;
+  if(tap&&!REC.armed&&performance.now()-tap.time<350&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)<24){
+    mobileTouch.lastTap=null;mobileTouch.mode='double';mobileTouch.doubleAt=performance.now();
+    const transform=mobile.transform;mobile.transform=true;try{onDbl(mobileEvent(e));}finally{mobile.transform=transform;}return;
+  }
   mobileTouch.first=mobileTouch.last=mobileFreezeEvent(e);mobileTouch.mode='pending';mobileTouch.timer=setTimeout(mobileStartSingle,80);
   mobileTouch.hold=setTimeout(()=>{
     if(REC.armed||!['pending','single'].includes(mobileTouch.mode)||!['select','node','bone'].includes(S.tool)||Math.hypot(mobileTouch.last.clientX-e.clientX,mobileTouch.last.clientY-e.clientY)>8)return;
@@ -211,14 +247,20 @@ stage.addEventListener('pointerdown',e=>{
 },{capture:true,passive:false});
 stage.addEventListener('pointermove',e=>{
   if(e.pointerType!=='touch')return;e.preventDefault();e.stopImmediatePropagation();if(!mobileTouch.points.has(e.pointerId))return;mobileTouch.points.set(e.pointerId,e);mobileTouch.last=mobileFreezeEvent(e);
-  if(mobileTouch.mode==='pinch'){mobileMovePinch();return;}if(Math.hypot(e.clientX-mobileTouch.first.clientX,e.clientY-mobileTouch.first.clientY)>8)clearTimeout(mobileTouch.hold);if(mobileTouch.mode==='single')onMove(e);
+  if(mobileTouch.mode==='pinch'){mobileMovePinch();return;}if(!mobileTouch.first||mobileTouch.mode==='double')return;if(Math.hypot(e.clientX-mobileTouch.first.clientX,e.clientY-mobileTouch.first.clientY)>8)clearTimeout(mobileTouch.hold);if(mobileTouch.mode==='single')onMove(e);
 },{capture:true,passive:false});
 function mobileEndTouch(e){
   if(e.pointerType!=='touch')return;e.preventDefault();e.stopImmediatePropagation();if(!mobileTouch.points.has(e.pointerId))return;
-  if(e.type==='pointercancel')mobileCancelSingle();else if(['pending','single'].includes(mobileTouch.mode)){mobileStartSingle();onUp(e);mobileTouch.checkpoint=null;}
+  if(e.type==='pointercancel'){mobileTouch.lastTap=null;mobileCancelSingle();}
+  else if(['pending','single'].includes(mobileTouch.mode)){
+    const first=mobileTouch.first,short=performance.now()-first.timeStamp<350&&Math.hypot(e.clientX-first.clientX,e.clientY-first.clientY)<8;
+    mobileStartSingle();onUp(e);mobileTouch.checkpoint=null;
+    mobileTouch.lastTap=short?{time:performance.now(),x:e.clientX,y:e.clientY}:null;
+  }else mobileTouch.lastTap=null;
   mobileTouch.points.delete(e.pointerId);clearTimeout(mobileTouch.timer);clearTimeout(mobileTouch.hold);if(mobileTouch.points.size)mobileTouch.mode='blocked';else {mobileTouch.mode=null;mobileTouch.first=null;mobileTouch.last=null;mobileTouch.pinch=null;}
 }
 for(const event of ['pointerup','pointercancel'])stage.addEventListener(event,mobileEndTouch,{capture:true,passive:false});
+stage.addEventListener('dblclick',e=>{if(performance.now()-mobileTouch.doubleAt<800){e.preventDefault();e.stopImmediatePropagation();}},true);
 stage.addEventListener('lostpointercapture',e=>{if(mobileTouch.points.has(e.pointerId))mobileEndTouch({pointerType:'touch',pointerId:e.pointerId,type:'pointercancel',preventDefault(){},stopImmediatePropagation(){}});});
 /* A synthetic click gives touch buttons a consistent activation path. Ignore
    the delayed native compatibility click for that same activation. */
@@ -271,6 +313,22 @@ function mobileFrameMenu(e){
   const c=cellAt(e,tlC),l=layers().slice().reverse()[c.row];if(!l)return;selectLayer(l.id);setFrame(c.f);
   showMenu(null,[{label:'Copy Frames',disabled:l.locked,fn:()=>copySelectedFrames(l,c.f)},{label:'Cut Selected Frames',disabled:l.locked,fn:()=>cutSelectedFrames(l,c.f)},{label:'Paste Frames',disabled:l.locked||!copiedFrames,fn:()=>pasteSelectedFrames(l,c.f)},{label:'Clear Selected Frames',disabled:l.locked,fn:()=>clearSelectedFrames(l,c.f)},'-',...['frame','key','blank','rmframe','clearkey','motion','shape','notween'].map((kind,i)=>({label:['Insert frame','Insert keyframe','Insert blank keyframe','Remove selected frames','Clear keyframe','Create motion tween','Create shape tween','Remove tween'][i],disabled:l.locked,fn:()=>frameAction(kind)}))],{x:e.clientX,y:e.clientY});
 }
+const mobileTailGrip=document.createElement('div');mobileTailGrip.id='mobileTailGrip';mobileTailGrip.tabIndex=0;mobileTailGrip.setAttribute('role','slider');mobileTailGrip.setAttribute('aria-label','Animation end frame');mobileTailGrip.title='Drag to change animation length';$('.tl-inner').appendChild(mobileTailGrip);
+function mobileSyncTail(){
+  mobileTailGrip.style.left=(132+S.doc.frames*CW-6)+'px';mobileTailGrip.style.top=RULER+'px';mobileTailGrip.style.height=(layers().length*RH)+'px';
+  mobileTailGrip.style.backgroundSize='100% '+RH+'px';mobileTailGrip.setAttribute('aria-valuemin',timelineTailMinimum());mobileTailGrip.setAttribute('aria-valuenow',S.doc.frames);mobileTailGrip.setAttribute('aria-valuetext',S.doc.frames+' frames');mobileTailGrip.hidden=REC.armed;
+}
+const mobileNativeSizeTimeline=sizeTimeline;sizeTimeline=()=>{mobileNativeSizeTimeline();mobileSyncTail();};
+mobileTailGrip.addEventListener('pointerdown',e=>{
+  if(e.button!==0||REC.armed)return;e.preventDefault();e.stopPropagation();if(S.playing)stopPlay();
+  tlDrag={type:'tail',frames:S.doc.frames,min:timelineTailMinimum(),frame:S.frame,fsel:S.fsel,keys:layers().map(l=>[l,l.kfs.slice()]),owner:onionOwner(),originalPins:onionOwner().onionFrames,pins:onionPins().slice(),clientX:e.clientX,offset:e.clientX-tlC.getBoundingClientRect().left-(S.doc.frames*CW-CW/2)};
+  mobileTailGrip.setPointerCapture(e.pointerId);tlDrag.raf=requestAnimationFrame(timelineTailScroll);
+});
+mobileTailGrip.addEventListener('pointermove',e=>{if(tlDrag?.type==='tail'){e.preventDefault();timelineTailMove(e);}});
+mobileTailGrip.addEventListener('pointerup',()=>timelineTailEnd());
+for(const type of ['pointercancel','lostpointercapture'])mobileTailGrip.addEventListener(type,()=>timelineTailEnd(true));
+mobileTailGrip.addEventListener('keydown',e=>{if(REC.armed||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const n=Math.max(timelineTailMinimum(),S.doc.frames+(e.key==='ArrowLeft'?-1:1));if(n===S.doc.frames)return;pushUndo();S.doc.frames=n;S.frame=Math.min(S.frame,n-1);commit();});
+mobileSyncTail();
 const nativeProjectToggle=toggleProjectMenu;toggleProjectMenu=open=>{const expanded=typeof open==='boolean'?open:$('#projectToggle').getAttribute('aria-expanded')!=='true';if(expanded)mobileClosePanel();nativeProjectToggle(expanded);};
 $('#projectToggle').innerHTML='<svg viewBox="0 0 20 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3h11v15H6zM3 6v15h11"/></svg>';
 let mobileProjectDrag=null;
@@ -281,5 +339,16 @@ const nativeMobileLoad=loadDoc;loadDoc=doc=>{nativeMobileLoad(doc);mobile.record
 const nativeSwitchProject=switchProject;switchProject=id=>{nativeSwitchProject(id);mobileClosePanel();toggleProjectMenu(false);mobileSyncRecord();};
 const nativeOpenProject=openProjectDoc;openProjectDoc=(...args)=>{nativeOpenProject(...args);mobileClosePanel();toggleProjectMenu(false);mobileSyncRecord();};
 window.addEventListener('blur',()=>{if(mobileTouch.points.size)mobileCancelSingle();mobileTouch.points.clear();mobileTouch.mode=null;for(const mod of Object.values(mobileMods))mod.held.clear();mobileSyncModifiers();});
-window.addEventListener('resize',()=>requestAnimationFrame(()=>{for(const p of Object.values(mobile.panels))if(!p.box.hidden)mobilePlacePanel(p);if(S.autoFit)fitView();}));
+let mobileViewportFrame=0;
+function mobileViewport(){
+  cancelAnimationFrame(mobileViewportFrame);mobileViewportFrame=requestAnimationFrame(()=>{
+    const v=window.visualViewport,root=$('#app');
+    root.style.width=(v?.width||window.innerWidth)+'px';root.style.height=(v?.height||window.innerHeight)+'px';root.style.left=(v?.offsetLeft||0)+'px';root.style.top=(v?.offsetTop||0)+'px';
+    resizeStage();for(const p of Object.values(mobile.panels))if(!p.box.hidden)mobilePlacePanel(p);if(S.autoFit)fitView();
+  });
+}
+window.addEventListener('resize',mobileViewport);window.visualViewport?.addEventListener('resize',mobileViewport);window.visualViewport?.addEventListener('scroll',mobileViewport);
+window.addEventListener('pageshow',mobileViewport);document.addEventListener('visibilitychange',()=>{if(!document.hidden){mobile.navOwner=null;mobile.blocked.clear();mobileViewport();}});
+mobileViewport();
+
 setTool('select');mobileSyncModifiers();mobileSyncRecord();requestAnimationFrame(()=>{resizeStage();fitView();refreshAll();});

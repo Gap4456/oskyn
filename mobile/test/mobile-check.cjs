@@ -69,9 +69,47 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   // Portrait save/reopen and gallery-style image import use the shared format.
   await p.setViewportSize({width:390,height:844});await p.waitForTimeout(100);assert(await p.locator('#bUndo').isVisible());assert(await p.locator('#projectToggle').isVisible());assert.equal(await p.locator('#stage').evaluate(e=>Math.round(e.getBoundingClientRect().width)),390);
   await p.locator('#imgIn').setInputFiles({name:'gallery.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64')});await p.waitForFunction(()=>Object.keys(M.S.doc.images).length===1);
-  const download=p.waitForEvent('download');await p.locator('#mFile').tap();await p.getByRole('menuitem',{name:'Save project',exact:true}).tap();const d=await download,saved=JSON.parse(fs.readFileSync(await d.path(),'utf8'));assert.equal(saved.app,'oskyn');assert.equal(saved.appVersion,'1.0.1');assert.equal(Object.keys(saved.doc.images).length,1);
+  const download=p.waitForEvent('download');await p.locator('#mFile').tap();await p.getByRole('menuitem',{name:'Save project',exact:true}).tap();await p.locator('#mobileSaveName').fill('Phone named');await p.locator('#mFoot .primary').tap();const d=await download,saved=JSON.parse(fs.readFileSync(await d.path(),'utf8'));assert.equal(d.suggestedFilename(),'Phone-named.oskyn.json');assert.equal(saved.doc.name,'Phone named');assert.equal(saved.app,'oskyn');assert.equal(saved.appVersion,'1.0.1');assert.equal(Object.keys(saved.doc.images).length,1);
   await p.locator('#fileIn').setInputFiles({name:'Phone test.oskyn.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))});await p.waitForFunction(()=>M.S.projects.items.length===2);assert.equal(await p.evaluate(()=>M.S.projects.items.find(p=>p.id===M.S.projects.active).name),'Phone test');
   await p.locator('#projectToggle').tap();assert(await p.locator('#projectButtons').isVisible());const first=await p.evaluate(()=>M.S.projects.items[0].id);await p.locator('[data-project="'+first+'"]').tap();assert.equal(await p.locator('#projectButtons').isVisible(),false);
+  // Real double taps finish parametric shapes instead of relying on browser dblclick synthesis.
+  await p.setViewportSize({width:844,height:390});await p.waitForTimeout(100);
+  await p.evaluate(()=>{M.loadDoc(M.C.mkDoc());M.S.view={z:1,px:0,py:0};M.S.autoFit=false;});
+  await chooseTool('star');await stroke([240,140],[360,240]);
+  await stroke([300,150],[300,150],0);await p.waitForTimeout(70);await stroke([300,150],[300,150],0);
+  assert.equal(await p.evaluate(()=>M.S.tool),'node');assert.equal(await p.evaluate(()=>M.S.doc.layers[0].kfs[0].objs.length),1);assert(await p.evaluate(()=>!M.S.doc.layers[0].kfs[0].objs[0].star));
+  await chooseTool('ellipse');await stroke([440,140],[560,240]);await stroke([480,190],[480,190],0);await p.waitForTimeout(70);await stroke([480,190],[480,190],0);
+  assert.equal(await p.evaluate(()=>M.S.tool),'select');assert(await p.evaluate(()=>{const o=M.S.doc.layers[0].kfs[0].objs.at(-1);return !o.arc&&!!o.ellipseFrame;}));
+  console.log('PASS actual touch double taps finish Star and Pac-Man editing without creating extra objects');
+  // The full desktop commands remain reachable through a scrollable More toolbar.
+  await p.locator('#mobileMore').tap();assert(await p.locator('#mobileCommands').isVisible());
+  async function command(id){await p.locator('#'+id).evaluate(e=>e.scrollIntoView({block:'nearest',inline:'nearest'}));await p.locator('#'+id).tap();}
+  await command('mPath');assert(await p.getByRole('menuitem',{name:'Union (experimental)',exact:true}).isVisible());await p.keyboard.press('Escape');
+  await command('bGrid');assert.equal(await p.locator('#bGrid').getAttribute('aria-pressed'),'true');await command('bGridSnap');assert.equal(await p.locator('#bGridSnap').getAttribute('aria-pressed'),'true');
+  const themed=await p.locator('html').getAttribute('data-theme');await command('bTheme');assert.notEqual(await p.locator('html').getAttribute('data-theme'),themed);
+  await command('kThemePalette');assert(await p.locator('#kThemeMenu').isVisible());await p.locator('[data-k-theme="ocean"]').tap();assert.equal(await p.locator('html').getAttribute('data-theme'),'ocean');
+  await p.locator('#mobileMore').tap();
+  // The visible end grip owns its drag; adjacent frame cells still scroll natively.
+  await p.evaluate(()=>{const d=M.C.mkDoc();d.frames=12;d.layers[0].kfs[0].objs=[M.C.mkPath([M.C.rectContour(80,60)],{fill:'#7755ff'})];M.loadDoc(d);M.refreshAll();});await p.locator('#mobileTimelineToggle').tap();
+  await p.locator('#mobileTailGrip').evaluate(e=>e.scrollIntoView({block:'nearest',inline:'end'}));const grip=await center('#mobileTailGrip');await stroke(grip,[grip[0]-220,grip[1]],100);
+  assert(await p.evaluate(()=>M.S.doc.frames<12&&M.S.doc.frames>=1));assert.equal(await p.evaluate(()=>M.H.stack.length),1);await p.locator('#bUndo').tap();assert.equal(await p.evaluate(()=>M.S.doc.frames),12);
+  await p.getByRole('button',{name:'Close Timeline panel',exact:true}).tap();
+  console.log('PASS More exposes Path/Grid/Snap/themes and the touch end grip shortens the timeline with one Undo');
+  // Resizing, focus, pan and project switches must not move toolbar handles outside the viewport.
+  for(const [width,height] of [[390,844],[844,390],[320,568],[390,844]]){
+    await p.setViewportSize({width,height});await p.waitForTimeout(90);
+    for(const id of ['mobileTop','mobileToolsToggle','mobilePropsToggle','mobileTimelineToggle','mobileQuick']){
+      const r=await p.locator('#'+id).boundingBox();assert(r.x>=0&&r.y>=0&&r.x+r.width<=width+1&&r.y+r.height<=height+1,id+' stays on screen');
+    }
+    await p.locator('#mobilePropsToggle').tap();assert(await p.locator('#mobilePanel-props').isVisible());await p.getByRole('button',{name:'Close Properties panel',exact:true}).tap();
+  }
+  await p.locator('#mFile').tap();await p.getByRole('menuitem',{name:'Save project',exact:true}).tap();await p.locator('#mobileSaveName').fill('Cancel this name');await p.getByRole('button',{name:'Cancel',exact:true}).tap();assert.notEqual(await p.evaluate(()=>M.S.doc.name),'Cancel this name');
+  console.log('PASS portrait/landscape and narrow-screen toolbar reachability, repeated sheet use and cancelled save leaves project name unchanged');
+  const closing=await p.evaluate(()=>M.S.projects.active),projectCount=await p.evaluate(()=>M.S.projects.items.length);
+  await p.locator('#projectToggle').tap();await p.locator('[data-project="'+closing+'"]').locator('..').locator('.project-close').tap();await p.locator('#mFoot .primary').tap();await p.waitForSelector('#mobileSaveName');
+  await p.getByRole('button',{name:'Cancel',exact:true}).tap();assert.equal(await p.evaluate(()=>M.S.projects.items.length),projectCount);
+  await p.locator('#projectToggle').tap();await p.locator('[data-project="'+closing+'"]').locator('..').locator('.project-close').tap();await p.locator('#mFoot .primary').tap();await p.locator('#mobileSaveName').fill('Closed saved project');const closeDownload=p.waitForEvent('download');await p.locator('#mFoot .primary').tap();await closeDownload;await p.waitForFunction(id=>!M.S.projects.items.some(p=>p.id===id),closing);
+  console.log('PASS Save-before-close keeps the naming dialog open; cancellation preserves the project and successful save closes it');
   assert.deepEqual(errors,[]);console.log('PASS portrait layout, image file import, native project download and reopen, multi-project switch auto-closes drawer; browser clean');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

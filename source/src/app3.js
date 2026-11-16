@@ -3381,7 +3381,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'F6') { e.preventDefault(); frameAction(e.shiftKey ? 'clearkey' : 'key'); return; }
   if (k === 'F7') { e.preventDefault(); frameAction('blank'); return; }
   if (k === 'Enter') { e.preventDefault(); if (S.pen) finishPen(false); else togglePlay(); return; }
-  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); if(S.tool==='mirror'&&MIR.id){mirrorDelete();return;} if (S.tool === 'node' && S.nodeSel && deleteNode()) return; if (S.tool === 'gradient') { kroganGradDelete(); return; } deleteSel(); return; }
+  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); if(S.tool==='mirror'&&MIR.id){mirrorDelete();return;} if (S.tool === 'node' && kNodeKeys().length && deleteNode()) return; if (S.tool === 'gradient') { kroganGradDelete(); return; } deleteSel(); return; }
   if (k === ',' || k === '<') { e.preventDefault(); if (S.playing) stopPlay(); setFrame(e.shiftKey ? 0 : S.frame - 1); return; }
   if (k === '.' || k === '>') { e.preventDefault(); if (S.playing) stopPlay(); setFrame(e.shiftKey ? S.doc.frames - 1 : S.frame + 1); return; }
   if (k.startsWith('Arrow')) {

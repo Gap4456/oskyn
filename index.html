@@ -7294,35 +7294,42 @@ function nodeDbl(p) {
   commit();
 }
 function deleteNode() {
-  if(singleSel()?.o.skin)return false;
-  const one = singleSel();
-  if (!one || !S.nodeSel || !nodeEditable(one.o)) return false;
-  if(one.o.kind==='image'&&one.o.contours[S.nodeSel.ci]?.nodes.length<=3){toast('A bitmap mask needs at least three nodes.');return true;}
-  pushUndo(); seedMorphNodes(getLayer(one.lid),one.id); C.ensureEditable(getLayer(one.lid), S.frame);
-  const o = findEditable(one.lid, one.id), c = o.contours[S.nodeSel.ci];
-  if (!c) return false;
-  const ni=S.nodeSel.ni,n=c.nodes[ni],count=c.nodes.length;
-  if(count>2){
-    const left=c.nodes[(ni+count-1)%count],right=c.nodes[(ni+1)%count];
-    let removed;
-    if(!c.closed&&(ni===0||ni===count-1)){
-      const next=ni===0?right:left;removed={mid:n.mid,birth:[next.mid,next.mid,0],end:ni===0?'start':'end'};
-    }else{
-      // Find a point on the replacement cubic; the surviving anchors stay fixed.
-      let best=.5,cost=Infinity;
-      const distance=t=>{const p=C.bezPt(left,right,t);return (p[0]-n.x)**2+(p[1]-n.y)**2;};
-      for(let k=0;k<=40;k++){const t=k/40,d=distance(t);if(d<cost){cost=d;best=t;}}
-      let lo=Math.max(0,best-.025),hi=Math.min(1,best+.025);
-      for(let k=0;k<20;k++){const a=lo+(hi-lo)/3,b=hi-(hi-lo)/3;if(distance(a)<distance(b))hi=b;else lo=a;}
-      removed={mid:n.mid,birth:[left.mid,right.mid,clamp((lo+hi)/2,.001,.999)]};
-    }
-    c.gone=[...(c.gone||[]).filter(q=>q.mid!==n.mid),removed];
+  const one=singleSel();
+  if(!one||one.o.skin||!nodeEditable(one.o)||getLayer(one.lid).locked)return false;
+  const selected=[...new Set(kNodeKeys())].map(kNodeFromKey).filter(({ci,ni})=>one.o.contours[ci]?.nodes[ni]);
+  if(!selected.length)return false;
+  // Reject an invalid bitmap-mask deletion as a whole, rather than partly deleting the selection.
+  if(one.o.kind==='image'&&one.o.contours.some((c,ci)=>c.nodes.length-selected.filter(n=>n.ci===ci).length<3)){
+    toast('A bitmap mask needs at least three nodes.');return true;
   }
-  c.nodes.splice(ni, 1);
-  if (c.nodes.length < 2) o.contours.splice(S.nodeSel.ci, 1);
-  S.nodeSel = null; S.kNodeSelection=[];
-  if (!o.contours.length) { const kf = C.kfFor(getLayer(one.lid), S.frame); kf.objs.splice(kf.objs.indexOf(o), 1); S.sel = []; }
-  commit(); return true;
+  pushUndo();seedMorphNodes(getLayer(one.lid),one.id);C.ensureEditable(getLayer(one.lid),S.frame);
+  const o=findEditable(one.lid,one.id);
+  // Descending indices keep every selected node valid as nodes/contours disappear.
+  for(const {ci,ni} of selected.sort((a,b)=>b.ci-a.ci||b.ni-a.ni)){
+    const c=o.contours[ci];
+    const n=c.nodes[ni],count=c.nodes.length;
+    if(count>2){
+      const left=c.nodes[(ni+count-1)%count],right=c.nodes[(ni+1)%count];
+      let removed;
+      if(!c.closed&&(ni===0||ni===count-1)){
+        const next=ni===0?right:left;removed={mid:n.mid,birth:[next.mid,next.mid,0],end:ni===0?'start':'end'};
+      }else{
+        // Find a point on the replacement cubic; the surviving anchors stay fixed.
+        let best=.5,cost=Infinity;
+        const distance=t=>{const p=C.bezPt(left,right,t);return (p[0]-n.x)**2+(p[1]-n.y)**2;};
+        for(let k=0;k<=40;k++){const t=k/40,d=distance(t);if(d<cost){cost=d;best=t;}}
+        let lo=Math.max(0,best-.025),hi=Math.min(1,best+.025);
+        for(let k=0;k<20;k++){const a=lo+(hi-lo)/3,b=hi-(hi-lo)/3;if(distance(a)<distance(b))hi=b;else lo=a;}
+        removed={mid:n.mid,birth:[left.mid,right.mid,clamp((lo+hi)/2,.001,.999)]};
+      }
+      c.gone=[...(c.gone||[]).filter(q=>q.mid!==n.mid),removed];
+    }
+    c.nodes.splice(ni, 1);
+  }
+  o.contours=o.contours.filter(c=>c.nodes.length>=2);
+  S.nodeSel=null;S.kNodeSelection=[];
+  if(!o.contours.length){const kf=C.kfFor(getLayer(one.lid),S.frame);kf.objs.splice(kf.objs.indexOf(o),1);S.sel=[];}
+  commit();return true;
 }
 
 /* ---------- gradients: creation, canvas handles, stops ---------- */
@@ -12201,7 +12208,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'F6') { e.preventDefault(); frameAction(e.shiftKey ? 'clearkey' : 'key'); return; }
   if (k === 'F7') { e.preventDefault(); frameAction('blank'); return; }
   if (k === 'Enter') { e.preventDefault(); if (S.pen) finishPen(false); else togglePlay(); return; }
-  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); if(S.tool==='mirror'&&MIR.id){mirrorDelete();return;} if (S.tool === 'node' && S.nodeSel && deleteNode()) return; if (S.tool === 'gradient') { kroganGradDelete(); return; } deleteSel(); return; }
+  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); if(S.tool==='mirror'&&MIR.id){mirrorDelete();return;} if (S.tool === 'node' && kNodeKeys().length && deleteNode()) return; if (S.tool === 'gradient') { kroganGradDelete(); return; } deleteSel(); return; }
   if (k === ',' || k === '<') { e.preventDefault(); if (S.playing) stopPlay(); setFrame(e.shiftKey ? 0 : S.frame - 1); return; }
   if (k === '.' || k === '>') { e.preventDefault(); if (S.playing) stopPlay(); setFrame(e.shiftKey ? S.doc.frames - 1 : S.frame + 1); return; }
   if (k.startsWith('Arrow')) {
