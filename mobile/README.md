@@ -6,7 +6,7 @@ This is an experimental first mobile interface, not a separate animation engine.
 
 ## Try it on a PC
 
-Download **Code → Download ZIP**, extract it, then open `mobile/index.html` in a recent browser. In Firefox, **Ctrl+Shift+M** opens Responsive Design Mode; enable touch simulation to test a single finger. Edge/Chrome also have device emulation. A mouse can operate the controls; use the navigation strips' wheel/Control+wheel support to pan/zoom panels, or drag a panel heading with the mouse to reposition it.
+Download **Code → Download ZIP**, extract it, then open `mobile/index.html` in a recent browser. In Firefox, **Ctrl+Shift+M** opens Responsive Design Mode; enable touch simulation to test a single finger. Edge/Chrome also have device emulation. A mouse can operate the controls; scroll panels with the mouse wheel, or drag a panel heading with the mouse to reposition it.
 
 Single-mouse simulation does not prove a two-finger gesture works. The automated tests below send real simultaneous touch points through Chromium's DevTools protocol.
 
@@ -38,11 +38,11 @@ The server serves only the mobile HTML; it does not upload projects. GitHub Page
 - The canvas fills the screen. **Undo/Redo** stay visible at the bottom; **Edit** can move them to the other side.
 - Edge handles reveal **Tools**, **Properties** or **Timeline**. Only one of those panels opens at a time. Tap outside to close it without drawing; selecting a tool also closes Tools.
 - **Two fingers on the canvas** pan and pinch-zoom it. A second canvas finger cancels an unfinished one-finger edit, including an eraser operation or take. After lifting one navigation finger, the remaining finger cannot start drawing.
-- **Two fingers starting on a panel's dedicated strip** pan/zoom that panel's content. The strip stays fixed. **Two fingers on its heading** move the whole panel. Gesture ownership stays with that strip/heading until release; sliding over an input cannot edit it. **1:1** resets the content view.
+- **Swipe inside a panel** to scroll its contents normally. **Two fingers on its heading** move the whole panel; a mouse can drag the heading. **↑** scrolls to the start. Navigation strips have been removed. **Preview** and **Delete** are visible at the top. Delete removes selected objects or nodes; while Timeline is open it removes selected frames.
 - **Tools** retains all shared tools, including Node, Bone and Star/Cog. **1 / 2** switches toolbar columns. Node operations and selection transforms are also available in Properties; Node operations appear in Edit when appropriate.
 - **Shift / Control / Alt** can be tapped to latch, or held with one finger while another finger edits the canvas. Their dim reminders ignore pointer input. Control+Shift works with axis-constrained Node dragging.
 - **REC** in Tools arms drag-to-record. Close the panel, then drag a selected object, node or Animate-mode bone. The counter reports actual sampled frames. Releasing the object stops the take while REC stays armed. Tap REC again to disarm. Only the armed REC indicator pulses; reduced-motion settings suppress the animation. The shared 900-frame limit and existing Record restrictions still apply.
-- Timeline cells start at **40 px wide, 44 px high**. Tap to select, use Shift for ranges, or **hold a frame** for Copy/Paste/Key/Blank and other actions. Navigate the timeline view using its strip.
+- Timeline cells start at **40 px wide, 44 px high**. Tap to select, use Shift for ranges, or **hold a frame** for Copy/Paste/Key/Blank and other actions. Swipe the toolbar horizontally to reach all actions; swipe the frames independently to navigate time and layers. A swipe does not drag keyframes.
 - A tap on a **Bone joint** opens its existing radial HUD. Hold a canvas object for the Edit menu. The on-screen modifiers provide the desktop modifier combinations.
 - The **Projects** handle stays at the right edge and can be moved vertically. Switching projects hides the list and retains each project's own view, frame and history. Project-list scrolling uses its normal scroll area.
 - **File → Import image** uses the browser/phone file picker. **File → Save project** downloads the shared `.oskyn.json` format. Save each project explicitly; browser autosave remains disabled.

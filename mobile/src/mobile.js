@@ -15,6 +15,14 @@ for(const id of ['mFile','mExport'])mobileTop.appendChild($('#'+id));
 function mobileButton(id,text,fn,parent){const b=document.createElement('button');b.type='button';b.id=id;b.textContent=text;b.addEventListener('click',fn);parent.appendChild(b);return b;}
 mobileButton('mobileEdit','Edit',()=>mobileEditMenu(),mobileTop);
 mobileButton('mobileFit','Fit',()=>fitView(),mobileTop);
+mobileButton('mobilePreview','Preview',()=>openPreview(),mobileTop);
+mobileButton('mobileDelete','Delete',()=>{
+  if(mobileTouch.points.size){mobileCancelSingle();mobileTouch.mode='blocked';return;}
+  if(REC.armed)recordSetArmed(false);
+  if(mobile.panel==='timeline')frameAction('rmframe');
+  else if(S.tool==='node'&&kNodeKeys().length)deleteNode();
+  else deleteSel();
+},mobileTop);
 $('#stagewrap').appendChild(mobileTop);
 const mobileQuick=document.createElement('div');mobileQuick.id='mobileQuick';mobileQuick.setAttribute('aria-label','Undo and redo');for(const id of ['bUndo','bRedo'])mobileQuick.appendChild($('#'+id));$('#stagewrap').appendChild(mobileQuick);
 const mobileReminders=document.createElement('div');mobileReminders.id='mobileReminders';mobileReminders.setAttribute('aria-label','Active modifiers and recording status');$('#stagewrap').appendChild(mobileReminders);
@@ -25,20 +33,17 @@ const mobileRecordCount=document.createElement('span');mobileRecordCount.id='mob
 function mobilePanel(id,label,content,width,side){
   const box=document.createElement('section');box.id='mobilePanel-'+id;box.className='mobile-panel';box.hidden=true;box.setAttribute('aria-label',label+' panel');
   const head=document.createElement('div');head.className='mobile-panel-head';head.innerHTML='<strong>'+label+'</strong>';
-  const reset=document.createElement('button');reset.type='button';reset.textContent='1:1';reset.setAttribute('aria-label','Reset '+label+' view');head.appendChild(reset);
+  const reset=document.createElement('button');reset.type='button';reset.textContent='↑';reset.setAttribute('aria-label','Scroll '+label+' to start');head.appendChild(reset);
   const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Close '+label+' panel');close.addEventListener('click',()=>mobileClosePanel());head.appendChild(close);box.appendChild(head);
   const body=document.createElement('div');body.className='mobile-panel-body';const viewport=document.createElement('div');viewport.className='mobile-panel-viewport';const inner=document.createElement('div');inner.className='mobile-panel-content';inner.appendChild(content);viewport.appendChild(inner);body.appendChild(viewport);
-  const pad=document.createElement('div');pad.className='mobile-nav-pad';pad.tabIndex=0;pad.setAttribute('role','group');pad.setAttribute('aria-label','Navigate '+label+' panel');pad.innerHTML='<span aria-hidden="true">↕</span><small>2 fingers</small><span aria-hidden="true">⊕</span>';body.appendChild(pad);box.appendChild(body);$('#stagewrap').appendChild(box);
-  const state={id,box,head,viewport,inner,pad,width,side,z:1,x:0,y:0,left:null,top:null};mobile.panels[id]=state;
-  reset.addEventListener('click',()=>{state.z=1;state.x=state.y=0;mobileApplyPanel(state);});
-  mobilePanelGesture(state,pad,false);mobilePanelGesture(state,head,true);
-  pad.addEventListener('keydown',e=>{if(e.key==='0'){state.z=1;state.x=state.y=0;}else if(e.key==='+'||e.key==='=')state.z=clamp(state.z*1.15,1,2);else if(e.key==='-')state.z=clamp(state.z/1.15,1,2);else if(e.key.startsWith('Arrow')){state.x+=e.key==='ArrowLeft'?24:e.key==='ArrowRight'?-24:0;state.y+=e.key==='ArrowUp'?24:e.key==='ArrowDown'?-24:0;}else return;e.preventDefault();mobileApplyPanel(state);});
+  box.appendChild(body);$('#stagewrap').appendChild(box);
+  const state={id,box,head,viewport,inner,width,side,z:1,x:0,y:0,left:null,top:null};mobile.panels[id]=state;
+  reset.addEventListener('click',()=>{viewport.scrollTo(0,0);if(id==='timeline'){$('#tlScroll').scrollTo(0,0);content.querySelector('.tl-bar').scrollTo(0,0);}});
+  mobilePanelGesture(state,head);
   return state;
 }
 function mobileApplyPanel(p){
-  const w=p.viewport.clientWidth,h=p.viewport.clientHeight,cw=Math.max(p.inner.offsetWidth,p.inner.scrollWidth)*p.z,ch=Math.max(p.inner.offsetHeight,p.inner.scrollHeight)*p.z;
-  p.x=clamp(p.x,Math.min(0,w-cw)-12,12);p.y=clamp(p.y,Math.min(0,h-ch)-12,12);
-  p.inner.style.transform='translate('+p.x+'px,'+p.y+'px) scale('+p.z+')';
+  p.inner.style.transform='none';
 }
 function mobileSafe(){const style=getComputedStyle(document.documentElement);return Object.fromEntries(['top','bottom','left','right'].map(k=>[k,parseFloat(style.getPropertyValue('--mobile-safe-'+k))||0]));}
 function mobilePlacePanel(p,reset=false){
@@ -53,28 +58,27 @@ function mobileOpenPanel(id){
   if(mobile.panel===id){mobileClosePanel();return;}
   mobileClosePanel();toggleProjectMenu(false);const p=mobile.panels[id];p.box.hidden=false;mobile.panel=id;mobilePlacePanel(p);const b=document.querySelector('[data-mobile-panel="'+id+'"]');if(b)b.setAttribute('aria-expanded','true');
 }
-/* Gesture ownership belongs to the pad/header where both touches started.
+/* Gesture ownership belongs to the heading where both touches started.
    It is not transferred to a field when one finger is lifted or moves out. */
-function mobilePanelGesture(p,area,moveWindow){
+function mobilePanelGesture(p,area){
   const points=new Map();let mode=null,start=null;
   area.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='mouse'&&!moveWindow)return;if(e.target.closest('button'))return;
+    if(e.target.closest('button'))return;
     if(mobile.navOwner&&mobile.navOwner!==area)return;e.preventDefault();e.stopPropagation();area.setPointerCapture(e.pointerId);mobile.navOwner=area;points.set(e.pointerId,e);
-    if(e.pointerType==='mouse'&&moveWindow){mode='mouse';start={cx:e.clientX,cy:e.clientY,left:p.left,top:p.top};}
+    if(e.pointerType==='mouse'){mode='mouse';start={cx:e.clientX,cy:e.clientY,left:p.left,top:p.top};}
     if(points.size===2){const [a,b]=[...points.values()];mode='gesture';start={cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2,d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,z:p.z,x:p.x,y:p.y,left:p.left,top:p.top};}
   });
   area.addEventListener('pointermove',e=>{
     if(!points.has(e.pointerId))return;e.preventDefault();e.stopPropagation();points.set(e.pointerId,e);if(mode==='mouse'){p.left=start.left+e.clientX-start.cx;p.top=start.top+e.clientY-start.cy;mobilePlacePanel(p);return;}if(mode!=='gesture'||points.size!==2)return;
     const [a,b]=[...points.values()],cx=(a.clientX+b.clientX)/2,cy=(a.clientY+b.clientY)/2;
-    if(moveWindow){p.left=start.left+cx-start.cx;p.top=start.top+cy-start.cy;mobilePlacePanel(p);}
-    else {const z=clamp(start.z*Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)/start.d,1,2),wx=(p.viewport.clientWidth/2-start.x)/start.z,wy=(p.viewport.clientHeight/2-start.y)/start.z;p.z=z;p.x=p.viewport.clientWidth/2-wx*z+cx-start.cx;p.y=p.viewport.clientHeight/2-wy*z+cy-start.cy;mobileApplyPanel(p);}
+    p.left=start.left+cx-start.cx;p.top=start.top+cy-start.cy;mobilePlacePanel(p);
   });
   const end=e=>{if(!points.has(e.pointerId))return;e.preventDefault();e.stopPropagation();points.delete(e.pointerId);mode='blocked';if(!points.size){mobile.navOwner=null;mode=null;start=null;}};
   for(const event of ['pointerup','pointercancel','lostpointercapture'])area.addEventListener(event,end);
   window.addEventListener('blur',()=>{points.clear();mode=null;start=null;if(mobile.navOwner===area)mobile.navOwner=null;});
 }
 const tools=$('#tools'),props=$('#props'),timeline=$('#tl');
-const toolPanel=mobilePanel('tools','Tools',tools,136,'left');mobilePanel('props','Properties',props,348,'right');mobilePanel('timeline','Timeline',timeline,780,'bottom');
+const toolPanel=mobilePanel('tools','Tools',tools,92,'left');mobilePanel('props','Properties',props,302,'right');mobilePanel('timeline','Timeline',timeline,780,'bottom');
 props.prepend($('#kNodeBar'),$('#kSelectBar'),$('#toolopts'));
 const mobileRecordButton=$('#pRecord');
 const timelineBar=timeline.querySelector('.tl-bar'),playRow=document.createElement('div'),frameRow=document.createElement('div');playRow.className=frameRow.className='mobile-timeline-row';
@@ -96,17 +100,14 @@ for(const key of Object.keys(mobileMods)){
 }
 modifierGroup.appendChild(mobileRecordButton);
 for(const p of Object.values(mobile.panels))new MutationObserver(()=>{if(!p.box.hidden)mobileApplyPanel(p);}).observe(p.inner,{childList:true,subtree:true});
-const nativeLayoutClick=$('#kToolLayout');nativeLayoutClick.textContent='1 / 2';nativeLayoutClick.addEventListener('click',e=>{e.stopImmediatePropagation();mobile.columns=mobile.columns===1?2:1;nativeLayoutClick.setAttribute('aria-pressed',String(mobile.columns===2));toolPanel.box.classList.toggle('two-columns',mobile.columns===2);toolPanel.width=mobile.columns===2?184:136;mobilePlacePanel(toolPanel);},true);
+const nativeLayoutClick=$('#kToolLayout');nativeLayoutClick.textContent='1 / 2';nativeLayoutClick.addEventListener('click',e=>{e.stopImmediatePropagation();mobile.columns=mobile.columns===1?2:1;nativeLayoutClick.setAttribute('aria-pressed',String(mobile.columns===2));toolPanel.box.classList.toggle('two-columns',mobile.columns===2);toolPanel.width=mobile.columns===2?140:92;mobilePlacePanel(toolPanel);},true);
 for(const [id,label,icon] of [['tools','Tools','✎'],['props','Properties','☷'],['timeline','Timeline','Timeline']]){
   const b=mobileButton('mobile'+id[0].toUpperCase()+id.slice(1)+'Toggle',icon,()=>mobileOpenPanel(id),$('#stagewrap'));b.className='mobile-edge';b.dataset.mobilePanel=id;b.setAttribute('aria-label','Open '+label+' panel');b.setAttribute('aria-expanded','false');
   let down=null;b.addEventListener('pointerdown',e=>{if(e.button===0){down={x:e.clientX,y:e.clientY};b.setPointerCapture(e.pointerId);}});
   b.addEventListener('pointerup',e=>{if(!down)return;const dx=e.clientX-down.x,dy=e.clientY-down.y;down=null;if(Math.hypot(dx,dy)>12){mobileLastClick={button:b,time:performance.now()};mobileOpenPanel(id);}});
 }
-/* Only pane navigation pads pan/zoom UI content; the controls themselves stay
-   ordinary controls. Wheel+Ctrl is also reserved for these pads on a PC. */
-for(const p of Object.values(mobile.panels))p.pad.addEventListener('wheel',e=>{e.preventDefault();if(e.ctrlKey||e.metaKey)p.z=clamp(p.z*Math.exp(-e.deltaY*.002),1,2);else {p.x-=e.deltaX;p.y-=e.deltaY;}mobileApplyPanel(p);},{passive:false});
 
-function mobileTouchHelp(){openModal('Mobile preview','<p>Use the edge handles for Tools, Properties and Timeline. One panel opens at a time. Two fingers on its navigation strip pan and zoom its contents; two fingers on the panel heading move the whole panel. 1:1 resets its view.</p><p>Two fingers on the canvas pan and zoom the drawing. A second finger cancels an unfinished single-finger edit. Hold a canvas object or a frame for its menu.</p><p>Tap Shift, Control or Alt to latch it, or hold it while drawing. The faint canvas reminders ignore touches. REC arms drag-to-record: drag an object, node or bone, then release to stop. Undo/Redo stay visible.</p><p>Save projects explicitly. Photo import and saving to Files must still be verified on a real iPhone. PWA/offline installation is not included in this preview.</p>');}
+function mobileTouchHelp(){openModal('Mobile preview','<p>Use the edge handles for Tools, Properties and Timeline. One panel opens at a time. Swipe inside a panel to scroll. The timeline toolbar and frames scroll independently left and right. Two fingers on the panel heading move the whole panel. ↑ scrolls to the start. Preview and Delete stay visible at the top.</p><p>Two fingers on the canvas pan and zoom the drawing. A second finger cancels an unfinished single-finger edit. Hold a canvas object or a frame for its menu.</p><p>Tap Shift, Control or Alt to latch it, or hold it while drawing. The faint canvas reminders ignore touches. REC arms drag-to-record: drag an object, node or bone, then release to stop. Undo/Redo stay visible.</p><p>Save projects explicitly. Photo import and saving to Files must still be verified on a real iPhone. PWA/offline installation is not included in this preview.</p>');}
 function mobileEditMenu(pos){
   const one=singleSel(),nodeItems=S.tool==='node'&&nodeEditable(one?.o)&&!one.o.skin&&!one.o.skel?[
     ...['corner','straight','smooth','symmetric','auto'].map((op,i)=>({label:['Corner nodes','Straight segments','Smooth nodes','Symmetric nodes','Auto-smooth nodes'][i],fn:()=>kNodeOperation(op)})),
@@ -242,30 +243,34 @@ document.addEventListener('pointerup',e=>{
 document.addEventListener('click',e=>{if(e.isTrusted&&e.detail>0&&mobileLastClick&&performance.now()-mobileLastClick.time<700&&(mobileLastClick.button.contains(e.target)||Math.hypot(e.clientX-mobileLastClick.x,e.clientY-mobileLastClick.y)<14)){e.preventDefault();e.stopImmediatePropagation();}},true);
 document.addEventListener('pointercancel',e=>{mobile.blocked.delete(e.pointerId);if(mobileButtonTouch?.id===e.pointerId)mobileButtonTouch=null;},true);
 
-/* Shared timeline math uses the enlarged mobile CW/RH values. Normalize
-   pointer positions through the panel transform before shared drag handlers. */
-const mobileNormalized=new WeakSet(),nativeCellAt=cellAt;
-function mobileTimelineEvent(e,canvas){const r=canvas.getBoundingClientRect(),z=mobile.panels.timeline.z;return mobileEvent(e,{clientX:r.left+(e.clientX-r.left)/z,clientY:r.top+(e.clientY-r.top)/z});}
-cellAt=(e,canvas)=>nativeCellAt(mobileNormalized.has(e)?e:mobileTimelineEvent(e,canvas),canvas);
+/* Native touch scrolling owns swipes; only a stationary tap selects a frame.
+   Long press retains the shared frame actions, without starting a key drag. */
 let mobileFrameHold=null;
+function mobileSelectFrame(e,canvas){
+  if(S.playing)stopPlay();
+  const c=cellAt(e,canvas),l=canvas===tlC?layers().slice().reverse()[c.row]:null;
+  if(e.shiftKey||mobileKey('Shift')){
+    const all=canvas===tlRuler,from=S.fsel&&S.fsel.all===all&&(all||S.fsel.lid===l?.id)?S.fsel.anchor:S.frame;
+    S.fsel={a:Math.min(from,c.f),b:Math.max(from,c.f),anchor:from,all,...(!all&&l?{lid:l.id}:{})};
+  }else S.fsel=null;
+  if(l)selectLayer(l.id);setFrame(c.f);drawTimeline();
+}
 for(const canvas of [tlC,tlRuler])for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])canvas.addEventListener(type,e=>{
-  if(mobileNormalized.has(e))return;
-  e.preventDefault();e.stopImmediatePropagation();const normalized=mobileTimelineEvent(e,canvas),replay=new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:e.pointerId,pointerType:e.pointerType,isPrimary:e.isPrimary,button:e.button,buttons:e.buttons,clientX:normalized.clientX,clientY:normalized.clientY,shiftKey:normalized.shiftKey,ctrlKey:normalized.ctrlKey,altKey:normalized.altKey,metaKey:normalized.metaKey});mobileNormalized.add(replay);
-  if(canvas===tlC&&e.pointerType==='touch'){
-    if(type==='pointerdown'){clearTimeout(mobileFrameHold?.timer);const h={id:e.pointerId,x:e.clientX,y:e.clientY};mobileFrameHold=h;h.timer=setTimeout(()=>{if(mobileFrameHold!==h)return;tlDrag=null;mobileFrameMenu(e);},550);}
-    else if(mobileFrameHold?.id===e.pointerId&&(type!=='pointermove'||Math.hypot(e.clientX-mobileFrameHold.x,e.clientY-mobileFrameHold.y)>8)){clearTimeout(mobileFrameHold.timer);mobileFrameHold=null;}
+  if(e.pointerType!=='touch')return;e.stopImmediatePropagation();
+  if(type==='pointerdown'){
+    clearTimeout(mobileFrameHold?.timer);
+    const h={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,menu:false};mobileFrameHold=h;
+    if(canvas===tlC)h.timer=setTimeout(()=>{if(mobileFrameHold!==h||h.moved)return;h.menu=true;mobileFrameMenu(e);},550);
+  }else if(mobileFrameHold?.id===e.pointerId){
+    const h=mobileFrameHold;
+    if(type==='pointermove'){if(Math.hypot(e.clientX-h.x,e.clientY-h.y)>8){h.moved=true;clearTimeout(h.timer);}}
+    else {clearTimeout(h.timer);mobileFrameHold=null;if(type==='pointerup'&&!h.moved&&!h.menu)mobileSelectFrame(e,canvas);}
   }
-  canvas.dispatchEvent(replay);
-},{capture:true,passive:false});
+},{capture:true,passive:true});
 function mobileFrameMenu(e){
   const c=cellAt(e,tlC),l=layers().slice().reverse()[c.row];if(!l)return;selectLayer(l.id);setFrame(c.f);
   showMenu(null,[{label:'Copy Frames',disabled:l.locked,fn:()=>copySelectedFrames(l,c.f)},{label:'Cut Selected Frames',disabled:l.locked,fn:()=>cutSelectedFrames(l,c.f)},{label:'Paste Frames',disabled:l.locked||!copiedFrames,fn:()=>pasteSelectedFrames(l,c.f)},{label:'Clear Selected Frames',disabled:l.locked,fn:()=>clearSelectedFrames(l,c.f)},'-',...['frame','key','blank','rmframe','clearkey','motion','shape','notween'].map((kind,i)=>({label:['Insert frame','Insert keyframe','Insert blank keyframe','Remove selected frames','Clear keyframe','Create motion tween','Create shape tween','Remove tween'][i],disabled:l.locked,fn:()=>frameAction(kind)}))],{x:e.clientX,y:e.clientY});
 }
-const nativeKeepPlayhead=keepPlayheadVisible;keepPlayheadVisible=(...args)=>{
-  nativeKeepPlayhead(...args);if(mobile.panel!=='timeline'||(!S.playing&&!REC.running))return;
-  const p=mobile.panels.timeline,x=(132+(S.frame+.5)*CW)*p.z+p.x,w=p.viewport.clientWidth;
-  if(x>w-36)p.x-=x-w+36;else if(x<36)p.x+=36-x;mobileApplyPanel(p);
-};
 const nativeProjectToggle=toggleProjectMenu;toggleProjectMenu=open=>{const expanded=typeof open==='boolean'?open:$('#projectToggle').getAttribute('aria-expanded')!=='true';if(expanded)mobileClosePanel();nativeProjectToggle(expanded);};
 $('#projectToggle').innerHTML='<svg viewBox="0 0 20 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3h11v15H6zM3 6v15h11"/></svg>';
 let mobileProjectDrag=null;

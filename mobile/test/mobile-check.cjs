@@ -10,8 +10,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   async function center(selector){const b=await p.locator(selector).boundingBox();return [b.x+b.width/2,b.y+b.height/2];}
   async function stroke(a,b,delay=100){await touch('touchStart',[[...a,1]]);if(delay)await p.waitForTimeout(delay);await touch('touchMove',[[...b,1]]);await touch('touchEnd',[]);}
   async function at(x,y){return p.evaluate(([x,y])=>M.w2s(x,y),[x,y]);}
-  async function navDrag(id,dy){const r=await p.locator('#mobilePanel-'+id+' .mobile-nav-pad').boundingBox(),x=r.x+r.width/2,y=r.y+r.height*.5;await touch('touchStart',[[x,y-25,1]]);await touch('touchStart',[[x,y-25,1],[x,y+25,2]]);await touch('touchMove',[[x,y-25+dy,1],[x,y+25+dy,2]]);await touch('touchEnd',[]);}
-  async function revealTool(selector){if(!await p.locator('#mobilePanel-tools').isVisible())await p.locator('#mobileToolsToggle').tap();for(let i=0;i<8;i++){const b=await p.locator(selector).boundingBox(),v=await p.locator('#mobilePanel-tools .mobile-panel-viewport').boundingBox();if(b.y>=v.y+1&&b.y+b.height<=v.y+v.height-1)return;const dy=b.y<v.y?Math.min(220,v.y-b.y+30):-Math.min(220,b.y+b.height-v.y-v.height+30);await navDrag('tools',dy);}throw Error('Could not reveal '+selector);}
+  async function revealTool(selector){if(!await p.locator('#mobilePanel-tools').isVisible())await p.locator('#mobileToolsToggle').tap();await p.locator(selector).evaluate(e=>e.scrollIntoView({block:'nearest'}));}
   async function chooseTool(id){await revealTool('[data-tool="'+id+'"]');await p.locator('[data-tool="'+id+'"]').tap();assert.equal(await p.evaluate(()=>M.S.tool),id);assert.equal(await p.locator('#mobilePanel-tools').isVisible(),false);}
   assert.equal(await p.evaluate(()=>M.CW),40);assert.equal(await p.evaluate(()=>M.RH),44);
   assert(await p.locator('#bUndo').isVisible());assert(await p.locator('#bRedo').isVisible());assert.equal(await p.locator('#mobilePanel-tools').isVisible(),false);
@@ -20,14 +19,16 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await chooseTool('brush');await stroke([380,130],[440,160]);assert.equal(await p.evaluate(()=>M.S.doc.layers[0].kfs[0].objs.length),2);
   await chooseTool('bone');await chooseTool('node');await chooseTool('select');
   console.log('PASS shared-core mobile build, full-screen canvas, all tools including Node/Bone, touch Rectangle/Brush and persistent working Undo/Redo');
-  // Pads own UI pan/zoom; a surviving finger cannot turn into a field edit.
-  await p.locator('#mobilePropsToggle').tap();assert(await p.locator('#mobilePanel-props').isVisible());assert.equal(await p.locator('#mobilePanel-tools').isVisible(),false);
-  const view=await p.evaluate(()=>({...M.S.view})),r=await p.locator('#mobilePanel-props .mobile-nav-pad').boundingBox(),x=r.x+r.width/2,y=r.y+r.height*.5;
-  await touch('touchStart',[[x,y-30,1]]);await touch('touchStart',[[x,y-30,1],[x,y+30,2]]);await touch('touchMove',[[x,y-50,1],[x,y+50,2]]);assert(await p.evaluate(()=>M.mobile.panels.props.z>1.4));assert.deepEqual(await p.evaluate(()=>M.S.view),view);
-  const pan=await p.evaluate(()=>({x:M.mobile.panels.props.x,y:M.mobile.panels.props.y,z:M.mobile.panels.props.z}));await touch('touchEnd',[[x,y-50,1]]);await touch('touchMove',[[x-140,y-80,2]]);await touch('touchEnd',[]);assert.deepEqual(await p.evaluate(()=>({x:M.mobile.panels.props.x,y:M.mobile.panels.props.y,z:M.mobile.panels.props.z})),pan);
-  await p.getByRole('button',{name:'Reset Properties view',exact:true}).tap();assert.equal(await p.evaluate(()=>M.mobile.panels.props.z),1);
+  // Native panel scrolling keeps the sheet open and leaves the canvas alone.
+  assert.equal(await p.locator('.mobile-nav-pad').count(),0);
+  assert(await p.locator('#mobilePreview').isVisible());assert(await p.locator('#mobileDelete').isVisible());await p.locator('#mobilePreview').tap();assert(await p.locator('#prev').evaluate(e=>e.classList.contains('on')));await p.locator('#prev').evaluate(e=>e.classList.remove('on'));
+  await p.evaluate(()=>{const l=M.S.doc.layers[0];M.S.sel=[{lid:l.id,id:l.kfs[0].objs[1].id}];});await p.locator('#mobileDelete').tap();assert.equal(await p.evaluate(()=>M.S.doc.layers[0].kfs[0].objs.length),1);await p.locator('#bUndo').tap();assert.equal(await p.evaluate(()=>M.S.doc.layers[0].kfs[0].objs.length),2);
+  await p.locator('#mobilePropsToggle').tap();assert(await p.locator('#mobilePanel-props').isVisible());
+  const view=await p.evaluate(()=>({...M.S.view})),vbox=await p.locator('#mobilePanel-props .mobile-panel-viewport').boundingBox();
+  await stroke([vbox.x+10,vbox.y+vbox.height-15],[vbox.x+10,vbox.y+15],30);await p.waitForTimeout(100);
+  assert(await p.locator('#mobilePanel-props').isVisible());assert.deepEqual(await p.evaluate(()=>M.S.view),view);
   await p.locator('#mobileTimelineToggle').tap();assert(await p.locator('#mobilePanel-timeline').isVisible());assert.equal(await p.locator('#mobilePanel-props').isVisible(),false);await p.getByRole('button',{name:'Close Timeline panel',exact:true}).tap();
-  console.log('PASS one panel at a time; two-finger pad zoom leaves canvas unchanged; remaining finger cannot edit controls; fixed reset/close buttons');
+  console.log('PASS visible Preview/Delete, Delete undo, native panel scrolling, one panel at a time');
   // Latched Shift survives closing Tools; its visual reminder never catches input.
   await revealTool('#mobileModShift');await p.locator('#mobileModShift').tap();assert(await p.evaluate(()=>M.mobileKey('Shift')));await chooseTool('rect');assert(await p.locator('#mobileReminderShift').isVisible());assert.equal(await p.locator('#mobileReminders').evaluate(e=>getComputedStyle(e).pointerEvents),'none');
   await stroke([500,130],[580,175]);assert(await p.evaluate(()=>{const o=M.S.doc.layers[0].kfs[0].objs.at(-1),b=M.C.localBounds(o);return Math.abs((b.x1-b.x0)-(b.y1-b.y0))<1e-5;}));
@@ -53,9 +54,17 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await p.evaluate(()=>{const {C}=M,d=C.mkDoc(),o=C.mkPath([C.rectContour(100,80)],{fill:'#55cc99'},{x:300,y:180});d.name='Phone';d.layers[0].kfs[0].objs=[o];M.loadDoc(d);M.S.sel=[{lid:d.layers[0].id,id:o.id}];M.S.view={z:1,px:20,py:20};M.S.autoFit=false;M.refreshAll();});
   await revealTool('#mobileModControl');await p.locator('#mobileModControl').tap();await revealTool('#mobileModShift');await p.locator('#mobileModShift').tap();await chooseTool('node');await stroke([270,160],[300,178]);assert(await p.evaluate(()=>{const n=M.S.doc.layers[0].kfs[0].objs[0].contours[0].nodes[0];return n.x===-20&&n.y===-40;}));
   for(const key of ['Control','Shift']){await revealTool('#mobileMod'+key);await p.locator('#mobileMod'+key).tap();}await p.getByRole('button',{name:'Close Tools panel',exact:true}).tap();
+  await p.setViewportSize({width:600,height:390});await p.waitForTimeout(100);
   // Hold a thick frame cell: show the original operations without needing right-click.
   await p.locator('#mobileTimelineToggle').tap();const cell=await p.locator('#tlCells').boundingBox();await touch('touchStart',[[cell.x+20,cell.y+22,1]]);await p.waitForTimeout(650);await touch('touchEnd',[]);assert(await p.getByRole('menuitem',{name:'Copy Frames',exact:true}).isVisible());assert(await p.getByRole('menuitem',{name:'Paste Frames',exact:true}).isVisible());await p.keyboard.press('Escape');
-  const pad=await p.locator('#mobilePanel-timeline .mobile-nav-pad').boundingBox(),nx=pad.x+pad.width/2,ny=pad.y+pad.height/2;await touch('touchStart',[[nx,ny-30,1]]);await touch('touchStart',[[nx,ny-30,1],[nx,ny+30,2]]);await touch('touchMove',[[nx,ny-45,1],[nx,ny+45,2]]);await touch('touchEnd',[]);const zoom=await p.evaluate(()=>M.mobile.panels.timeline.z),scaled=await p.locator('#tlCells').boundingBox();await stroke([scaled.x+3.5*40*zoom,scaled.y+22*zoom],[scaled.x+3.5*40*zoom,scaled.y+22*zoom],0);assert.equal(await p.evaluate(()=>M.S.frame),3);await p.getByRole('button',{name:'Reset Timeline view',exact:true}).tap();await p.getByRole('button',{name:'Close Timeline panel',exact:true}).tap();
+  const frameBox=await p.locator('#tlScroll').boundingBox(),barBox=await p.locator('.tl-bar').boundingBox();
+  await stroke([frameBox.x+frameBox.width-70,cell.y+22],[frameBox.x+160,cell.y+22],30);await p.waitForTimeout(900);
+  assert(await p.locator('#tlScroll').evaluate(e=>e.scrollLeft)>0);assert.equal(await p.locator('.tl-bar').evaluate(e=>e.scrollLeft),0);assert(await p.locator('#mobilePanel-timeline').isVisible());
+  const beforeScroll=await p.locator('#tlScroll').evaluate(e=>e.scrollLeft);
+  await stroke([barBox.x+barBox.width-70,barBox.y+65],[barBox.x+25,barBox.y+65],30);await p.waitForTimeout(900);
+  assert(await p.locator('.tl-bar').evaluate(e=>e.scrollLeft)>0);assert.equal(await p.locator('#tlScroll').evaluate(e=>e.scrollLeft),beforeScroll);
+  await p.getByRole('button',{name:'Scroll Timeline to start',exact:true}).tap();const cells=await p.locator('#tlCells').boundingBox();await stroke([cells.x+140,cells.y+22],[cells.x+140,cells.y+22],0);assert.equal(await p.evaluate(()=>M.S.frame),3);
+  await p.getByRole('button',{name:'Close Timeline panel',exact:true}).tap();
   console.log('PASS Bone tap opens radial HUD and Pin works; Ctrl+Shift constrains an actual Node drag; long press on a thick frame opens Copy/Paste/Key actions');
   // Portrait save/reopen and gallery-style image import use the shared format.
   await p.setViewportSize({width:390,height:844});await p.waitForTimeout(100);assert(await p.locator('#bUndo').isVisible());assert(await p.locator('#projectToggle').isVisible());assert.equal(await p.locator('#stage').evaluate(e=>Math.round(e.getBoundingClientRect().width)),390);
