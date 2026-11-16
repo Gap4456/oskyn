@@ -1,5 +1,7 @@
 # oskyn Mobile preview
 
+**Experimental mobile preview with significant bugs and usability limitations. It is currently suitable for viewing projects and trying the interface. It is not yet ready for serious animation work; use the desktop version for that.**
+
 A separate touch layout built from the same editor, animation core and `.oskyn.json` format as desktop oskyn. The generated **[index.html](index.html)** is self-contained. The desktop HTML, Electron wrapper and existing projects are unchanged.
 
 This is an experimental first mobile interface, not a separate animation engine. Automated Chromium touch tests pass; real iPhone Safari and Android testing is still needed, particularly photo picking, HEIC/EXIF orientation, the on-screen keyboard, audio and saving to Files. Existing advanced editor features remain available, but not every workflow has been validated on touch.
