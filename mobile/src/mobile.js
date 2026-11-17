@@ -134,24 +134,6 @@ function mobileEditMenu(pos){
     {label:'Touch help',fn:mobileTouchHelp}
   ],pos);
 }
-/* Mobile downloads need an explicit name before opening the native share/save UI. */
-const mobileNativeSave=saveProject;
-saveProject=options=>new Promise(resolve=>{queueMicrotask(()=>{
-  exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
-  let settled=false;
-  const body=openModal('Save project','<label for="mobileSaveName">Project name</label><input id="mobileSaveName" type="text" maxlength="60" autocomplete="off"><p>The project is downloaded as an .oskyn.json file.</p>',[
-    {label:'Cancel'},
-    {label:'Save',primary:true,keep:true,fn:()=>{
-      const name=$('#mobileSaveName').value.trim();if(!name){$('#mobileSaveName').focus();return;}
-      settled=true;closeModal();
-      if(S.doc.name!==name){pushUndo();S.doc.name=name;syncProjectName(project);refreshAll();renderProjectButtons();}
-      resolve(mobileNativeSave(options));
-    }}
-  ]);
-  modalCancel=()=>{if(!settled)resolve(false);};
-  const input=body.querySelector('input');input.value=project.name||S.doc.name||'Untitled';
-  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#mFoot .primary').click();}});
-});});
 function mobileResetPanels(){
   mobile.navOwner=null;mobile.blocked.clear();mobileClosePanel();mobileCommands.hidden=true;$('#mobileMore').setAttribute('aria-expanded','false');
   for(const p of Object.values(mobile.panels)){p.left=p.top=null;}

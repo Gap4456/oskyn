@@ -467,6 +467,10 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 #toast .toast-protest:not([data-level="0"]) { font-weight:700; }
 </style>
 
+<style>
+#saveProjectName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:40px; font-size:16px; }
+</style>
+
 <style id="oskyn-mobile-style">
 :root { --mobile-safe-top:env(safe-area-inset-top,0px); --mobile-safe-bottom:env(safe-area-inset-bottom,0px); --mobile-safe-left:env(safe-area-inset-left,0px); --mobile-safe-right:env(safe-area-inset-right,0px); }
 /* Touch layout, included only by mobile/build.cjs. */
@@ -588,7 +592,7 @@ body.mobile-record-visible #crumb { top:calc(128px + env(safe-area-inset-top)); 
 body.oskyn-mobile #mobileCommands button { min-height:44px; min-width:44px; flex:none; }
 body.oskyn-mobile #mobileCommands .wide-only { display:inline-flex !important; }
 #mobileCommands #kSelectBar.on,#mobileCommands #kNodeBar.on { display:flex; }
-#mobileSaveName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:44px; }
+#saveProjectName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:44px; }
 body.oskyn-mobile .tl-inner { position:relative; }
 #mobileTailGrip { position:absolute; width:40px; z-index:6; touch-action:none; cursor:ew-resize; user-select:none; background-color:var(--cell); background-image:linear-gradient(90deg,transparent 17px,var(--fg) 17px,var(--fg) 19px,transparent 19px,transparent 22px,var(--fg) 22px,var(--fg) 24px,transparent 24px); border-radius:4px; }
 #mobileTailGrip:focus-visible { outline:2px solid var(--accent); }
@@ -10950,9 +10954,28 @@ async function saveFile(name, data) {
   if(downloadTicket!==null){try{return !!await desktopCloseBridge.downloadResult(downloadTicket);}catch(_){return false;}}
   return true;
 }
-function saveProject(options) {
+// Saving always asks for a name, including Ctrl+S and Save before closing.
+function saveProject(options){return new Promise(resolve=>{queueMicrotask(()=>{
+  exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
+  let settled=false;
+  const body=openModal('Save project','<label for="saveProjectName">Project name</label><input id="saveProjectName" type="text" maxlength="60" autocomplete="off"><p>Save with the current name or choose a new one. Your browser or save dialog controls whether an existing file is replaced.</p>',[
+    {label:'Cancel'},
+    {label:'Save',primary:true,keep:true,fn:()=>{
+      const name=$('#saveProjectName').value.trim();if(!name){$('#saveProjectName').focus();return;}
+      settled=true;closeModal();
+      if(S.doc.name!==name){pushUndo();S.doc.name=name;syncProjectName(project);refreshAll();renderProjectButtons();}
+      resolve(saveProjectFile(options));
+    }}
+  ]);
+  modalCancel=()=>{if(!settled)resolve(false);};
+  const input=body.querySelector('input');input.value=project.name||S.doc.name||'Untitled';input.focus({preventScroll:true});input.select();
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#mFoot .primary').click();}});
+});});}
+
+function saveProjectFile(options) {
   exitAllSyms();
   const savedProject=S.projects?.active,savedDoc=S.doc,savedSerial=S.changeSerial||0;
+  if(options?.keepDirty)options.savedSerial=savedSerial;
   const activeProject=S.projects?.items.find(p=>p.id===S.projects.active);if(activeProject)syncProjectName(activeProject);
   const name = safeName(activeProject?.name||S.doc.name);
   if (window.kroganSyncProjectPalette) window.kroganSyncProjectPalette();
@@ -11016,7 +11039,9 @@ async function saveAllProjectsBeforeClose(){
   for(const p of pending){
     if(!ps.items.some(x=>x.id===p.id))return {ok:false,count};
     switchProject(p.id);
-    if((S.changeSerial||0)!==p.serial||!await saveProject({keepDirty:true}))return {ok:false,count};
+    const options={keepDirty:true};
+    if((S.changeSerial||0)!==p.serial||!await saveProject(options))return {ok:false,count};
+    p.serial=options.savedSerial; // A name chosen in the save dialog belongs to this saved revision.
     count++;captureProject();
   }
   const changed=ps.items.some(p=>p.dirty&&!pending.some(x=>x.id===p.id&&x.serial===p.serial));
@@ -12865,24 +12890,6 @@ function mobileEditMenu(pos){
     {label:'Touch help',fn:mobileTouchHelp}
   ],pos);
 }
-/* Mobile downloads need an explicit name before opening the native share/save UI. */
-const mobileNativeSave=saveProject;
-saveProject=options=>new Promise(resolve=>{queueMicrotask(()=>{
-  exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
-  let settled=false;
-  const body=openModal('Save project','<label for="mobileSaveName">Project name</label><input id="mobileSaveName" type="text" maxlength="60" autocomplete="off"><p>The project is downloaded as an .oskyn.json file.</p>',[
-    {label:'Cancel'},
-    {label:'Save',primary:true,keep:true,fn:()=>{
-      const name=$('#mobileSaveName').value.trim();if(!name){$('#mobileSaveName').focus();return;}
-      settled=true;closeModal();
-      if(S.doc.name!==name){pushUndo();S.doc.name=name;syncProjectName(project);refreshAll();renderProjectButtons();}
-      resolve(mobileNativeSave(options));
-    }}
-  ]);
-  modalCancel=()=>{if(!settled)resolve(false);};
-  const input=body.querySelector('input');input.value=project.name||S.doc.name||'Untitled';
-  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#mFoot .primary').click();}});
-});});
 function mobileResetPanels(){
   mobile.navOwner=null;mobile.blocked.clear();mobileClosePanel();mobileCommands.hidden=true;$('#mobileMore').setAttribute('aria-expanded','false');
   for(const p of Object.values(mobile.panels)){p.left=p.top=null;}

@@ -25,15 +25,16 @@ async function host(responses){
  h=await host([]);let ticket=await h.invoke('oskyn:prepare-download','project.oskyn.json'),result=h.invoke('oskyn:download-result',ticket);h.download().emit('done',{},'cancelled');assert.equal(await result,false);ticket=await h.invoke('oskyn:prepare-download','project.oskyn.json');h.download().emit('done',{},'completed');assert.equal(await h.invoke('oskyn:download-result',ticket),true);
  console.log('PASS regular native saves report completed/cancelled status in either completion order');
  console.log('PASS Electron window close Save / Don’t Save / Cancel; all downloads must finish plus acknowledgement; cancellation/failure stays open; fallback and listener cleanup');
- let html=fs.readFileSync(path.join(__dirname,'../dist/oskyn.html'),'utf8'),i=html.lastIndexOf('})();\n</script>');html=html.slice(0,i)+'window.T={C,S,newOpenProject,markDirty,clearDirty,projectSession,anyProjectsDirty,saveProject};\n'+html.slice(i);
+ let html=fs.readFileSync(path.join(__dirname,'../dist/oskyn.html'),'utf8'),i=html.lastIndexOf('})();\n</script>');html=html.slice(0,i)+'window.T={C,S,newOpenProject,markDirty,clearDirty,projectSession,anyProjectsDirty,saveProject:saveProjectFile};\n'+html.slice(i);
  const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  try{
   const p=await b.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>{window.desktopEvents={dirty:[],acks:[]};window.onionskynDesktop={saveAllBeforeClose:true,setDirty:v=>desktopEvents.dirty.push(v),onSaveBeforeClose:fn=>window.requestCloseSave=fn,saveRequestResult:(ok,count)=>desktopEvents.acks.push({ok,count})};});
   await p.route('https://desktop-close.test/',r=>r.fulfill({contentType:'text/html',body:html}));await p.goto('https://desktop-close.test/');
+  await p.evaluate(()=>new MutationObserver(()=>{const input=document.querySelector('#saveProjectName');if(input){input.value+=' saved';document.querySelector('#mFoot .primary')?.click();}}).observe(document.querySelector('#mBody'),{childList:true}));
   await p.evaluate(()=>{T.S.doc.name='First';T.markDirty();T.newOpenProject();T.S.doc.name='Second';T.markDirty();});
   assert.equal(await p.evaluate(()=>desktopEvents.dirty.at(-1)),true);
-  const downloads=[];p.on('download',d=>downloads.push(d));await p.evaluate(()=>requestCloseSave());await p.waitForFunction(()=>desktopEvents.acks.length===1);assert.equal(downloads.length,2);assert.deepEqual(downloads.map(d=>d.suggestedFilename()).sort(),['First.oskyn.json','Second.oskyn.json']);assert.deepEqual(await p.evaluate(()=>desktopEvents.acks.at(-1)),{ok:true,count:2});assert(await p.evaluate(()=>T.anyProjectsDirty()));
+  const downloads=[];p.on('download',d=>downloads.push(d));await p.evaluate(()=>requestCloseSave());await p.waitForFunction(()=>desktopEvents.acks.length===1);assert.equal(downloads.length,2);assert.deepEqual(downloads.map(d=>d.suggestedFilename()).sort(),['First-saved.oskyn.json','Second-saved.oskyn.json']);assert.deepEqual(await p.evaluate(()=>desktopEvents.acks.at(-1)),{ok:true,count:2});assert(await p.evaluate(()=>T.anyProjectsDirty()));
   await p.evaluate(()=>{window.claude={use:async()=>({save:async()=>{const e=Error('cancelled');e.code='declined';throw e;}})};});await p.evaluate(()=>requestCloseSave());assert.deepEqual(await p.evaluate(()=>desktopEvents.acks.at(-1)),{ok:false,count:0});assert(await p.evaluate(()=>T.anyProjectsDirty()));
   await p.evaluate(()=>{delete window.claude;window.onionskynDesktop.prepareDownload=async()=>1;window.onionskynDesktop.downloadResult=async()=>false;});
   assert.equal(await p.evaluate(()=>T.saveProject()),false);assert(await p.evaluate(()=>T.anyProjectsDirty()));

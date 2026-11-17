@@ -118,7 +118,7 @@ body.mobile-record-visible #crumb { top:calc(128px + env(safe-area-inset-top)); 
 body.oskyn-mobile #mobileCommands button { min-height:44px; min-width:44px; flex:none; }
 body.oskyn-mobile #mobileCommands .wide-only { display:inline-flex !important; }
 #mobileCommands #kSelectBar.on,#mobileCommands #kNodeBar.on { display:flex; }
-#mobileSaveName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:44px; }
+#saveProjectName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:44px; }
 body.oskyn-mobile .tl-inner { position:relative; }
 #mobileTailGrip { position:absolute; width:40px; z-index:6; touch-action:none; cursor:ew-resize; user-select:none; background-color:var(--cell); background-image:linear-gradient(90deg,transparent 17px,var(--fg) 17px,var(--fg) 19px,transparent 19px,transparent 22px,var(--fg) 22px,var(--fg) 24px,transparent 24px); border-radius:4px; }
 #mobileTailGrip:focus-visible { outline:2px solid var(--accent); }

@@ -1,7 +1,7 @@
 const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playwright');
 (async()=>{
  let h=fs.readFileSync(require('path').join(__dirname,'../dist/oskyn.html'),'utf8'),i=h.lastIndexOf('})();\n</script>');
- h=h.slice(0,i)+'window.T={C,S,H,loadDoc,openFile,openProjectDoc,newOpenProject,switchProject,captureProject,projectSession,copySel,pasteClip,undo,redo,pushUndo,commit,enterSym,setFrame,refreshAll,renderProjectButtons,askCloseProject,closeOpenProject,anyProjectsDirty,clearDirty,markDirty,buildPlayer,frameSpaceMatrix,saveProject};\n'+h.slice(i);
+ h=h.slice(0,i)+'window.T={C,S,H,loadDoc,openFile,openProjectDoc,newOpenProject,switchProject,captureProject,projectSession,copySel,pasteClip,undo,redo,pushUndo,commit,enterSym,setFrame,refreshAll,renderProjectButtons,askCloseProject,closeOpenProject,anyProjectsDirty,clearDirty,markDirty,buildPlayer,frameSpaceMatrix,saveProject:saveProjectFile};\n'+h.slice(i);
  const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  try{
   const errors=[],p=await b.newPage({viewport:{width:1440,height:1000}});
@@ -49,7 +49,7 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
   await p.evaluate(id=>T.askCloseProject(id),initial.id);await p.getByRole('button',{name:'Don’t save',exact:true}).click();assert.equal(await p.locator('#projectButtons [data-project]').count(),1);assert.equal(await p.evaluate(()=>T.S.doc.name),'Destination');
   await p.evaluate(()=>T.clearDirty());assert.equal(await p.evaluate(()=>T.anyProjectsDirty()),false);
   await p.evaluate(()=>T.newOpenProject());const empty=await p.evaluate(()=>T.projectSession().active);await p.evaluate(id=>{T.switchProject(id);T.markDirty();},dest);await p.evaluate(id=>T.switchProject(id),empty);assert.equal(await p.evaluate(()=>T.anyProjectsDirty()),true);
-  await p.evaluate(id=>T.askCloseProject(id),dest);const download=p.waitForEvent('download');await p.getByRole('button',{name:'Save',exact:true}).click();const file=await download;assert.equal(file.suggestedFilename(),'Destination.oskyn.json');await p.waitForFunction(id=>!T.projectSession().items.some(p=>p.id===id),dest);assert.equal(await p.evaluate(()=>T.anyProjectsDirty()),false);
+  await p.evaluate(id=>T.askCloseProject(id),dest);const download=p.waitForEvent('download');await p.getByRole('button',{name:'Save',exact:true}).click();await p.waitForSelector('#saveProjectName');await p.locator('#mFoot .primary').click();const file=await download;assert.equal(file.suggestedFilename(),'Destination.oskyn.json');await p.waitForFunction(id=>!T.projectSession().items.some(p=>p.id===id),dest);assert.equal(await p.evaluate(()=>T.anyProjectsDirty()),false);
   await p.evaluate(()=>T.askCloseProject(T.projectSession().active));await p.getByRole('button',{name:'Don’t save',exact:true}).click();assert.equal(await p.locator('#projectButtons [data-project]').count(),1);
   // Delayed host saving must not clear another project's dirty flag, nor discard edits made during saving.
   await q.evaluate(()=>{
@@ -62,6 +62,7 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
   await q.evaluate(()=>window.pendingSave);
   assert(await q.evaluate(()=>T.anyProjectsDirty()&&!T.projectSession().items.find(p=>p.id===window.savedId).dirty));
   await q.evaluate(()=>{window.finishSave=null;window.pendingClose=T.closeOpenProject(T.projectSession().active,true);});
+  await q.waitForSelector('#saveProjectName');await q.locator('#mFoot .primary').click();
   await q.waitForFunction(()=>typeof window.finishSave==='function');const count=await q.evaluate(()=>T.projectSession().items.length);
   await q.evaluate(()=>{T.markDirty();window.finishSave();});await q.evaluate(()=>window.pendingClose);
   assert.equal(await q.evaluate(()=>T.projectSession().items.length),count);assert(await q.evaluate(()=>T.anyProjectsDirty()));

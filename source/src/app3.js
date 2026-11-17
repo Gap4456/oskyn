@@ -1954,9 +1954,28 @@ async function saveFile(name, data) {
   if(downloadTicket!==null){try{return !!await desktopCloseBridge.downloadResult(downloadTicket);}catch(_){return false;}}
   return true;
 }
-function saveProject(options) {
+// Saving always asks for a name, including Ctrl+S and Save before closing.
+function saveProject(options){return new Promise(resolve=>{queueMicrotask(()=>{
+  exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
+  let settled=false;
+  const body=openModal('Save project','<label for="saveProjectName">Project name</label><input id="saveProjectName" type="text" maxlength="60" autocomplete="off"><p>Save with the current name or choose a new one. Your browser or save dialog controls whether an existing file is replaced.</p>',[
+    {label:'Cancel'},
+    {label:'Save',primary:true,keep:true,fn:()=>{
+      const name=$('#saveProjectName').value.trim();if(!name){$('#saveProjectName').focus();return;}
+      settled=true;closeModal();
+      if(S.doc.name!==name){pushUndo();S.doc.name=name;syncProjectName(project);refreshAll();renderProjectButtons();}
+      resolve(saveProjectFile(options));
+    }}
+  ]);
+  modalCancel=()=>{if(!settled)resolve(false);};
+  const input=body.querySelector('input');input.value=project.name||S.doc.name||'Untitled';input.focus({preventScroll:true});input.select();
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#mFoot .primary').click();}});
+});});}
+
+function saveProjectFile(options) {
   exitAllSyms();
   const savedProject=S.projects?.active,savedDoc=S.doc,savedSerial=S.changeSerial||0;
+  if(options?.keepDirty)options.savedSerial=savedSerial;
   const activeProject=S.projects?.items.find(p=>p.id===S.projects.active);if(activeProject)syncProjectName(activeProject);
   const name = safeName(activeProject?.name||S.doc.name);
   if (window.kroganSyncProjectPalette) window.kroganSyncProjectPalette();
@@ -2020,7 +2039,9 @@ async function saveAllProjectsBeforeClose(){
   for(const p of pending){
     if(!ps.items.some(x=>x.id===p.id))return {ok:false,count};
     switchProject(p.id);
-    if((S.changeSerial||0)!==p.serial||!await saveProject({keepDirty:true}))return {ok:false,count};
+    const options={keepDirty:true};
+    if((S.changeSerial||0)!==p.serial||!await saveProject(options))return {ok:false,count};
+    p.serial=options.savedSerial; // A name chosen in the save dialog belongs to this saved revision.
     count++;captureProject();
   }
   const changed=ps.items.some(p=>p.dirty&&!pending.some(x=>x.id===p.id&&x.serial===p.serial));

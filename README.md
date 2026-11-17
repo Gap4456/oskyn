@@ -6,7 +6,7 @@ A browser-based vector animation editor developed by Gap4456 from Dylan Papp's O
 
 Download this repository and open **oskyn.html** (or **index.html**) in a current Chromium-based browser. The application is self-contained; no server or build step is required to use it. Platform support for audio, video export and desktop colour picking can vary.
 
-Save projects explicitly with **Save project** (`.oskyn.json`). Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
+Save projects explicitly with **Save project** (`.oskyn.json`). Each Save, including Ctrl+S, asks for the project name with its current name prefilled. Keep it or enter a new name; Cancel leaves it unchanged. Whether a matching filename replaces a file or creates a numbered copy depends on the browser or native save dialog. Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
 
 ## Symbols and node editing
 
