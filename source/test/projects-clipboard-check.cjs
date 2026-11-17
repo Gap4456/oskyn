@@ -5,7 +5,7 @@ const fs=require('fs'),assert=require('assert/strict'),{chromium}=require('playw
  const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  try{
   const errors=[],p=await b.newPage({viewport:{width:1440,height:1000}});
-  async function setup(page){page.on('pageerror',e=>errors.push(e.message));await page.route('https://projects.test/',r=>r.fulfill({contentType:'text/html',body:h}));await page.goto('https://projects.test/');await page.waitForSelector('#projectButtons [data-project]',{state:'attached'});assert.equal(await page.locator('#projectButtons').isVisible(),false);await page.locator('#projectToggle').click();assert.equal(await page.locator('#projectToggle').getAttribute('aria-expanded'),'true');}
+  async function setup(page){await page.addInitScript(()=>{window.showSaveFilePicker=undefined;});page.on('pageerror',e=>errors.push(e.message));await page.route('https://projects.test/',r=>r.fulfill({contentType:'text/html',body:h}));await page.goto('https://projects.test/');await page.waitForSelector('#projectButtons [data-project]',{state:'attached'});assert.equal(await page.locator('#projectButtons').isVisible(),false);await page.locator('#projectToggle').click();assert.equal(await page.locator('#projectToggle').getAttribute('aria-expanded'),'true');}
   await setup(p);
   const handleHeight=await p.locator('#projectToggle').evaluate(e=>e.getBoundingClientRect().height);
   const initial=await p.evaluate(()=>{

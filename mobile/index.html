@@ -10954,8 +10954,33 @@ async function saveFile(name, data) {
   if(downloadTicket!==null){try{return !!await desktopCloseBridge.downloadResult(downloadTicket);}catch(_){return false;}}
   return true;
 }
-// Saving always asks for a name, including Ctrl+S and Save before closing.
-function saveProject(options){return new Promise(resolve=>{queueMicrotask(()=>{
+// Call the system picker directly from the click/shortcut, while user activation is live.
+function nativeProjectPickerAvailable(){return window.isSecureContext&&typeof window.showSaveFilePicker==='function'&&!document.body.classList.contains('oskyn-mobile')&&!desktopCloseBridge&&!window.claude?.use;}
+async function saveProjectWithPicker(options){
+  const project=projectSession().items.find(p=>p.id===S.projects.active),doc=S.doc;syncProjectName(project);
+  let handle;
+  try{
+    handle=await window.showSaveFilePicker({id:'oskyn-project',suggestedName:project.fileHandle?.name||safeName(project.name||doc.name)+'.oskyn.json',startIn:project.fileHandle||'documents',types:[{description:'oskyn project',accept:{'application/json':['.json']}}]});
+  }catch(error){if(error.name!=='AbortError')toast('Could not open Save As. '+(error.message||''));return false;}
+  if(S.projects.active!==project.id||S.doc!==doc){toast('Project changed while choosing a file. Save the current project again.');return false;}
+  exitAllSyms();
+  const name=handle.name.replace(/\.oskyn\.json$/i,'').replace(/\.json$/i,'')||project.name;
+  if(S.doc.name!==name){pushUndo();S.doc.name=name;syncProjectName(project);refreshAll();renderProjectButtons();}
+  const writeOptions={...options,fileHandle:handle};
+  const ok=await saveProjectFile(writeOptions);
+  if(options?.keepDirty)options.savedSerial=writeOptions.savedSerial;
+  if(ok)project.fileHandle=handle;
+  return ok;
+}
+async function writeProjectHandle(handle,data){
+  let stream;
+  try{stream=await handle.createWritable();await stream.write(data);await stream.close();toast('Saved '+handle.name);return true;}
+  catch(error){try{await stream?.abort();}catch(_){}toast('Project was not saved. '+(error.message||''));return false;}
+}
+// Unsupported browsers retain the name prompt and download path.
+function saveProject(options){
+  if(nativeProjectPickerAvailable())return saveProjectWithPicker(options);
+  return new Promise(resolve=>{queueMicrotask(()=>{
   exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
   let settled=false;
   const body=openModal('Save project','<label for="saveProjectName">Project name</label><input id="saveProjectName" type="text" maxlength="60" autocomplete="off"><p>Save with the current name or choose a new one. Your browser or save dialog controls whether an existing file is replaced.</p>',[
@@ -10980,7 +11005,9 @@ function saveProjectFile(options) {
   const name = safeName(activeProject?.name||S.doc.name);
   if (window.kroganSyncProjectPalette) window.kroganSyncProjectPalette();
   if (missingMedia().images + missingMedia().sounds) toast('Warning: some images or sounds are missing from this project (they couldn’t be restored after reload), so they will not be in the saved file.');
-  return saveFile(name + '.oskyn.json', JSON.stringify({ app: 'oskyn', version: PROJECT_VERSION, appVersion: APP_VERSION, saved: new Date().toISOString(), doc: S.doc })).then((ok) => {
+  const data=JSON.stringify({app:'oskyn',version:PROJECT_VERSION,appVersion:APP_VERSION,saved:new Date().toISOString(),doc:S.doc});
+  const saving=options?.fileHandle?writeProjectHandle(options.fileHandle,data):saveFile(name+'.oskyn.json',data);
+  return saving.then((ok) => {
     if(ok&&!(options&&options.keepDirty)){
       if(savedProject&&S.projects?.active!==savedProject){
         const p=S.projects.items.find(p=>p.id===savedProject);if(p&&p.serial===savedSerial)p.dirty=false;
