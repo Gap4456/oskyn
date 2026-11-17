@@ -14,6 +14,8 @@ Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/ra
 
 ## Symbols and node editing
 
+In **Node edit**, Shift-click another ordinary vector path away from its nodes/handles to open it alongside the current paths. Shift-click anchors to toggle them, or drag a selection box across the open paths (Shift adds). Ctrl+A selects their anchors. Dragging selected anchors moves them by the same canvas distance even across rotated, mirrored or differently scaled objects; arrows nudge them. Node operations and Delete work across the selection with one Undo. Paths stay separate and locked/hidden layers are excluded. Symbols, groups, bitmap masks and Bone/soft-body controls retain their existing single-object workflows. Record remains the existing single-object/one-pass workflow.
+
 Inside a symbol, **Preview symbol** beneath the scene/symbol path previews only that symbol, including its own timeline and nested symbols. Restart repeats that preview; closing it keeps the editor at the same symbol and frame. The main Preview button continues to preview the scene.
 
 The color palette includes a crossed **None** swatch after project colors. For Fill or Stroke it removes that paint from the selection and disables it for subsequent shapes; picking a color restores it. None is disabled for background and other color-only settings.

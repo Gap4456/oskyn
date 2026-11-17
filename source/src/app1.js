@@ -537,7 +537,7 @@ const noSounds = (k, v) => (k === 'sounds' ? undefined : v);
 const noMedia = (k, v) => (k === 'sounds' || k === 'images' ? undefined : v);
 const metaImages = (v) => Object.fromEntries(Object.entries(v).map(([n, s]) => [n, { name: s.name, mime: s.mime, w: s.w, h: s.h, size: s.size, ext: 1 }]));
 const metaSounds = (k, v) => (k === 'images' && v ? metaImages(v) : k === 'sounds' && v ? Object.fromEntries(Object.entries(v).map(([n, s]) => [n, { name: s.name, mime: s.mime, ids: s.ids, size: s.size, ext: 1 }])) : v);
-const snap = () => { const p = unwind(); const str = JSON.stringify({ doc: S.doc, frame: S.frame, layerId: S.layerId, path: p }, noMedia); rewind(p); return str; };
+const snap = () => { const p = unwind(); const str = JSON.stringify({ doc: S.doc, frame: S.frame, layerId: S.layerId, path: p, nodeEdit:S.tool==='node'&&S.sel.length>1?{sel:S.sel,refs:S.multiNodeRefs||[]}:undefined }, noMedia); rewind(p); return str; };
 function pushUndo() {
   if (REC.live && REC.drag === S.drag && !REC.writingHistory) return;
   markDirty();
@@ -554,6 +554,7 @@ function restoreSnap(str) {
   clearTimeout(SK.badgeTimer);SK.badgeTimer=0;SK.rigidPick=null;SK.angleEdit=null;SK.angleHover=null;SK.baseline.clear();SK.placeReady=false;SK.add=false;SK.binding=false;SK.bindTarget=null;SK.hover=null;SK.dismissed=null;SK.actionDrag=null;S.drag=null;
   S.doc = o.doc; C.setLib(S.doc.lib); C.setImages(S.doc.images); S.edit = []; rewind(o.path || []); S.frame = clamp(o.frame, 0, S.doc.frames - 1);
   S.layerId = getLayer(o.layerId) ? o.layerId : layers()[layers().length - 1].id;
+  S.multiNodeRefs=o.nodeEdit?.refs||[];if(o.nodeEdit)S.sel=o.nodeEdit.sel;
   pruneSel();
   if(singleSel()?.o.star&&S.tool==='node')setTool('select');
   refreshAll();

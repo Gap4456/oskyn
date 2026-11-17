@@ -186,13 +186,13 @@ onUp=e=>{nativeOnUp(mobileEvent(e));REC.held=false;mobileSyncRecord();};
 const mobileTouch={points:new Map(),mode:null,timer:0,hold:0,first:null,last:null,checkpoint:null,pinch:null,lastTap:null,doubleAt:0};
 function mobileCheckpoint(){
   const entries=S.edit.map(({sym,frame,layerId,timelineLeft,timelineTop})=>({sym,frame,layerId,timelineLeft,timelineTop})),doc=snap();entries.forEach((e,i)=>Object.assign(S.edit[i],e));
-  return {doc,entries,undo:H.stack.slice(),redo:H.redo.slice(),dirty:unsaved,serial:S.changeSerial||0,sel:clone(S.sel),nodeSel:clone(S.nodeSel),nodeKeys:clone(S.kNodeSelection||[]),view:{...S.view},autoFit:S.autoFit,recorded:[...mobile.recorded]};
+  return {doc,entries,undo:H.stack.slice(),redo:H.redo.slice(),dirty:unsaved,serial:S.changeSerial||0,sel:clone(S.sel),nodeSel:clone(S.nodeSel),nodeKeys:clone(S.kNodeSelection||[]),multiNodeRefs:clone(S.multiNodeRefs||[]),view:{...S.view},autoFit:S.autoFit,recorded:[...mobile.recorded]};
 }
 function mobileCancelSingle(){
   clearTimeout(mobileTouch.timer);clearTimeout(mobileTouch.hold);
   if(REC.live||REC.running){REC.held=false;recordFinishDrag();REC.takeId=null;REC.targetId=null;REC.baseLayer=null;REC.doc=null;REC.lastFrame=null;REC.lastPose=null;}
   const saved=mobileTouch.checkpoint;S.draw=null;S.drag=null;C.freeBind.clear();
-  if(saved){restoreSnap(saved.doc);saved.entries.forEach((entry,i)=>{if(S.edit[i])Object.assign(S.edit[i],entry);});H.stack=saved.undo;H.redo=saved.redo;S.sel=saved.sel;S.nodeSel=saved.nodeSel;S.kNodeSelection=saved.nodeKeys;S.view=saved.view;S.autoFit=saved.autoFit;unsaved=saved.dirty;S.changeSerial=saved.serial;mobile.recorded=new Set(saved.recorded);$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();refreshAll();}
+  if(saved){restoreSnap(saved.doc);saved.entries.forEach((entry,i)=>{if(S.edit[i])Object.assign(S.edit[i],entry);});H.stack=saved.undo;H.redo=saved.redo;S.sel=saved.sel;S.nodeSel=saved.nodeSel;S.kNodeSelection=saved.nodeKeys;S.multiNodeRefs=saved.multiNodeRefs;S.view=saved.view;S.autoFit=saved.autoFit;unsaved=saved.dirty;S.changeSerial=saved.serial;mobile.recorded=new Set(saved.recorded);$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();refreshAll();}
   REC.held=false;mobileTouch.checkpoint=null;mobileSyncRecord();
 }
 function mobileFreezeEvent(e){const frozen=mobileEvent(e,{shiftKey:e.shiftKey||mobileKey('Shift'),ctrlKey:e.ctrlKey||mobileKey('Control'),altKey:e.altKey||mobileKey('Alt')});mobileFrozenEvents.add(frozen);return frozen;}

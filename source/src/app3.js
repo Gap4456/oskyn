@@ -2055,7 +2055,7 @@ function captureProject(){
   const entries=S.edit.map(({sym,frame,layerId,timelineLeft,timelineTop})=>({sym,frame,layerId,timelineLeft,timelineTop}));
   const path=unwind(),doc=clone(S.doc);rewind(path);
   entries.forEach((entry,i)=>Object.assign(S.edit[i],entry));
-  Object.assign(p,{dirty:unsaved,serial:S.changeSerial||0,doc,entries,frame:S.frame,layerId:S.layerId,sel:clone(S.sel),nodeSel:clone(S.nodeSel),kNodeSelection:clone(S.kNodeSelection||[]),fsel:clone(S.fsel||null),view:{...S.view},autoFit:S.autoFit,onion:clone(S.onion),tool:S.tool,history:H.stack.slice(),redo:H.redo.slice(),left:tlScroll.scrollLeft,top:tlScroll.scrollTop,starHudOffsets:new Map(S.starHudOffsets||[])});
+  Object.assign(p,{dirty:unsaved,serial:S.changeSerial||0,doc,entries,frame:S.frame,layerId:S.layerId,sel:clone(S.sel),nodeSel:clone(S.nodeSel),kNodeSelection:clone(S.kNodeSelection||[]),multiNodeRefs:clone(S.multiNodeRefs||[]),fsel:clone(S.fsel||null),view:{...S.view},autoFit:S.autoFit,onion:clone(S.onion),tool:S.tool,history:H.stack.slice(),redo:H.redo.slice(),left:tlScroll.scrollLeft,top:tlScroll.scrollTop,starHudOffsets:new Map(S.starHudOffsets||[])});
   return p;
 }
 function switchProject(id){
@@ -2068,7 +2068,7 @@ function switchProject(id){
   S.sel=clone(target.sel);S.nodeSel=clone(target.nodeSel);S.kNodeSelection=clone(target.kNodeSelection);S.fsel=clone(target.fsel);
   S.view={...target.view};S.autoFit=target.autoFit;S.onion=clone(target.onion);S.starHudOffsets=new Map(target.starHudOffsets);
   H.stack=target.history.slice();H.redo=target.redo.slice();
-  setTool(target.tool);S.changeSerial=target.serial||0;unsaved=target.dirty;$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();
+  setTool(target.tool);S.multiNodeRefs=clone(target.multiNodeRefs||[]);S.changeSerial=target.serial||0;unsaved=target.dirty;$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();
   pruneSel();updateCrumb();refreshAll();renderLibrary(true);updateZoom();
   tlScroll.scrollLeft=target.left;tlScroll.scrollTop=target.top;renderProjectButtons();
 }
@@ -2150,7 +2150,7 @@ function loadDoc(doc) {
   doc.lib = doc.lib || {}; doc.sounds = doc.sounds || {}; doc.images = doc.images || {};
   clearTimeout(SK.badgeTimer);SK.badgeTimer=0;SK.rigidPick=null;SK.angleEdit=null;SK.angleHover=null;SK.baseline.clear();SK.placeReady=false;SK.add=false;SK.binding=false;SK.bindTarget=null;SK.active=null;SK.hover=null;SK.dismissed=null;SK.actionDrag=null;S.drag=null;
   S.doc = doc; C.setLib(doc.lib); C.setImages(doc.images); persistSounds(); persistImages(); sndSig = null; libSig = ''; autosaveWarned = false; clearDirty(); S.frame = 0; S.sel = []; S.nodeSel = null; S.pen = null; S.draw = null;
-  S.changeSerial=0;S.fsel=null;S.kNodeSelection=[];
+  S.changeSerial=0;S.fsel=null;S.kNodeSelection=[];S.multiNodeRefs=[];
   S.layerId = doc.layers[doc.layers.length - 1].id;
   if(onionPins().length)S.onion.on=true;
   H.stack = []; H.redo = [];

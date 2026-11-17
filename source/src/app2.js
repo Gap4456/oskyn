@@ -63,7 +63,7 @@ function rememberDrawingColour(colour){
   for(const id of ['bcolor','fb_color']){const el=document.getElementById(id);if(el)setVal(el,colour);}
 }
 function setTool(id) {
-  if(id!==S.tool)clearProtest();
+  if(id!==S.tool){clearProtest();S.multiNodeRefs=[];}
   if(id!=='dropper'){panelPicker=false;document.body.classList.remove('screen-pick-fallback');}
   if(S.drag?.type==='skeleton'&&id!==S.tool){if(S.drag.started)commit();S.drag=null;}
   if (S.pen && id !== 'pen') finishPen(false);
