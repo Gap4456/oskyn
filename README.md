@@ -10,7 +10,7 @@ Save projects explicitly with **Save project** (`.oskyn.json`). On supported des
 
 ## Selection toolbar
 
-Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/raise one step, send to bottom/bring to top within the current layer, Group and Ungroup. Hover for descriptions and shortcuts; unavailable actions are dimmed. Node edit keeps its own operations. The Pencil icon has a plus and a node square to distinguish drawing nodes from editing them.
+Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/raise one step, send to bottom/bring to top within the current layer, Group and Ungroup. Hover for descriptions and shortcuts; unavailable actions are dimmed. Node edit keeps its own operations. The Pen icon has a plus and a node square to distinguish drawing nodes from editing them.
 
 ## Symbols and node editing
 
