@@ -796,10 +796,26 @@ function gsSync(gr, one) {
   });
 }
 window.gsSync = () => gsSync();
+function refreshSelectionActions(sels){
+  const unlocked=sels.filter(s=>!getLayer(s.lid)?.locked),ids=new Set(unlocked.map(s=>s.id));
+  let backward=false,forward=false;
+  for(const lid of new Set(unlocked.map(s=>s.lid))){
+    const objs=C.evalLayerObjs(getLayer(lid),S.frame);
+    for(let i=0;i<objs.length;i++)if(ids.has(objs[i].id)){
+      if(i>0&&!ids.has(objs[i-1].id))backward=true;
+      if(i+1<objs.length&&!ids.has(objs[i+1].id))forward=true;
+    }
+  }
+  const group=unlocked.length===sels.length&&unlocked.length>1&&new Set(unlocked.map(s=>s.lid)).size===1&&!unlocked.some(s=>s.o.mirror||s.o.skel||s.o.sbind||s.o.skin);
+  const ungroup=unlocked.some(s=>s.o.kind==='group')&&!sels.some(s=>s.o.mirror||s.o.sbind||s.o.skin);
+  const enabled={backward,forward,back:backward,front:forward,group,ungroup};
+  document.querySelectorAll('#kSelectBar [data-karrange]').forEach(b=>{b.disabled=!enabled[b.dataset.karrange];});
+}
 function refreshProps() {
   if (!S.doc) return;
   skeletonPanel();
   const sels = selEval(), one = sels.length === 1 ? sels[0] : null, st = S.style;
+  refreshSelectionActions(sels);
   $('#selInfo').textContent = sels.length ? (one ? (one.o.mirror ? 'mirror' : one.o.kind === 'group' ? 'group' : one.o.kind === 'clip' ? 'symbol' : one.o.kind === 'text' ? 'text' : one.o.kind === 'image' ? 'image' : 'path') : sels.length + ' objects') : 'none';
   let src = null;
   if (sels.length) walkPaths(sels[0].o, (p) => { if (!src) src = p; });
@@ -1260,7 +1276,7 @@ function ungroupSel() {
   const groups = selEval().filter((s) => s.o.kind === 'group');
   if (!groups.length) { toast('Select a group to ungroup.'); return; }
   pushUndo();
-  const newSel = [];
+  const newSel = [],copies=new Map();
   for (const lid of new Set(groups.map((g) => g.lid))) {
     const l = getLayer(lid);
     if (l.locked) continue;
@@ -1271,12 +1287,13 @@ function ungroupSel() {
       const g = kf.objs[idx], kids = [];
       for (const c of g.children) {
         C.setObjMatrix(c, mmul(matOf(g.t), matOf(c.t)));
-        c.op = C.nz(c.op, 1) * C.nz(g.op, 1); c.id = uid();
+        c.op = C.nz(c.op, 1) * C.nz(g.op, 1);copies.set(c.id,c);c.id = uid();
         kids.push(c); newSel.push({ lid, id: c.id });
       }
       kf.objs.splice(idx, 1, ...kids);
     }
   }
+  for(const c of copies.values())if(c.sbind&&copies.has(c.sbind.to))c.sbind.to=copies.get(c.sbind.to).id;
   for(const c of copies.values())if(c.skin&&copies.has(c.skin.to))c.skin.to=copies.get(c.skin.to).id;
   S.sel = newSel; commit();
 }

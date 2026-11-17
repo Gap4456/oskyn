@@ -8,6 +8,10 @@ Download this repository and open **oskyn.html** (or **index.html**) in a curren
 
 Save projects explicitly with **Save project** (`.oskyn.json`). On supported desktop Edge/Chrome/Brave browsers, each Save or Ctrl+S opens the system **Save As** dialog: choose a folder, enter a name or select an existing file and confirm replacement. The previous file location/name is suggested for each open project during the session. Firefox and other desktop browsers without the picker use a direct download without an extra oskyn naming form. Enable the browser’s “Always ask where to save files” option to choose a folder or replace an existing file; automatic downloads may still produce numbered copies. Mobile retains its project-name form. Cancelling keeps unsaved work open. Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
 
+## Selection toolbar
+
+Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/raise one step, send to bottom/bring to top within the current layer, Group and Ungroup. Hover for descriptions and shortcuts; unavailable actions are dimmed. Node edit keeps its own operations. The Pencil icon has a plus and a node square to distinguish drawing nodes from editing them.
+
 ## Symbols and node editing
 
 Inside a symbol, **Preview symbol** beneath the scene/symbol path previews only that symbol, including its own timeline and nested symbols. Restart repeats that preview; closing it keeps the editor at the same symbol and frame. The main Preview button continues to preview the scene.
