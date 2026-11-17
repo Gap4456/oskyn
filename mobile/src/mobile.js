@@ -195,7 +195,7 @@ const nativeRecordSetArmed=recordSetArmed;recordSetArmed=on=>{if(on&&!['select',
 const nativeRecordCapture=recordCapture;recordCapture=frame=>{nativeRecordCapture(frame);if(REC.running){mobile.recorded.add(frame);mobileSyncRecord();}};
 const nativeRecordBegin=recordBegin;recordBegin=()=>{if(!REC.running&&REC.live&&REC.drag?.started)mobile.recorded.clear();nativeRecordBegin();mobileSyncRecord();};
 const nativeRecordStop=recordStop;recordStop=()=>{const was=REC.running;nativeRecordStop();if(was){mobile.recordUntil=performance.now()+3000;setTimeout(mobileSyncRecord,3100);}mobileSyncRecord();};
-const nativeToast=toast;toast=msg=>nativeToast(String(msg).startsWith('Record: choose a start frame')?'REC ready: drag one selected object, node or bone. Release it to stop.':msg);
+const nativeToast=toast;toast=(msg,options)=>nativeToast(String(msg).startsWith('Record: choose a start frame')?'REC ready: drag one selected object, node or bone. Release it to stop.':msg,options);
 const nativeOnDown=onDown,nativeOnMove=onMove,nativeOnUp=onUp;
 onDown=e=>{if(S.tool==='bone')skeletonHoverAt(stagePt(e),false,true);nativeOnDown(mobileEvent(e));};
 onMove=e=>{if(S.drag&&S.drag.type!=='pan'&&REC.armed&&S.frame<899)REC.held=true;nativeOnMove(mobileEvent(e));};

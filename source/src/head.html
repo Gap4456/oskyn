@@ -461,3 +461,8 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 :is(#boneAngle,#boneAngleRemove) { z-index:9; }
 #boneMenu button svg, :is(#boneAngle,#boneAngleRemove) svg { width:20px; height:20px; display:block; margin:auto; pointer-events:none; }
 </style>
+
+<style>
+#toast .toast-protest { background:var(--panel); color:color-mix(in srgb,var(--fg),var(--danger) var(--protest-red)); border:1px solid currentColor; font-size:var(--protest-size); max-width:min(480px,calc(100vw - 32px)); max-height:30vh; overflow:hidden; overflow-wrap:anywhere; text-align:center; line-height:1.25; }
+#toast .toast-protest:not([data-level="0"]) { font-weight:700; }
+</style>

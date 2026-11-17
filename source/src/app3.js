@@ -218,7 +218,7 @@ function pasteWouldCreateSymbolCycle(source) {
 function pasteSelectedFrames(layer, start) {
   if (!copiedFrames) { toast('Vispirms izmanto Copy Frames.'); return; } // Bez kopijas nav ko ielīmēt
   if (!layer || layer.locked) { toast('Slānis nav pieejams ielīmēšanai.'); return; } // Aizsargā bloķētu slāni
-  if (pasteWouldCreateSymbolCycle(copiedFrames)) { toast('Paste blocked: a symbol cannot contain itself. Copy frames from inside the symbol instead.'); return; } // Novērš bezgalīgu simbolu rekursiju
+  if (pasteWouldCreateSymbolCycle(copiedFrames)) { protest('Paste blocked: a symbol cannot contain itself. Copy frames from inside the symbol instead.'); return; } // Novērš bezgalīgu simbolu rekursiju
   const end = start + copiedFrames.count - 1; // Pēdējais pārrakstāmais kadrs
   if (end >= 900) { toast('Paste Frames: maksimālais projekta garums ir 900 kadri.'); return; } // Dokumenta drošības limits
   const after = end + 1; // Pirmais kadrs, kuru nedrīkst mainīt
@@ -266,7 +266,7 @@ function pasteSelectedFrames(layer, start) {
 
 /* ---------- Clear Selected Frames: iztukšo diapazonu bez kadru pārbīdes ---------- */
 function clearSelectedFrames(layer, frame) {
-  if (!layer || layer.locked) { toast('Layer is locked.'); return; } // Bloķētu slāni nemaina
+  if (!layer || layer.locked) { protest('Layer is locked.'); return; } // Bloķētu slāni nemaina
   const selection = fselInfo(); // Nolasa atlasītos kadrus
   const useRange = selection && selection.layers.length === 1 && selection.layers[0].id === layer.id && frame >= selection.a && frame <= selection.b;
   const a = useRange ? selection.a : frame; // Sākuma kadrs
@@ -276,7 +276,7 @@ function clearSelectedFrames(layer, frame) {
   const oldAfterState = after < S.doc.frames ? clone(C.evalLayerObjs(layer, after)) : null; // Saglabā turpinājuma attēlu
   const oldAfterSource = after < S.doc.frames ? C.kfFor(layer, after) : null; // Saglabā turpinājuma parametrus
   if (after < S.doc.frames && !oldAfterKey && oldAfterSource && oldAfterSource.tween !== 'none') {
-    toast('Clear Frames: tween crosses the end. Add a keyframe after the selection first.'); // Neizmaina Tween ārpus atlases
+    protest('Clear Frames: tween crosses the end. Add a keyframe after the selection first.'); // Neizmaina Tween ārpus atlases
     return;
   }
   pushUndo(); // Visa darbība atsaucama ar Ctrl+Z
@@ -302,7 +302,7 @@ function clearSelectedFrames(layer, frame) {
 function removeSelectedFrames(layer, frame) {
   const range=fselInfo(),useRange=range&&range.layers.includes(layer)&&frame>=range.a&&frame<=range.b;
   const selected=useRange?range.layers:[layer];
-  if(!layer||selected.some(l=>!l||l.locked)){toast('Layer is locked.');return;}
+  if(!layer||selected.some(l=>!l||l.locked)){protest('Layer is locked.');return;}
   const a=useRange?range.a:frame,b=useRange?range.b:frame,count=b-a+1,after=b+1,oldFrames=S.doc.frames;
   const boundaries=new Map(selected.map(l=>[l,after<oldFrames?{...clone(C.kfFor(l,after)),f:a,objs:clone(C.evalLayerObjs(l,after))}:null]));
   pushUndo();
@@ -322,7 +322,7 @@ function removeSelectedFrames(layer, frame) {
 
 /* ---------- Cut Selected Frames: copy, then clear without shifting later frames ---------- */
 function cutSelectedFrames(layer, frame) {
-  if (!layer || layer.locked) { toast('Layer is locked.'); return; }
+  if (!layer || layer.locked) { protest('Layer is locked.'); return; }
   const selection = fselInfo();
   const useRange = selection && selection.layers.length === 1 && selection.layers[0].id === layer.id && frame >= selection.a && frame <= selection.b;
   const b = useRange ? selection.b : frame;
@@ -2103,7 +2103,8 @@ function enterSym(sym) {
   // Remember the parent timeline viewport before switching to the symbol.
   const parentTimelineLeft = tlScroll.scrollLeft;
   const parentTimelineTop = tlScroll.scrollTop;
-  if (!enterSymRaw(sym)) { toast('That symbol is not in the library.'); return; }
+  if (!enterSymRaw(sym)) { protest('That symbol is not in the library.'); return; }
+  clearProtest();
   const parentEntry = S.edit[S.edit.length - 1];
   parentEntry.timelineLeft = parentTimelineLeft;
   parentEntry.timelineTop = parentTimelineTop;

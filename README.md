@@ -8,6 +8,10 @@ Download this repository and open **oskyn.html** (or **index.html**) in a curren
 
 Save projects explicitly with **Save project** (`.oskyn.json`). Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
 
+## Symbols and node editing
+
+Double-click a symbol in Selection or Node edit to enter it; the current tool is retained. Double-click an ordinary figure in Selection to edit its nodes. Node edit distinguishes symbols from groups and explains how to continue. Repeating the same blocked action grows one warning and makes its text progressively redder, up to a fixed size limit. It resets after five seconds or a successful action; routine notices do not escalate.
+
 ## Mobile preview
 
 **Experimental mobile preview with significant bugs and usability limitations. It is currently suitable for viewing projects and trying the interface. It is not yet ready for serious animation work; use the desktop version for that.**

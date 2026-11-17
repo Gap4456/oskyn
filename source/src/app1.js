@@ -592,6 +592,7 @@ function settleAll() {
   for (const l of layers()) { const k = C.kfFor(l, S.frame); if (k && k.objs.some((o) => o.bind)) C.settleBinds(k.objs, ed); }
 }
 function commit() {
+  clearProtest();
   settleAll();
   markDirty();
   invalidate(); refreshProps(); updateTime();
@@ -602,13 +603,33 @@ function refreshAll() { if(!$('#bonePoseGallery').hidden&&SK.galleryRef)skeleton
 function autosave() { /* Disabled: Save project is the only persistence path. */ }
 
 let toastTimer = 0;
-function toast(msg) {
-  const box = $('#toast');
-  const d = document.createElement('div');
-  d.textContent = msg;
-  logPush(FCLOG.msgs, msg);
-  box.appendChild(d);
-  setTimeout(() => d.remove(), 3800);
+// Only explicitly marked blocked actions escalate; routine notices stay ordinary.
+const PROTEST={key:null,count:0,last:0,node:null,timer:0,pending:0};
+function clearProtest(){
+  clearTimeout(PROTEST.timer);clearTimeout(PROTEST.pending);
+  PROTEST.node?.remove();Object.assign(PROTEST,{key:null,count:0,last:0,node:null,timer:0,pending:0});
+}
+function protest(msg,key=msg){toast(msg,{protest:true,key});}
+function protestLater(msg,key=msg){
+  clearTimeout(PROTEST.pending);PROTEST.pending=setTimeout(()=>{PROTEST.pending=0;protest(msg,key);},420);
+}
+function toast(msg,options={}) {
+  const box=$('#toast');
+  if(options.protest){
+    const now=performance.now(),key=options.key||msg,same=PROTEST.key===key&&now-PROTEST.last<5000;
+    if(!same)clearProtest();
+    PROTEST.key=key;PROTEST.last=now;PROTEST.count=same?PROTEST.count+1:1;
+    const d=PROTEST.node||document.createElement('div');PROTEST.node=d;d.className='toast-protest';d.setAttribute('role','status');
+    const level=Math.min(5,PROTEST.count-1);d.dataset.level=level;d.dataset.count=PROTEST.count;
+    d.style.setProperty('--protest-size',(12.5+level*2.5)+'px');d.style.setProperty('--protest-red',(level*20)+'%');
+    d.textContent=level>=4?String(msg).toUpperCase():msg;
+    if(!d.isConnected)box.appendChild(d);
+    clearTimeout(PROTEST.timer);PROTEST.timer=setTimeout(clearProtest,5000);
+    logPush(FCLOG.msgs,msg);return;
+  }
+  clearProtest();
+  const d=document.createElement('div');d.textContent=msg;logPush(FCLOG.msgs,msg);box.appendChild(d);
+  setTimeout(()=>d.remove(),3800);
 }
 
 /* ---------- view ---------- */

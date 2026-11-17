@@ -461,6 +461,11 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 :is(#boneAngle,#boneAngleRemove) { z-index:9; }
 #boneMenu button svg, :is(#boneAngle,#boneAngleRemove) svg { width:20px; height:20px; display:block; margin:auto; pointer-events:none; }
 </style>
+
+<style>
+#toast .toast-protest { background:var(--panel); color:color-mix(in srgb,var(--fg),var(--danger) var(--protest-red)); border:1px solid currentColor; font-size:var(--protest-size); max-width:min(480px,calc(100vw - 32px)); max-height:30vh; overflow:hidden; overflow-wrap:anywhere; text-align:center; line-height:1.25; }
+#toast .toast-protest:not([data-level="0"]) { font-weight:700; }
+</style>
 <script>
 /*!
 
@@ -5318,6 +5323,7 @@ function settleAll() {
   for (const l of layers()) { const k = C.kfFor(l, S.frame); if (k && k.objs.some((o) => o.bind)) C.settleBinds(k.objs, ed); }
 }
 function commit() {
+  clearProtest();
   settleAll();
   markDirty();
   invalidate(); refreshProps(); updateTime();
@@ -5328,13 +5334,33 @@ function refreshAll() { if(!$('#bonePoseGallery').hidden&&SK.galleryRef)skeleton
 function autosave() { /* Disabled: Save project is the only persistence path. */ }
 
 let toastTimer = 0;
-function toast(msg) {
-  const box = $('#toast');
-  const d = document.createElement('div');
-  d.textContent = msg;
-  logPush(FCLOG.msgs, msg);
-  box.appendChild(d);
-  setTimeout(() => d.remove(), 3800);
+// Only explicitly marked blocked actions escalate; routine notices stay ordinary.
+const PROTEST={key:null,count:0,last:0,node:null,timer:0,pending:0};
+function clearProtest(){
+  clearTimeout(PROTEST.timer);clearTimeout(PROTEST.pending);
+  PROTEST.node?.remove();Object.assign(PROTEST,{key:null,count:0,last:0,node:null,timer:0,pending:0});
+}
+function protest(msg,key=msg){toast(msg,{protest:true,key});}
+function protestLater(msg,key=msg){
+  clearTimeout(PROTEST.pending);PROTEST.pending=setTimeout(()=>{PROTEST.pending=0;protest(msg,key);},420);
+}
+function toast(msg,options={}) {
+  const box=$('#toast');
+  if(options.protest){
+    const now=performance.now(),key=options.key||msg,same=PROTEST.key===key&&now-PROTEST.last<5000;
+    if(!same)clearProtest();
+    PROTEST.key=key;PROTEST.last=now;PROTEST.count=same?PROTEST.count+1:1;
+    const d=PROTEST.node||document.createElement('div');PROTEST.node=d;d.className='toast-protest';d.setAttribute('role','status');
+    const level=Math.min(5,PROTEST.count-1);d.dataset.level=level;d.dataset.count=PROTEST.count;
+    d.style.setProperty('--protest-size',(12.5+level*2.5)+'px');d.style.setProperty('--protest-red',(level*20)+'%');
+    d.textContent=level>=4?String(msg).toUpperCase():msg;
+    if(!d.isConnected)box.appendChild(d);
+    clearTimeout(PROTEST.timer);PROTEST.timer=setTimeout(clearProtest,5000);
+    logPush(FCLOG.msgs,msg);return;
+  }
+  clearProtest();
+  const d=document.createElement('div');d.textContent=msg;logPush(FCLOG.msgs,msg);box.appendChild(d);
+  setTimeout(()=>d.remove(),3800);
 }
 
 /* ---------- view ---------- */
@@ -5773,6 +5799,7 @@ function rememberDrawingColour(colour){
   for(const id of ['bcolor','fb_color']){const el=document.getElementById(id);if(el)setVal(el,colour);}
 }
 function setTool(id) {
+  if(id!==S.tool)clearProtest();
   if(id!=='dropper'){panelPicker=false;document.body.classList.remove('screen-pick-fallback');}
   if(S.drag?.type==='skeleton'&&id!==S.tool){if(S.drag.started)commit();S.drag=null;}
   if (S.pen && id !== 'pen') finishPen(false);
@@ -5829,8 +5856,8 @@ function hitAt(x, y, tolPx, rigFirst) {
 function canDraw() {
   const l = curLayer();
   if (!l) return false;
-  if (l.locked) { toast('This layer is locked. Unlock it to draw.'); return false; }
-  if (l.visible === false) { toast('This layer is hidden. Show it to draw.'); return false; }
+  if (l.locked) { protest('This layer is locked. Unlock it to draw.'); return false; }
+  if (l.visible === false) { protest('This layer is hidden. Show it to draw.'); return false; }
   return true;
 }
 function currentPaint(forceStroke) {
@@ -5930,7 +5957,7 @@ function movePinch() {
 }
 
 function onDown(e) {
-  if (REC.armed && !['select','node','bone'].includes(S.tool) && e.button === 0 && !S.space) { toast('Record: use Selection or Node edit to move an existing figure.'); return; }
+  if (REC.armed && !['select','node','bone'].includes(S.tool) && e.button === 0 && !S.space) { protest('Record: use Selection or Node edit to move an existing figure.'); return; }
   if (S.playing) stopPlay();
   const p = stagePt(e);
   if (e.button === 0 && !(e.ctrlKey&&['select','node','mirror'].includes(S.tool)) && kroganGhostAt(p.sx, p.sy)) return; // Ghost marker: no drawing or selection behind it.
@@ -6069,7 +6096,7 @@ function onUp(e) {
 }
 function onDbl(e) {
   if(singleSel()?.o.mirror){mirrorBegin();return;}
-  if (REC.armed) { toast('Leave Record mode before adding or removing nodes.'); return; }
+  if (REC.armed) { protest('Leave Record mode before adding or removing nodes.'); return; }
   const p = stagePt(e);
   if(starFinish(p)){e.preventDefault();return;}
   if(arcFinish(p)){e.preventDefault();return;}
@@ -6108,7 +6135,11 @@ function onDbl(e) {
     }
   }
   if (S.tool === 'pen' && S.pen) { finishPen(false); return; }
-  if (S.tool === 'node') nodeDbl(p);
+  if(S.tool==='node'||S.tool==='select'){
+    const h=hitAt(p.w.x,p.w.y,5);
+    if(h?.o.kind==='clip'){clearProtest();e.preventDefault();enterSym(h.o.sym);return;}
+  }
+  if (S.tool === 'node') {nodeDbl(p);return;}
   if (S.tool === 'gradient') { kroganGradDouble(p); return; }
   if (S.tool === 'select') {
     const h = hitAt(p.w.x, p.w.y, 5);
@@ -6189,6 +6220,7 @@ function pivotHit(o, sx, sy) {
 }
 /* ---------- selection tool ---------- */
 function selDown(e, p) {
+  clearProtest();
   const w = p.w, one = singleSel();
 	// Ja nospiests uz pivot, sākam pārvietot tikai krustiņu.
 	if (one && !selectionControlsHidden() && !getLayer(one.lid).locked &&
@@ -6446,7 +6478,7 @@ function starDown(e,p){
     if(Math.hypot(point[0]-p.sx,point[1]-p.sy)<6){hit=h;break;}
   }
   if(!hit)return false;
-  if(REC.armed){toast('Leave Record mode to change Star/Cog controls.');return true;}
+  if(REC.armed){protest('Leave Record mode to change Star/Cog controls.');return true;}
   S.drag={type:'star',lid:one.lid,id:one.id,start:p.w,base:clone(a),hit,started:false};return true;
 }
 function starDrag(w,e){
@@ -6953,9 +6985,9 @@ drawOverlay = function(ctx) {
   ctx.restore();
 };
 function kNodeOperation(op) {
-  if(singleSel()?.o.skin){toast('Detach the soft body before editing nodes.');return;}
+  if(singleSel()?.o.skin){protest('Detach the soft body before editing nodes.');return;}
   const one=singleSel(); if (!one || !nodeEditable(one.o) || getLayer(one.lid).locked) return;
-  const keys=kNodeKeys(); if (!keys.length) { toast('Select a node first'); return; }
+  const keys=kNodeKeys(); if (!keys.length) { protest('Select a node first'); return; }
   pushUndo(); C.ensureEditable(getLayer(one.lid),S.frame);
   const o=findEditable(one.lid,one.id); if (!o) return;
   const selected=new Set(keys);
@@ -6969,7 +7001,7 @@ function kNodeOperation(op) {
         a.ox=a.oy=b.ix=b.iy=0; a.s=b.s=false; count++;
       }
     });
-    if(!count) toast('Select two adjacent nodes to straighten their segment');
+    if(!count) protest('Select two adjacent nodes to straighten their segment');
   } else {
     keys.forEach(key=>{
       const {ci,ni}=kNodeFromKey(key),c=o.contours[ci],n=c?.nodes[ni]; if(!n)return;
@@ -7078,14 +7110,15 @@ function kDrawTrueContours(ctx,o) {
 
 /* ---------- node edit tool ---------- */
 function nodeDown(e, p) {
-  if(singleSel()?.o.skin){toast('Detach the soft body through its slime menu before editing nodes.');return;}
+  if(singleSel()?.o.skin){protest('Detach the soft body through its slime menu before editing nodes.');return;}
   if(singleSel()?.o.arc){selDown(e,p);return;}
-  if(singleSel()?.o.skel){toast('Use the Bone tool (J) to build or pose this skeleton.');return;}
+  if(singleSel()?.o.skel){protest('Use the Bone tool (J) to build or pose this skeleton.');return;}
   const one = singleSel();
-  if (one && one.o.rig) { toast('A bone arm is posed with the Selection tool: drag its hand, elbow or shoulder.'); return; }
+  if (one && one.o.rig) { protest('A bone arm is posed with the Selection tool: drag its hand, elbow or shoulder.'); return; }
   if (one && nodeEditable(one.o) && !getLayer(one.lid).locked) {
     const hit = hitNodePart(one.o, p.sx, p.sy);
     if (hit) {
+      clearProtest();
       if (e.shiftKey && hit.part === 'anchor') {
         const key = hit.ci + ':' + hit.ni;
         if (!S.kNodeSelection?.length && S.nodeSel)
@@ -7114,6 +7147,7 @@ function nodeDown(e, p) {
   if (one && nodeEditable(one.o) && !getLayer(one.lid).locked && !e.shiftKey) {
     const curve = kCurveHit(one.o, p.sx, p.sy);
     if (curve) {
+      clearProtest();
       S.drag = {type:'curve-bend', lid:one.lid, id:one.id,
         ci:curve.ci, ni:curve.ni, t:curve.t, start:p.w, started:false};
       return;
@@ -7121,13 +7155,19 @@ function nodeDown(e, p) {
   }
   // Dragging empty space in Node mode selects enclosed anchors only.
   if (one && nodeEditable(one.o) && !getLayer(one.lid).locked && !hitAt(p.w.x, p.w.y, 6)) {
+    clearProtest();
     S.drag = {type:'node-marquee', start:p.w, cur:p.w, lid:one.lid, id:one.id, base:e.shiftKey ? kNodeKeys().slice() : []};
     return;
   }
   const h = hitAt(p.w.x, p.w.y, 6);
-  if (h && nodeEditable(h.o)) { S.sel = [{ lid: h.lid, id: h.id }]; selectLayer(h.lid, true); }
-  else if (h) toast('Ungroup (Ctrl+Shift+G) to edit nodes inside a group.');
-  else S.sel = [];
+  if (h && nodeEditable(h.o)) { clearProtest(); S.sel = [{ lid: h.lid, id: h.id }]; selectLayer(h.lid, true); }
+  else if(h){
+    S.sel=[{lid:h.lid,id:h.id}];selectLayer(h.lid,true);
+    if(h.o.kind==='clip')protestLater('This is a symbol. Double-click to edit inside.','node-symbol:'+h.id);
+    else if(h.o.kind==='group')protestLater('This is a group. Ungroup (Ctrl+Shift+G) to edit individual nodes.','node-group:'+h.id);
+    else protestLater('This is text. Use the Text tool (T) to edit it.','node-text:'+h.id);
+  }
+  else {clearProtest();S.sel = [];}
   S.nodeSel = null; S.kNodeSelection = []; refreshProps();
 }
 function hitNodePart(o, sx, sy) {
@@ -7253,7 +7293,7 @@ function seedMorphNodes(layer,id) {
   for(const o of frames)o.ellipseFrame.path=JSON.stringify(o.contours);
 }
 function nodeDbl(p) {
-  if(singleSel()?.o.skin){toast('Detach the soft body before editing nodes.');return;}
+  if(singleSel()?.o.skin){protest('Detach the soft body before editing nodes.');return;}
   const one = singleSel();
   if (!one || !nodeEditable(one.o) || getLayer(one.lid).locked) return;
   const hit = hitNodePart(one.o, p.sx, p.sy);
@@ -7300,7 +7340,7 @@ function deleteNode() {
   if(!selected.length)return false;
   // Reject an invalid bitmap-mask deletion as a whole, rather than partly deleting the selection.
   if(one.o.kind==='image'&&one.o.contours.some((c,ci)=>c.nodes.length-selected.filter(n=>n.ci===ci).length<3)){
-    toast('A bitmap mask needs at least three nodes.');return true;
+    protest('A bitmap mask needs at least three nodes.');return true;
   }
   pushUndo();seedMorphNodes(getLayer(one.lid),one.id);C.ensureEditable(getLayer(one.lid),S.frame);
   const o=findEditable(one.lid,one.id);
@@ -7466,7 +7506,7 @@ function kroganGradDown(e,p) {
   if (!hit || hit.o.kind !== 'path' || getLayer(hit.lid).locked) return;
   S.sel=[{lid:hit.lid,id:hit.id}]; selectLayer(hit.lid,true);
   const obj = hit.o;
-  if (!obj.fill && !obj.grad) { toast('Gradient needs a filled path.'); refreshProps(); return; }
+  if (!obj.fill && !obj.grad) { protest('Gradient needs a filled path.'); refreshProps(); return; }
   pushUndo(); C.ensureEditable(getLayer(hit.lid),S.frame);
   const o=findEditable(hit.lid,hit.id);
   if (!o) return;
@@ -9045,7 +9085,7 @@ function pasteWouldCreateSymbolCycle(source) {
 function pasteSelectedFrames(layer, start) {
   if (!copiedFrames) { toast('Vispirms izmanto Copy Frames.'); return; } // Bez kopijas nav ko ielīmēt
   if (!layer || layer.locked) { toast('Slānis nav pieejams ielīmēšanai.'); return; } // Aizsargā bloķētu slāni
-  if (pasteWouldCreateSymbolCycle(copiedFrames)) { toast('Paste blocked: a symbol cannot contain itself. Copy frames from inside the symbol instead.'); return; } // Novērš bezgalīgu simbolu rekursiju
+  if (pasteWouldCreateSymbolCycle(copiedFrames)) { protest('Paste blocked: a symbol cannot contain itself. Copy frames from inside the symbol instead.'); return; } // Novērš bezgalīgu simbolu rekursiju
   const end = start + copiedFrames.count - 1; // Pēdējais pārrakstāmais kadrs
   if (end >= 900) { toast('Paste Frames: maksimālais projekta garums ir 900 kadri.'); return; } // Dokumenta drošības limits
   const after = end + 1; // Pirmais kadrs, kuru nedrīkst mainīt
@@ -9093,7 +9133,7 @@ function pasteSelectedFrames(layer, start) {
 
 /* ---------- Clear Selected Frames: iztukšo diapazonu bez kadru pārbīdes ---------- */
 function clearSelectedFrames(layer, frame) {
-  if (!layer || layer.locked) { toast('Layer is locked.'); return; } // Bloķētu slāni nemaina
+  if (!layer || layer.locked) { protest('Layer is locked.'); return; } // Bloķētu slāni nemaina
   const selection = fselInfo(); // Nolasa atlasītos kadrus
   const useRange = selection && selection.layers.length === 1 && selection.layers[0].id === layer.id && frame >= selection.a && frame <= selection.b;
   const a = useRange ? selection.a : frame; // Sākuma kadrs
@@ -9103,7 +9143,7 @@ function clearSelectedFrames(layer, frame) {
   const oldAfterState = after < S.doc.frames ? clone(C.evalLayerObjs(layer, after)) : null; // Saglabā turpinājuma attēlu
   const oldAfterSource = after < S.doc.frames ? C.kfFor(layer, after) : null; // Saglabā turpinājuma parametrus
   if (after < S.doc.frames && !oldAfterKey && oldAfterSource && oldAfterSource.tween !== 'none') {
-    toast('Clear Frames: tween crosses the end. Add a keyframe after the selection first.'); // Neizmaina Tween ārpus atlases
+    protest('Clear Frames: tween crosses the end. Add a keyframe after the selection first.'); // Neizmaina Tween ārpus atlases
     return;
   }
   pushUndo(); // Visa darbība atsaucama ar Ctrl+Z
@@ -9129,7 +9169,7 @@ function clearSelectedFrames(layer, frame) {
 function removeSelectedFrames(layer, frame) {
   const range=fselInfo(),useRange=range&&range.layers.includes(layer)&&frame>=range.a&&frame<=range.b;
   const selected=useRange?range.layers:[layer];
-  if(!layer||selected.some(l=>!l||l.locked)){toast('Layer is locked.');return;}
+  if(!layer||selected.some(l=>!l||l.locked)){protest('Layer is locked.');return;}
   const a=useRange?range.a:frame,b=useRange?range.b:frame,count=b-a+1,after=b+1,oldFrames=S.doc.frames;
   const boundaries=new Map(selected.map(l=>[l,after<oldFrames?{...clone(C.kfFor(l,after)),f:a,objs:clone(C.evalLayerObjs(l,after))}:null]));
   pushUndo();
@@ -9149,7 +9189,7 @@ function removeSelectedFrames(layer, frame) {
 
 /* ---------- Cut Selected Frames: copy, then clear without shifting later frames ---------- */
 function cutSelectedFrames(layer, frame) {
-  if (!layer || layer.locked) { toast('Layer is locked.'); return; }
+  if (!layer || layer.locked) { protest('Layer is locked.'); return; }
   const selection = fselInfo();
   const useRange = selection && selection.layers.length === 1 && selection.layers[0].id === layer.id && frame >= selection.a && frame <= selection.b;
   const b = useRange ? selection.b : frame;
@@ -10930,7 +10970,8 @@ function enterSym(sym) {
   // Remember the parent timeline viewport before switching to the symbol.
   const parentTimelineLeft = tlScroll.scrollLeft;
   const parentTimelineTop = tlScroll.scrollTop;
-  if (!enterSymRaw(sym)) { toast('That symbol is not in the library.'); return; }
+  if (!enterSymRaw(sym)) { protest('That symbol is not in the library.'); return; }
+  clearProtest();
   const parentEntry = S.edit[S.edit.length - 1];
   parentEntry.timelineLeft = parentTimelineLeft;
   parentEntry.timelineTop = parentTimelineTop;

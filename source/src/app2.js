@@ -63,6 +63,7 @@ function rememberDrawingColour(colour){
   for(const id of ['bcolor','fb_color']){const el=document.getElementById(id);if(el)setVal(el,colour);}
 }
 function setTool(id) {
+  if(id!==S.tool)clearProtest();
   if(id!=='dropper'){panelPicker=false;document.body.classList.remove('screen-pick-fallback');}
   if(S.drag?.type==='skeleton'&&id!==S.tool){if(S.drag.started)commit();S.drag=null;}
   if (S.pen && id !== 'pen') finishPen(false);
@@ -119,8 +120,8 @@ function hitAt(x, y, tolPx, rigFirst) {
 function canDraw() {
   const l = curLayer();
   if (!l) return false;
-  if (l.locked) { toast('This layer is locked. Unlock it to draw.'); return false; }
-  if (l.visible === false) { toast('This layer is hidden. Show it to draw.'); return false; }
+  if (l.locked) { protest('This layer is locked. Unlock it to draw.'); return false; }
+  if (l.visible === false) { protest('This layer is hidden. Show it to draw.'); return false; }
   return true;
 }
 function currentPaint(forceStroke) {
@@ -220,7 +221,7 @@ function movePinch() {
 }
 
 function onDown(e) {
-  if (REC.armed && !['select','node','bone'].includes(S.tool) && e.button === 0 && !S.space) { toast('Record: use Selection or Node edit to move an existing figure.'); return; }
+  if (REC.armed && !['select','node','bone'].includes(S.tool) && e.button === 0 && !S.space) { protest('Record: use Selection or Node edit to move an existing figure.'); return; }
   if (S.playing) stopPlay();
   const p = stagePt(e);
   if (e.button === 0 && !(e.ctrlKey&&['select','node','mirror'].includes(S.tool)) && kroganGhostAt(p.sx, p.sy)) return; // Ghost marker: no drawing or selection behind it.
@@ -359,7 +360,7 @@ function onUp(e) {
 }
 function onDbl(e) {
   if(singleSel()?.o.mirror){mirrorBegin();return;}
-  if (REC.armed) { toast('Leave Record mode before adding or removing nodes.'); return; }
+  if (REC.armed) { protest('Leave Record mode before adding or removing nodes.'); return; }
   const p = stagePt(e);
   if(starFinish(p)){e.preventDefault();return;}
   if(arcFinish(p)){e.preventDefault();return;}
@@ -398,7 +399,11 @@ function onDbl(e) {
     }
   }
   if (S.tool === 'pen' && S.pen) { finishPen(false); return; }
-  if (S.tool === 'node') nodeDbl(p);
+  if(S.tool==='node'||S.tool==='select'){
+    const h=hitAt(p.w.x,p.w.y,5);
+    if(h?.o.kind==='clip'){clearProtest();e.preventDefault();enterSym(h.o.sym);return;}
+  }
+  if (S.tool === 'node') {nodeDbl(p);return;}
   if (S.tool === 'gradient') { kroganGradDouble(p); return; }
   if (S.tool === 'select') {
     const h = hitAt(p.w.x, p.w.y, 5);
@@ -479,6 +484,7 @@ function pivotHit(o, sx, sy) {
 }
 /* ---------- selection tool ---------- */
 function selDown(e, p) {
+  clearProtest();
   const w = p.w, one = singleSel();
 	// Ja nospiests uz pivot, sākam pārvietot tikai krustiņu.
 	if (one && !selectionControlsHidden() && !getLayer(one.lid).locked &&
@@ -736,7 +742,7 @@ function starDown(e,p){
     if(Math.hypot(point[0]-p.sx,point[1]-p.sy)<6){hit=h;break;}
   }
   if(!hit)return false;
-  if(REC.armed){toast('Leave Record mode to change Star/Cog controls.');return true;}
+  if(REC.armed){protest('Leave Record mode to change Star/Cog controls.');return true;}
   S.drag={type:'star',lid:one.lid,id:one.id,start:p.w,base:clone(a),hit,started:false};return true;
 }
 function starDrag(w,e){
@@ -1243,9 +1249,9 @@ drawOverlay = function(ctx) {
   ctx.restore();
 };
 function kNodeOperation(op) {
-  if(singleSel()?.o.skin){toast('Detach the soft body before editing nodes.');return;}
+  if(singleSel()?.o.skin){protest('Detach the soft body before editing nodes.');return;}
   const one=singleSel(); if (!one || !nodeEditable(one.o) || getLayer(one.lid).locked) return;
-  const keys=kNodeKeys(); if (!keys.length) { toast('Select a node first'); return; }
+  const keys=kNodeKeys(); if (!keys.length) { protest('Select a node first'); return; }
   pushUndo(); C.ensureEditable(getLayer(one.lid),S.frame);
   const o=findEditable(one.lid,one.id); if (!o) return;
   const selected=new Set(keys);
@@ -1259,7 +1265,7 @@ function kNodeOperation(op) {
         a.ox=a.oy=b.ix=b.iy=0; a.s=b.s=false; count++;
       }
     });
-    if(!count) toast('Select two adjacent nodes to straighten their segment');
+    if(!count) protest('Select two adjacent nodes to straighten their segment');
   } else {
     keys.forEach(key=>{
       const {ci,ni}=kNodeFromKey(key),c=o.contours[ci],n=c?.nodes[ni]; if(!n)return;
@@ -1368,14 +1374,15 @@ function kDrawTrueContours(ctx,o) {
 
 /* ---------- node edit tool ---------- */
 function nodeDown(e, p) {
-  if(singleSel()?.o.skin){toast('Detach the soft body through its slime menu before editing nodes.');return;}
+  if(singleSel()?.o.skin){protest('Detach the soft body through its slime menu before editing nodes.');return;}
   if(singleSel()?.o.arc){selDown(e,p);return;}
-  if(singleSel()?.o.skel){toast('Use the Bone tool (J) to build or pose this skeleton.');return;}
+  if(singleSel()?.o.skel){protest('Use the Bone tool (J) to build or pose this skeleton.');return;}
   const one = singleSel();
-  if (one && one.o.rig) { toast('A bone arm is posed with the Selection tool: drag its hand, elbow or shoulder.'); return; }
+  if (one && one.o.rig) { protest('A bone arm is posed with the Selection tool: drag its hand, elbow or shoulder.'); return; }
   if (one && nodeEditable(one.o) && !getLayer(one.lid).locked) {
     const hit = hitNodePart(one.o, p.sx, p.sy);
     if (hit) {
+      clearProtest();
       if (e.shiftKey && hit.part === 'anchor') {
         const key = hit.ci + ':' + hit.ni;
         if (!S.kNodeSelection?.length && S.nodeSel)
@@ -1404,6 +1411,7 @@ function nodeDown(e, p) {
   if (one && nodeEditable(one.o) && !getLayer(one.lid).locked && !e.shiftKey) {
     const curve = kCurveHit(one.o, p.sx, p.sy);
     if (curve) {
+      clearProtest();
       S.drag = {type:'curve-bend', lid:one.lid, id:one.id,
         ci:curve.ci, ni:curve.ni, t:curve.t, start:p.w, started:false};
       return;
@@ -1411,13 +1419,19 @@ function nodeDown(e, p) {
   }
   // Dragging empty space in Node mode selects enclosed anchors only.
   if (one && nodeEditable(one.o) && !getLayer(one.lid).locked && !hitAt(p.w.x, p.w.y, 6)) {
+    clearProtest();
     S.drag = {type:'node-marquee', start:p.w, cur:p.w, lid:one.lid, id:one.id, base:e.shiftKey ? kNodeKeys().slice() : []};
     return;
   }
   const h = hitAt(p.w.x, p.w.y, 6);
-  if (h && nodeEditable(h.o)) { S.sel = [{ lid: h.lid, id: h.id }]; selectLayer(h.lid, true); }
-  else if (h) toast('Ungroup (Ctrl+Shift+G) to edit nodes inside a group.');
-  else S.sel = [];
+  if (h && nodeEditable(h.o)) { clearProtest(); S.sel = [{ lid: h.lid, id: h.id }]; selectLayer(h.lid, true); }
+  else if(h){
+    S.sel=[{lid:h.lid,id:h.id}];selectLayer(h.lid,true);
+    if(h.o.kind==='clip')protestLater('This is a symbol. Double-click to edit inside.','node-symbol:'+h.id);
+    else if(h.o.kind==='group')protestLater('This is a group. Ungroup (Ctrl+Shift+G) to edit individual nodes.','node-group:'+h.id);
+    else protestLater('This is text. Use the Text tool (T) to edit it.','node-text:'+h.id);
+  }
+  else {clearProtest();S.sel = [];}
   S.nodeSel = null; S.kNodeSelection = []; refreshProps();
 }
 function hitNodePart(o, sx, sy) {
@@ -1543,7 +1557,7 @@ function seedMorphNodes(layer,id) {
   for(const o of frames)o.ellipseFrame.path=JSON.stringify(o.contours);
 }
 function nodeDbl(p) {
-  if(singleSel()?.o.skin){toast('Detach the soft body before editing nodes.');return;}
+  if(singleSel()?.o.skin){protest('Detach the soft body before editing nodes.');return;}
   const one = singleSel();
   if (!one || !nodeEditable(one.o) || getLayer(one.lid).locked) return;
   const hit = hitNodePart(one.o, p.sx, p.sy);
@@ -1590,7 +1604,7 @@ function deleteNode() {
   if(!selected.length)return false;
   // Reject an invalid bitmap-mask deletion as a whole, rather than partly deleting the selection.
   if(one.o.kind==='image'&&one.o.contours.some((c,ci)=>c.nodes.length-selected.filter(n=>n.ci===ci).length<3)){
-    toast('A bitmap mask needs at least three nodes.');return true;
+    protest('A bitmap mask needs at least three nodes.');return true;
   }
   pushUndo();seedMorphNodes(getLayer(one.lid),one.id);C.ensureEditable(getLayer(one.lid),S.frame);
   const o=findEditable(one.lid,one.id);
@@ -1756,7 +1770,7 @@ function kroganGradDown(e,p) {
   if (!hit || hit.o.kind !== 'path' || getLayer(hit.lid).locked) return;
   S.sel=[{lid:hit.lid,id:hit.id}]; selectLayer(hit.lid,true);
   const obj = hit.o;
-  if (!obj.fill && !obj.grad) { toast('Gradient needs a filled path.'); refreshProps(); return; }
+  if (!obj.fill && !obj.grad) { protest('Gradient needs a filled path.'); refreshProps(); return; }
   pushUndo(); C.ensureEditable(getLayer(hit.lid),S.frame);
   const o=findEditable(hit.lid,hit.id);
   if (!o) return;
