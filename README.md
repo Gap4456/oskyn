@@ -10,6 +10,10 @@ Save projects explicitly with **Save project** (`.oskyn.json`). On supported des
 
 ## Symbols and node editing
 
+Inside a symbol, **Preview symbol** beneath the scene/symbol path previews only that symbol, including its own timeline and nested symbols. Restart repeats that preview; closing it keeps the editor at the same symbol and frame. The main Preview button continues to preview the scene.
+
+The color palette includes a crossed **None** swatch after project colors. For Fill or Stroke it removes that paint from the selection and disables it for subsequent shapes; picking a color restores it. None is disabled for background and other color-only settings.
+
 Double-click a symbol in Selection or Node edit to enter it; the current tool is retained. Double-click an ordinary figure in Selection to edit its nodes. Node edit distinguishes symbols from groups and explains how to continue. Repeating the same blocked action grows one warning and makes its text progressively redder, up to a fixed size limit. It resets after five seconds or a successful action; routine notices do not escalate.
 
 ## Mobile preview

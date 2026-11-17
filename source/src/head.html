@@ -470,3 +470,12 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 <style>
 #saveProjectName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:40px; font-size:16px; }
 </style>
+
+<style>
+#crumb { flex-direction:column; align-items:flex-start; gap:4px; }
+.crumb-path-row { display:flex; align-items:center; gap:8px; }
+#crumbPreview { font-size:12px; }
+#kColorLab .knone { color:var(--fg); background:linear-gradient(135deg,transparent 45%,#d32828 46%,#d32828 54%,transparent 55%),var(--cell); font-size:22px; line-height:20px; }
+#kColorLab .knone[aria-pressed="true"] { box-shadow:inset 0 0 0 2px var(--accent); }
+#kColorLab .knone:disabled { opacity:.35; cursor:default; }
+</style>

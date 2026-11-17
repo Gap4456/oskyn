@@ -2280,9 +2280,9 @@ function buildPlayer(opts) {
   const controls = opts.controls !== false, zip = opts.pack === 'zip', bgMode = opts.bg || 'stage';
   const core = document.getElementById('fcCore').textContent.replace(/<\/script/gi, '<\\/script');
   const rtm = document.getElementById('fcRuntime').textContent.replace(/<\/script/gi, '<\\/script');
-  let d = S.doc;
+  let d = opts.doc || S.doc;
   if (opts.hidden || bgMode === 'transparent') {
-    d = JSON.parse(JSON.stringify(S.doc, sound ? undefined : noSounds));
+    d = JSON.parse(JSON.stringify(d, sound ? undefined : noSounds));
     if (opts.hidden) { d.layers.forEach((l) => { l.visible = true; }); for (const k of Object.keys(d.lib || {})) d.lib[k].layers.forEach((l) => { l.visible = true; }); }
     if (bgMode === 'transparent') d.bg = 'transparent';
   }
@@ -2322,7 +2322,25 @@ window.addEventListener('resize',fit);fit();
   return { html: head + '<body>' + bodyHtml + '<script id="fcDoc" type="application/json">' + data + '<\/script>\n<script>' + core + '<\/script>\n<script>' + rtm + '<\/script>\n<script>' + boot + '<\/script></body></html>\n' };
 }
 function buildPlayerHTML(debug, withSound) { return buildPlayer({ debug: !!debug, sound: withSound !== false }).html; }
+let previewDocument=null;
+function symbolPreviewDocument(){
+  const sym=S.edit.at(-1)?.sym;if(!sym)return null;
+  const doc=clone(S.doc);doc.name=sym;doc.lib[sym].layers=clone(S.doc.layers);doc.lib[sym].frames=S.doc.frames;
+  // Fit the symbol's key poses without changing any editor coordinates or bindings.
+  const frames=new Set([0,...layers().flatMap(l=>l.kfs.map(k=>k.f))]);let bounds=null;
+  for(const f of frames)for(const {objs} of C.evalDoc(S.doc,f))for(const o of objs){const b=worldBounds(o);if(b)bounds=bounds?{x0:Math.min(bounds.x0,b.x0),y0:Math.min(bounds.y0,b.y0),x1:Math.max(bounds.x1,b.x1),y1:Math.max(bounds.y1,b.y1)}:{...b};}
+  const b=bounds||{x0:-50,y0:-50,x1:50,y1:50},scale=Math.min(1,Math.max(1,doc.w-48)/Math.max(1,b.x1-b.x0),Math.max(1,doc.h-48)/Math.max(1,b.y1-b.y0));
+  const layer=C.mkLayer('Symbol preview');layer.kfs[0].objs=[{id:'symbol-preview',kind:'clip',sym,mode:'loop',first:0,op:1,t:{x:doc.w/2-(b.x0+b.x1)/2*scale,y:doc.h/2-(b.y0+b.y1)/2*scale,sx:scale,sy:scale,r:0}}];doc.layers=[layer];return doc;
+}
+function openSymbolPreview(){
+  if(!S.edit.length)return;
+  if(S.playing)stopPlay();if(REC.armed)recordSetArmed(false);endTextEdit(true);
+  previewDocument=symbolPreviewDocument();$('#prevTitle').textContent='Preview · '+S.edit.at(-1).sym;
+  $('#prevErr').textContent='';$('#prev').classList.add('on');$('#prevFrame').setAttribute('allow','autoplay');
+  $('#prevFrame').srcdoc=buildPlayer({debug:true,sound:true,doc:previewDocument}).html;
+}
 function openPreview() {
+  previewDocument=null;$('#prevTitle').textContent='Preview';
   exitAllSyms();
   if (S.playing) stopPlay();
   const fr = $('#prevFrame');
@@ -3542,10 +3560,11 @@ function init() {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readTheme(); invalidate(); });
   buildTools(); bindProps(); bindEase(); bindTabs(); bindFluid(); bindAlign(); bindLib();
   $('#crumbBack').addEventListener('click', exitSym);
+  $('#crumbPreview').addEventListener('click',openSymbolPreview);
   $('#bPreview').addEventListener('click', openPreview);
   bindCed();
   $('#prevClose').addEventListener('click', () => { $('#prev').classList.remove('on'); $('#prevFrame').srcdoc = ''; });
-  $('#prevRestart').addEventListener('click', () => { $('#prevErr').textContent = ''; $('#prevFrame').srcdoc = buildPlayerHTML(true, true); });
+  $('#prevRestart').addEventListener('click', () => { $('#prevErr').textContent = ''; $('#prevFrame').srcdoc = buildPlayer({debug:true,sound:true,doc:previewDocument||S.doc}).html; });
   const kfHere = () => { const l = curLayer(); return l && C.kfAt(l, S.frame); };
   $('#kfScript').addEventListener('input', (e) => { const k = kfHere(); if (!k) return; beginEditOnce(); k.script = e.target.value; if (!k.script.trim()) delete k.script; invalidate(); clearTimeout(saveTimer); saveTimer = 0; drawTimeline(); });
   $('#kfLabel').addEventListener('input', (e) => { const k = kfHere(); if (!k) return; beginEditOnce(); k.label = e.target.value.trim(); if (!k.label) delete k.label; clearTimeout(saveTimer); saveTimer = 0; });
@@ -3730,6 +3749,13 @@ init();
   }
   function render(){const used=new Set(usedColors()),p=palette();$k('kBasic').replaceChildren(...basic.map((c,i)=>swatch(c,'basic',i,true)));$k('kCustom').replaceChildren(...manual.map((c,i)=>swatch(c,'custom',i,true)));
     const project=$k('kProject');project.replaceChildren(...p.map((c,i)=>swatch(c,'project',i,used.has(c))));
+    const none=document.createElement('button');none.type='button';none.id='kNone';none.className='kswatch knone';none.textContent='×';
+    const channel=target&&(['fillC','swFill'].includes(target.id)?'fill':['strokeC','swStroke'].includes(target.id)?'stroke':null);
+    none.disabled=!channel;none.title=channel?'No '+channel:'None applies to Fill or Stroke';none.setAttribute('aria-label',channel?'No '+channel:'No color');none.setAttribute('aria-pressed',String(!!channel&&!$k(channel+'On').checked));
+    none.addEventListener('click',()=>{
+      if(!channel)return;editGesture=false;
+      styleEdit({[channel+'On']:false},o=>{o[channel]=null;});syncStyleUI();render();
+    });project.appendChild(none);
     // Show Compact only if there are genuine empty slots. It follows the final swatch.
     if(p.some(c=>c===null)){
       const btn=document.createElement('button');btn.type='button';btn.className='kcompact';btn.textContent='Compact';btn.title='Remove empty project slots without changing color order';

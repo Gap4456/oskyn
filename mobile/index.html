@@ -471,6 +471,15 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 #saveProjectName { display:block; width:100%; box-sizing:border-box; margin-top:8px; min-height:40px; font-size:16px; }
 </style>
 
+<style>
+#crumb { flex-direction:column; align-items:flex-start; gap:4px; }
+.crumb-path-row { display:flex; align-items:center; gap:8px; }
+#crumbPreview { font-size:12px; }
+#kColorLab .knone { color:var(--fg); background:linear-gradient(135deg,transparent 45%,#d32828 46%,#d32828 54%,transparent 55%),var(--cell); font-size:22px; line-height:20px; }
+#kColorLab .knone[aria-pressed="true"] { box-shadow:inset 0 0 0 2px var(--accent); }
+#kColorLab .knone:disabled { opacity:.35; cursor:default; }
+</style>
+
 <style id="oskyn-mobile-style">
 :root { --mobile-safe-top:env(safe-area-inset-top,0px); --mobile-safe-bottom:env(safe-area-inset-bottom,0px); --mobile-safe-left:env(safe-area-inset-left,0px); --mobile-safe-right:env(safe-area-inset-right,0px); }
 /* Touch layout, included only by mobile/build.cjs. */
@@ -721,11 +730,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <button id="boneAngleRemove" type="button" aria-label="Remove joint angle limits" title="Remove this joint’s movement limit" hidden>−</button>
     <button id="boneAngle" type="button" aria-label="Set joint angle limits" aria-expanded="false" title="Set joint angle limits: click, then drag either boundary. Click again or outside to finish." hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="var(--panel)" stroke="currentColor" stroke-width="1.5"/><path d="M9 6a6 6 0 1 1-3 8M12 12 4 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="2" fill="var(--accent-soft)" stroke="currentColor"/></svg></button>
     <div id="toolopts" aria-label="Tool options"><label data-for="rect">Corner <input type="number" id="radius" min="0" max="500" step="1"></label><label data-for="brush">Size <input type="range" id="bsizeR" min="1" max="200" aria-label="Brush size"><input type="number" id="bsize" min="1" max="500" step="1" aria-label="Brush size in pixels"></label><label data-for="brush">Shape <select id="bshape" aria-label="Brush shape"></select></label><label data-for="brush">Angle <input type="range" id="bangleR" min="0" max="180" aria-label="Brush angle"><input type="number" id="bangle" min="0" max="180" step="1" aria-label="Brush angle in degrees">°</label><label data-for="brush">Colour <input type="color" id="bcolor" aria-label="Brush colour"></label><label data-for="brush"><input type="checkbox" id="bpress"> Pressure</label><label data-for="brush"><input type="checkbox" id="bmerge"> Merge strokes</label><label data-for="eraser">Size <input type="range" id="esizeR" min="1" max="200" aria-label="Eraser size"><input type="number" id="esize" min="1" max="500" step="1" aria-label="Eraser size in pixels"></label><label data-for="bucket">Gap size <select id="bgap" aria-label="Gap size for region fill"><option value="none">Close no gaps</option><option value="small">Close small gaps</option><option value="medium">Close medium gaps</option><option value="large">Close large gaps</option></select></label><label data-for="bucket"><input type="checkbox" id="ball"> All layers</label><label data-for="pencil brush">Smoothing <input type="range" id="smooth" min="0" max="100"></label></div>
-    <div id="crumb"><button id="crumbBack" title="Back to scene (Esc)">◀ Back</button><span id="crumbPath"></span></div>
+    <div id="crumb"><div class="crumb-path-row"><button id="crumbBack" title="Back to scene (Esc)">◀ Back</button><span id="crumbPath"></span></div><button id="crumbPreview" title="Preview only the current symbol">▶ Preview symbol</button></div>
     <div id="hud"><span id="hCoord">x 0  y 0</span><span id="hFrame">Frame 1</span><span id="hRecord" hidden role="status"></span><span id="hTool"></span></div>
     <div id="drop">Drop a .fla, .xfl or project file to open</div>
   </main>
-  <div id="prev"><div class="ph"><b>Preview</b><span id="prevErr"></span><span class="grow"></span><button id="prevRestart">Restart</button><button id="prevClose">Close</button></div><iframe id="prevFrame" sandbox="allow-scripts" title="Preview"></iframe></div>
+  <div id="prev"><div class="ph"><b id="prevTitle">Preview</b><span id="prevErr"></span><span class="grow"></span><button id="prevRestart">Restart</button><button id="prevClose">Close</button></div><iframe id="prevFrame" sandbox="allow-scripts" title="Preview"></iframe></div>
 
   <aside id="props" aria-label="Properties">
     <div id="ptabs" role="tablist" aria-label="Property tabs">
@@ -11280,9 +11289,9 @@ function buildPlayer(opts) {
   const controls = opts.controls !== false, zip = opts.pack === 'zip', bgMode = opts.bg || 'stage';
   const core = document.getElementById('fcCore').textContent.replace(/<\/script/gi, '<\\/script');
   const rtm = document.getElementById('fcRuntime').textContent.replace(/<\/script/gi, '<\\/script');
-  let d = S.doc;
+  let d = opts.doc || S.doc;
   if (opts.hidden || bgMode === 'transparent') {
-    d = JSON.parse(JSON.stringify(S.doc, sound ? undefined : noSounds));
+    d = JSON.parse(JSON.stringify(d, sound ? undefined : noSounds));
     if (opts.hidden) { d.layers.forEach((l) => { l.visible = true; }); for (const k of Object.keys(d.lib || {})) d.lib[k].layers.forEach((l) => { l.visible = true; }); }
     if (bgMode === 'transparent') d.bg = 'transparent';
   }
@@ -11322,7 +11331,25 @@ window.addEventListener('resize',fit);fit();
   return { html: head + '<body>' + bodyHtml + '<script id="fcDoc" type="application/json">' + data + '<\/script>\n<script>' + core + '<\/script>\n<script>' + rtm + '<\/script>\n<script>' + boot + '<\/script></body></html>\n' };
 }
 function buildPlayerHTML(debug, withSound) { return buildPlayer({ debug: !!debug, sound: withSound !== false }).html; }
+let previewDocument=null;
+function symbolPreviewDocument(){
+  const sym=S.edit.at(-1)?.sym;if(!sym)return null;
+  const doc=clone(S.doc);doc.name=sym;doc.lib[sym].layers=clone(S.doc.layers);doc.lib[sym].frames=S.doc.frames;
+  // Fit the symbol's key poses without changing any editor coordinates or bindings.
+  const frames=new Set([0,...layers().flatMap(l=>l.kfs.map(k=>k.f))]);let bounds=null;
+  for(const f of frames)for(const {objs} of C.evalDoc(S.doc,f))for(const o of objs){const b=worldBounds(o);if(b)bounds=bounds?{x0:Math.min(bounds.x0,b.x0),y0:Math.min(bounds.y0,b.y0),x1:Math.max(bounds.x1,b.x1),y1:Math.max(bounds.y1,b.y1)}:{...b};}
+  const b=bounds||{x0:-50,y0:-50,x1:50,y1:50},scale=Math.min(1,Math.max(1,doc.w-48)/Math.max(1,b.x1-b.x0),Math.max(1,doc.h-48)/Math.max(1,b.y1-b.y0));
+  const layer=C.mkLayer('Symbol preview');layer.kfs[0].objs=[{id:'symbol-preview',kind:'clip',sym,mode:'loop',first:0,op:1,t:{x:doc.w/2-(b.x0+b.x1)/2*scale,y:doc.h/2-(b.y0+b.y1)/2*scale,sx:scale,sy:scale,r:0}}];doc.layers=[layer];return doc;
+}
+function openSymbolPreview(){
+  if(!S.edit.length)return;
+  if(S.playing)stopPlay();if(REC.armed)recordSetArmed(false);endTextEdit(true);
+  previewDocument=symbolPreviewDocument();$('#prevTitle').textContent='Preview · '+S.edit.at(-1).sym;
+  $('#prevErr').textContent='';$('#prev').classList.add('on');$('#prevFrame').setAttribute('allow','autoplay');
+  $('#prevFrame').srcdoc=buildPlayer({debug:true,sound:true,doc:previewDocument}).html;
+}
 function openPreview() {
+  previewDocument=null;$('#prevTitle').textContent='Preview';
   exitAllSyms();
   if (S.playing) stopPlay();
   const fr = $('#prevFrame');
@@ -12542,10 +12569,11 @@ function init() {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readTheme(); invalidate(); });
   buildTools(); bindProps(); bindEase(); bindTabs(); bindFluid(); bindAlign(); bindLib();
   $('#crumbBack').addEventListener('click', exitSym);
+  $('#crumbPreview').addEventListener('click',openSymbolPreview);
   $('#bPreview').addEventListener('click', openPreview);
   bindCed();
   $('#prevClose').addEventListener('click', () => { $('#prev').classList.remove('on'); $('#prevFrame').srcdoc = ''; });
-  $('#prevRestart').addEventListener('click', () => { $('#prevErr').textContent = ''; $('#prevFrame').srcdoc = buildPlayerHTML(true, true); });
+  $('#prevRestart').addEventListener('click', () => { $('#prevErr').textContent = ''; $('#prevFrame').srcdoc = buildPlayer({debug:true,sound:true,doc:previewDocument||S.doc}).html; });
   const kfHere = () => { const l = curLayer(); return l && C.kfAt(l, S.frame); };
   $('#kfScript').addEventListener('input', (e) => { const k = kfHere(); if (!k) return; beginEditOnce(); k.script = e.target.value; if (!k.script.trim()) delete k.script; invalidate(); clearTimeout(saveTimer); saveTimer = 0; drawTimeline(); });
   $('#kfLabel').addEventListener('input', (e) => { const k = kfHere(); if (!k) return; beginEditOnce(); k.label = e.target.value.trim(); if (!k.label) delete k.label; clearTimeout(saveTimer); saveTimer = 0; });
@@ -12730,6 +12758,13 @@ init();
   }
   function render(){const used=new Set(usedColors()),p=palette();$k('kBasic').replaceChildren(...basic.map((c,i)=>swatch(c,'basic',i,true)));$k('kCustom').replaceChildren(...manual.map((c,i)=>swatch(c,'custom',i,true)));
     const project=$k('kProject');project.replaceChildren(...p.map((c,i)=>swatch(c,'project',i,used.has(c))));
+    const none=document.createElement('button');none.type='button';none.id='kNone';none.className='kswatch knone';none.textContent='×';
+    const channel=target&&(['fillC','swFill'].includes(target.id)?'fill':['strokeC','swStroke'].includes(target.id)?'stroke':null);
+    none.disabled=!channel;none.title=channel?'No '+channel:'None applies to Fill or Stroke';none.setAttribute('aria-label',channel?'No '+channel:'No color');none.setAttribute('aria-pressed',String(!!channel&&!$k(channel+'On').checked));
+    none.addEventListener('click',()=>{
+      if(!channel)return;editGesture=false;
+      styleEdit({[channel+'On']:false},o=>{o[channel]=null;});syncStyleUI();render();
+    });project.appendChild(none);
     // Show Compact only if there are genuine empty slots. It follows the final swatch.
     if(p.some(c=>c===null)){
       const btn=document.createElement('button');btn.type='button';btn.className='kcompact';btn.textContent='Compact';btn.title='Remove empty project slots without changing color order';
