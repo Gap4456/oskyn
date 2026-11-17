@@ -10986,9 +10986,10 @@ async function writeProjectHandle(handle,data){
   try{stream=await handle.createWritable();await stream.write(data);await stream.close();toast('Saved '+handle.name);return true;}
   catch(error){try{await stream?.abort();}catch(_){}toast('Project was not saved. '+(error.message||''));return false;}
 }
-// Unsupported browsers retain the name prompt and download path.
+// Desktop uses the browser/native Save As path without an extra naming form.
 function saveProject(options){
   if(nativeProjectPickerAvailable())return saveProjectWithPicker(options);
+  if(!document.body.classList.contains('oskyn-mobile'))return saveProjectFile(options);
   return new Promise(resolve=>{queueMicrotask(()=>{
   exitAllSyms();const project=projectSession().items.find(p=>p.id===S.projects.active);syncProjectName(project);
   let settled=false;
