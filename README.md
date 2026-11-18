@@ -2,6 +2,8 @@
 
 A browser-based vector animation editor developed by Gap4456 from Dylan Papp's Onionskyn. Draw vectors, edit nodes, animate keyframes, use Bone IK and soft-body controls, work with bitmap masks, and export animations.
 
+[Authors and AI assistance](CREDITS.md): Gap4456, Dylan Papp, ChatGPT (OpenAI), Codex (OpenAI) and Claude (Anthropic).
+
 ## Run
 
 Download this repository and open **oskyn.html** (or **index.html**) in a current Chromium-based browser. The application is self-contained; no server or build step is required to use it. Platform support for audio, video export and desktop colour picking can vary.
@@ -134,6 +136,16 @@ Bitmap masks can still show a thin seam in some edge-overlap situations. A separ
 ## Desktop distribution
 
 The [Electron wrapper and build instructions](desktop/README.md) produce an `app.asar` with the current editor and a native Save / Don’t Save / Cancel close dialog. It waits for every unsaved project to finish saving before closing. The Electron runtime and packaged executables are separate; keep desktop release ZIPs in GitHub Releases and include the original project and dependency licences with them.
+
+## Authors and AI assistance
+
+- **Gap4456** — oskyn maintainer, design direction, testing and development.
+- **Dylan Papp (papptimus)** — original Onionskyn author.
+- **ChatGPT (OpenAI)** — ideas, planning and discussions about oskyn development, including before Codex was used.
+- **Codex (OpenAI)** — AI coding assistant for oskyn implementation, fixes, automated checks and documentation.
+- **Claude (Anthropic)** — AI assistance in the original Onionskyn development, as reported by the maintainer.
+
+See [CREDITS.md](CREDITS.md) for attribution details. AI assistants are credited for their assistance; the original copyright and licence notices remain intact.
 
 ## Origin and notices
 

@@ -918,7 +918,12 @@ function drawOverlay(ctx) {
     if (!cs) continue;
     ctx.beginPath();
     cs.forEach((p, i) => { const q = w2s(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
-    ctx.closePath(); ctx.stroke();
+    ctx.closePath();
+    if(S.tool==='select'&&sels.length>1){
+      ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([9,6]);
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.stroke();
+      ctx.strokeStyle='#171721';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+    }else ctx.stroke();
   }
   const one = sels.length === 1 ? sels[0] : null;
   if (one && S.tool === 'gradient' && gradEditing(one.o)) drawGradHandles(ctx, one.o);
