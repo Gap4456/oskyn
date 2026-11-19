@@ -216,11 +216,11 @@ function pasteWouldCreateSymbolCycle(source) {
 
 /* ---------- Paste Frames: pārraksta kadru diapazonu bez nobīdes ---------- */
 function pasteSelectedFrames(layer, start) {
-  if (!copiedFrames) { toast('Vispirms izmanto Copy Frames.'); return; } // Bez kopijas nav ko ielīmēt
-  if (!layer || layer.locked) { toast('Slānis nav pieejams ielīmēšanai.'); return; } // Aizsargā bloķētu slāni
+  if (!copiedFrames) { protest('Vispirms izmanto Copy Frames.'); return; } // Bez kopijas nav ko ielīmēt
+  if (!layer || layer.locked) { protest('Slānis nav pieejams ielīmēšanai.'); return; } // Aizsargā bloķētu slāni
   if (pasteWouldCreateSymbolCycle(copiedFrames)) { protest('Paste blocked: a symbol cannot contain itself. Copy frames from inside the symbol instead.'); return; } // Novērš bezgalīgu simbolu rekursiju
   const end = start + copiedFrames.count - 1; // Pēdējais pārrakstāmais kadrs
-  if (end >= 900) { toast('Paste Frames: maksimālais projekta garums ir 900 kadri.'); return; } // Dokumenta drošības limits
+  if (end >= 900) { protest('Paste Frames: maksimālais projekta garums ir 900 kadri.'); return; } // Dokumenta drošības limits
   const after = end + 1; // Pirmais kadrs, kuru nedrīkst mainīt
   const oldAfter = after < S.doc.frames ? clone(C.kfAt(layer, after) || C.kfFor(layer, after)) : null; // Saglabā nākamā posma stāvokli
   const oldAfterObjs = after < S.doc.frames ? clone(C.evalLayerObjs(layer, after)) : null; // Saglabā redzamo saturu pēc ielīmēšanas
@@ -229,11 +229,11 @@ function pasteSelectedFrames(layer, start) {
   const targetSpace = frameSpaceMatrix(); // Mērķa koordinātu sistēma
   const sameSpace = JSON.stringify(source.path) === JSON.stringify(S.edit.map(e => e.sym));
   if (!sameSpace && (!source.space || !targetSpace)) {
-    toast('Paste in Place: ambiguous symbol instance. Paste within the same symbol or use a unique instance.');
+    protest('Paste in Place: ambiguous symbol instance. Paste within the same symbol or use a unique instance.');
     return; // Nesabojā kadrus ar minētu nobīdi
   }
   const placement = sameSpace ? null : mmul(minv(targetSpace), source.space); // Avots -> Main -> mērķis
-  if (after < S.doc.frames && !originalBoundary && oldAfter.tween !== 'none') { toast('Paste Frames: robežu šķērso Tween. Vispirms izveido Keyframe aiz ielīmēšanas diapazona.'); return; } // Nepārveido ārējo Tween
+  if (after < S.doc.frames && !originalBoundary && oldAfter.tween !== 'none') { protest('Paste Frames: robežu šķērso Tween. Vispirms izveido Keyframe aiz ielīmēšanas diapazona.'); return; } // Nepārveido ārējo Tween
   const first = clone(source.keyframes.find(k => k.f === source.start) || source.preceding); // Iegūst sākuma kadra saturu
   if (!first) { toast('Copy Frames: trūkst sākuma kadra datu.'); return; } // Drošības pārbaude
   pushUndo(); // Viena Undo darbība visam ielīmējumam
@@ -810,12 +810,13 @@ function refreshSelectionActions(sels){
   const ungroup=unlocked.some(s=>s.o.kind==='group')&&!sels.some(s=>s.o.mirror||s.o.sbind||s.o.skin);
   const enabled={backward,forward,back:backward,front:forward,group,ungroup};
   document.querySelectorAll('#kSelectBar [data-karrange]').forEach(b=>{b.disabled=!enabled[b.dataset.karrange];});
+  return enabled;
 }
 function refreshProps() {
   if (!S.doc) return;
   skeletonPanel();
   const sels = selEval(), one = sels.length === 1 ? sels[0] : null, st = S.style;
-  refreshSelectionActions(sels);refreshEditorHideButtons();
+  const selectionActions=refreshSelectionActions(sels);refreshEditorHideButtons();
   $('#selInfo').textContent = sels.length ? (one ? (one.o.mirror ? 'mirror' : one.o.kind === 'group' ? 'group' : one.o.kind === 'clip' ? 'symbol' : one.o.kind === 'text' ? 'text' : one.o.kind === 'image' ? 'image' : 'path') : sels.length + ' objects') : 'none';
   let src = null;
   if (sels.length) walkPaths(sels[0].o, (p) => { if (!src) src = p; });
@@ -851,7 +852,7 @@ function refreshProps() {
   $('#objBlur').disabled = !sels.length;
   $('#objInvis').checked = !!(one && one.o.invisMask);
   $('#objInvis').disabled = !one || one.o.kind !== 'path';
-  $$('[data-act]').forEach((b) => { b.disabled = !sels.length; });
+  $$('[data-act]').forEach((b) => { b.disabled = ['group','ungroup'].includes(b.dataset.act)?!selectionActions[b.dataset.act]:!sels.length; });
   refreshTransformFields();
   setVal($('#radius'), st.radius); setVal($('#smooth'), st.smooth);
   setVal($('#bsize'), st.bsize); setVal($('#bsizeR'), Math.min(200, st.bsize)); setVal($('#esize'), st.esize || 20); setVal($('#esizeR'), Math.min(200, st.esize || 20)); setVal($('#bshape'), st.bshape); $('#bpress').checked = !!st.bpress; $('#bmerge').checked = st.bmerge !== false; $('#bgap').value = st.bgap || 'small'; $('#ball').checked = !!st.ball; setVal($('#bangle'), st.bangle); setVal($('#bangleR'), st.bangle); setVal($('#bcolor'), st.bcolor); if (window.__angOff) window.__angOff(); fbSync();
@@ -1248,11 +1249,8 @@ function arrange(act) {
   commit();
 }
 function groupSel() {
-  if(selEval().some(s=>s.o.mirror)){toast('Use the mirror checkmark to bake it to paths before grouping.');return;}
-  if(selEval().some(s=>s.o.skel||s.o.sbind||s.o.skin)){toast('Group artwork before attaching it to a skeleton. Detach it first to regroup.');return;}
+  if(!refreshSelectionActions(selEval()).group)return;
   const lids = selLayerIds();
-  if (S.sel.length < 2) { toast('Select two or more objects to group.'); return; }
-  if (lids.length > 1) { toast('Grouping works within a single layer.'); return; }
   const l = getLayer(lids[0]);
   if (l.locked) return;
   pushUndo();
@@ -1271,10 +1269,9 @@ function groupSel() {
   commit();
 }
 function ungroupSel() {
-  if(selEval().some(s=>s.o.mirror)){toast('Use the mirror checkmark to bake it to editable paths.');return;}
-  if(selEval().some(s=>s.o.sbind||s.o.skin)){toast('Detach this group from its bone before ungrouping.');return;}
+  if(!refreshSelectionActions(selEval()).ungroup)return;
   const groups = selEval().filter((s) => s.o.kind === 'group');
-  if (!groups.length) { toast('Select a group to ungroup.'); return; }
+  if (!groups.length) return;
   pushUndo();
   const newSel = [],copies=new Map();
   for (const lid of new Set(groups.map((g) => g.lid))) {
@@ -1405,7 +1402,7 @@ function prepareObjectImport(bundle){
 function pastePortableObjects(bundle,inPlace){
   const l=curLayer();if(!l||l.locked||!l.visible){toast('Pick an unlocked, visible layer to paste into.');return;}
   const destination=inPlace?frameSpaceMatrix():null;
-  if(inPlace&&(!Array.isArray(bundle.space)||bundle.space.length!==6||!bundle.space.every(Number.isFinite)||!destination)){toast('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
+  if(inPlace&&(!Array.isArray(bundle.space)||bundle.space.length!==6||!bundle.space.every(Number.isFinite)||!destination)){protest('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
   const prepared=prepareObjectImport(bundle),b=prepared.bundle;
   pushUndo();
   for(const kind of ['lib','images','sounds'])for(const [name,record] of Object.entries(b[kind])){
@@ -1425,11 +1422,11 @@ let pasteN = 0;
 function pasteClip(inPlace = false) {
   if(objectTransfer&&objectTransfer.source!==clipboardDocumentId()){pastePortableObjects(objectTransfer,inPlace);return;}
   if (!S.clipboard.length) return;
-  if(pasteWouldCreateSymbolCycle({startObjs:S.clipboard})){toast('Paste blocked: a symbol cannot contain itself.');return;}
+  if(pasteWouldCreateSymbolCycle({startObjs:S.clipboard})){protest('Paste blocked: a symbol cannot contain itself.');return;}
   const l = curLayer();
   if (!l || l.locked || !l.visible) { toast('Pick an unlocked, visible layer to paste into.'); return; }
   const destination = inPlace ? frameSpaceMatrix() : null;
-  if(inPlace && (!clipboardSpace || !destination)){toast('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
+  if(inPlace && (!clipboardSpace || !destination)){protest('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
   const placement = inPlace ? mmul(minv(destination),clipboardSpace) : null;
   pushUndo();
   const kf = C.ensureEditable(l, S.frame);
@@ -3249,7 +3246,7 @@ function convertToSymbol() {
   try { convertToSymbolRaw(); } catch (err) { toast('Could not convert: ' + (err && err.message || err)); FCLOG.errs.push('convert: ' + (err && err.stack || err)); }
 }
 function convertToSymbolRaw() {
-  if(selEval().some(s=>s.o.mirror)){toast('Bake the mirror with its checkmark before converting it to a symbol.');return;}
+  if(selEval().some(s=>s.o.mirror)){protest('Bake the mirror with its checkmark before converting it to a symbol.');return;}
   if(selEval().some(s=>s.o.skel||s.o.sbind||s.o.skin)){toast('Convert the artwork before attaching it to a skeleton. Detach it first to convert.');return;}
   if (!S.doc.lib) S.doc.lib = {};
   const sels = selEval();
@@ -3580,6 +3577,7 @@ function init() {
   $('#crumbBack').addEventListener('click', exitSym);
   $('#crumbPreview').addEventListener('click',openSymbolPreview);
   $('#bEditorHide').addEventListener('click',editorHide);
+  $('#bHiddenOutlines').addEventListener('click',()=>{const state=editorHideState();state.outlines=!state.outlines;refreshEditorHideButtons();invalidate();});
   $('#bEditorShow').addEventListener('click',()=>editorShow());
   $('#bEditorShow').addEventListener('contextmenu',e=>{e.preventDefault();editorShowMenu(e.currentTarget);});
   $('#bPreview').addEventListener('click', openPreview);
@@ -3742,7 +3740,7 @@ init();
     else if(existing===c){arr[idx]=c}
     else{
       let gap=arr.findIndex((x,j)=>j>idx&&x===null);
-      if(gap<0){if(holder==='custom'){toast('Custom palette is full (16 colors).');if(sourceIdx>=0)arr[sourceIdx]=c;render();return}gap=arr.length;arr.push(null)}
+      if(gap<0){if(holder==='custom'){protest('Custom palette is full (16 colors).');if(sourceIdx>=0)arr[sourceIdx]=c;render();return}gap=arr.length;arr.push(null)}
       for(let j=gap;j>idx;j--)arr[j]=arr[j-1];
       arr[idx]=c;
     }
@@ -3805,7 +3803,7 @@ init();
     render();
   }
   function apply(color){setSelected(color,true)}
-  function saveAt(idx){const c=norm(selected);if(manual.includes(c)){toast('Color already exists in Custom.');return}if(idx<0||idx>=16){toast('Custom palette is full.');return}manual[idx]=c;persist();render()}
+  function saveAt(idx){const c=norm(selected);if(manual.includes(c)){toast('Color already exists in Custom.');return}if(idx<0||idx>=16){protest('Custom palette is full.');return}manual[idx]=c;persist();render()}
   window.kroganSyncProjectPalette=()=>syncUsed();
   function close(){lab.classList.remove('on');target=null}
   function hsv(h,s,v){const f=n=>{const k=(n+h/60)%6;return Math.round(255*(v-v*s*Math.max(Math.min(k,4-k,1),0)))};return '#'+[f(5),f(3),f(1)].map(n=>n.toString(16).padStart(2,'0')).join('').toUpperCase()}

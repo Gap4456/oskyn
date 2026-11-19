@@ -156,7 +156,7 @@ const nativeSetTab=setTab;setTab=(...args)=>{nativeSetTab(...args);if(mobile.pan
 const nativeSetTool=setTool;setTool=id=>{nativeSetTool(id);if(mobile.panel==='tools'&&!Object.values(mobileMods).some(m=>m.held.size))mobileClosePanel();};
 const nativeHiddenControls=selectionControlsHidden;selectionControlsHidden=()=>S.tool==='select'&&(!mobile.transform||mobileKey('Shift'))||nativeHiddenControls();
 const nativeHitHandle=hitHandle;hitHandle=(handles,x,y)=>{for(const h of handles){const p=w2s(h.x,h.y);if(Math.hypot(p[0]-x,p[1]-y)<=15)return h;}return nativeHitHandle(handles,x,y);};
-const nativeNodeHit=hitNodePart;hitNodePart=(o,x,y)=>{for(let ci=0;ci<o.contours.length;ci++)for(let ni=0;ni<o.contours[ci].nodes.length;ni++){const p=nodeScreen(o,o.contours[ci].nodes[ni],'anchor');if(Math.hypot(p[0]-x,p[1]-y)<=14)return {ci,ni,part:'anchor'};}return nativeNodeHit(o,x,y);};
+const nativeNodeHit=hitNodePart;hitNodePart=(o,x,y)=>{let hit=null,distance=14;for(let ci=0;ci<o.contours.length;ci++)for(let ni=0;ni<o.contours[ci].nodes.length;ni++){const p=nodeScreen(o,o.contours[ci].nodes[ni],'anchor'),d=Math.hypot(p[0]-x,p[1]-y);if(d<distance){distance=d;hit={ci,ni,part:'anchor'};}}return hit||nativeNodeHit(o,x,y);};
 const nativeSkeletonModifiers=skeletonHudModifiers;skeletonHudModifiers=(ctrl,shift)=>nativeSkeletonModifiers(ctrl||mobileKey('Control'),shift||mobileKey('Shift'));
 const nativeFitView=fitView;fitView=()=>{
   if(!stageW||!stageH){nativeFitView();return;}

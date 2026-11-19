@@ -40,6 +40,7 @@
   "src/editor-visibility.js",
   "src/multi-node.js",
   "src/multi-record.js",
+  "src/node-interaction.js",
   "src/app3.js",
   {
     "text": "</script>"

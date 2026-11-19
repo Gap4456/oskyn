@@ -360,9 +360,9 @@ function recordPrepareDrag(d,w) {
   if(REC.drag===d&&REC.live)return true;
   if(Math.hypot(w.x-d.start.x,w.y-d.start.y)*S.view.z<3)return false;
   const one=singleSel(),source=one&&getLayer(one.lid);
-  if(d.type==='skeleton'&&d.mode!=='pose'){S.drag=null;toast('Leave Record mode, then switch to Animate using the hand icon.');return false;}
+  if(d.type==='skeleton'&&d.mode!=='pose'){S.drag=null;protest('Leave Record mode, then switch to Animate using the hand icon.');return false;}
   if(!one||!source||source.locked||!source.visible||source.mask||one.o.rig||one.o.bind||one.o.sbind){
-    S.drag=null;toast('Record: select one unlocked figure on an artwork layer. Bone-bound artwork and mask layers are not supported yet.');return false;
+    S.drag=null;protest('Record: select one unlocked figure on an artwork layer. Bone-bound artwork and mask layers are not supported yet.');return false;
   }
   REC.creationUndo=false;REC.append=false;
   if(!recordValid()||one.lid!==REC.takeId||one.id!==REC.targetId){
@@ -427,7 +427,7 @@ function recordAdvance(now) {
 }
 function recordBegin() {
   if(REC.running||!REC.armed||!REC.held||!REC.live||!REC.drag?.started||!recordValid())return;
-  if(S.frame>=899){toast('Record: the 900-frame timeline limit has been reached.');return;}
+  if(S.frame>=899){protest('Record: the 900-frame timeline limit has been reached.');return;}
   if(!recordAudioReady()){recordAudioWait();return;}
   if(!REC.creationUndo)recordHistory();REC.creationUndo=false;
   const take=getLayer(REC.takeId);

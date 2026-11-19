@@ -485,6 +485,11 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 #kSelectBar .karrange:hover:not(:disabled) { background:var(--panel2); }
 #kSelectBar .karrange:disabled { opacity:.35; cursor:default; }
 </style>
+
+<style>
+#kSelectBar #bHiddenOutlines[hidden] { display:none; }
+#kSelectBar #bHiddenOutlines[aria-pressed="true"] { background:var(--panel2); color:color-mix(in srgb,var(--fg) 50%,var(--panel)); }
+</style>
 <script>
 /*!
 
@@ -582,6 +587,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <button class="tbtn karrange" data-karrange="ungroup" title="Ungroup selected groups (Ctrl+Shift+G)" aria-label="Ungroup selected groups (Ctrl+Shift+G)">U</button>
       <button class="tbtn karrange" id="bEditorHide" title="Hide selected objects or next front object (editor only)">H</button>
       <button class="tbtn karrange" id="bEditorShow" title="Show last hidden (right-click for Show all and outlines)">S</button>
+      <button class="tbtn karrange" id="bHiddenOutlines" title="Show hidden object outlines" aria-label="Show hidden object outlines" aria-pressed="false" hidden><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 8 3.5 2l4 3a8 8 0 0 1 5 0l4-3L17 8c3 12-17 12-14 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.5 2.5"/></svg></button>
     </div>
     <div class="grow"></div>
     <div id="gridControls" role="group" aria-label="Grid controls">
@@ -5118,9 +5124,9 @@ function recordPrepareDrag(d,w) {
   if(REC.drag===d&&REC.live)return true;
   if(Math.hypot(w.x-d.start.x,w.y-d.start.y)*S.view.z<3)return false;
   const one=singleSel(),source=one&&getLayer(one.lid);
-  if(d.type==='skeleton'&&d.mode!=='pose'){S.drag=null;toast('Leave Record mode, then switch to Animate using the hand icon.');return false;}
+  if(d.type==='skeleton'&&d.mode!=='pose'){S.drag=null;protest('Leave Record mode, then switch to Animate using the hand icon.');return false;}
   if(!one||!source||source.locked||!source.visible||source.mask||one.o.rig||one.o.bind||one.o.sbind){
-    S.drag=null;toast('Record: select one unlocked figure on an artwork layer. Bone-bound artwork and mask layers are not supported yet.');return false;
+    S.drag=null;protest('Record: select one unlocked figure on an artwork layer. Bone-bound artwork and mask layers are not supported yet.');return false;
   }
   REC.creationUndo=false;REC.append=false;
   if(!recordValid()||one.lid!==REC.takeId||one.id!==REC.targetId){
@@ -5185,7 +5191,7 @@ function recordAdvance(now) {
 }
 function recordBegin() {
   if(REC.running||!REC.armed||!REC.held||!REC.live||!REC.drag?.started||!recordValid())return;
-  if(S.frame>=899){toast('Record: the 900-frame timeline limit has been reached.');return;}
+  if(S.frame>=899){protest('Record: the 900-frame timeline limit has been reached.');return;}
   if(!recordAudioReady()){recordAudioWait();return;}
   if(!REC.creationUndo)recordHistory();REC.creationUndo=false;
   const take=getLayer(REC.takeId);
@@ -7208,11 +7214,13 @@ function nodeDown(e, p) {
 }
 function hitNodePart(o, sx, sy) {
   const near = (a, r) => Math.hypot(a[0] - sx, a[1] - sy) <= r;
-  // Anchor ALWAYS wins, even if a large handle sits directly on it.
-  for (let ci = 0; ci < o.contours.length; ci++)
-    for (let ni = 0; ni < o.contours[ci].nodes.length; ni++)
-      if (near(nodeScreen(o, o.contours[ci].nodes[ni], 'anchor'), 9))
-        return {ci, ni, part:'anchor'};
+  // The nearest anchor wins, so a newly inserted node remains grabbable in a tight gap.
+  let closest=null,distance=9;
+  for(let ci=0;ci<o.contours.length;ci++)for(let ni=0;ni<o.contours[ci].nodes.length;ni++){
+    const q=nodeScreen(o,o.contours[ci].nodes[ni],'anchor'),d=Math.hypot(q[0]-sx,q[1]-sy);
+    if(d<distance){distance=d;closest={ci,ni,part:'anchor'};}
+  }
+  if(closest)return closest;
   // The same handle list drives display and picking, including facing neighbours.
   for(const {ci,ni,part} of visibleNodeHandles(o)){
     const n=o.contours[ci].nodes[ni];
@@ -7332,7 +7340,8 @@ function nodeDbl(p) {
   if(singleSel()?.o.skin){protest('Detach the soft body before editing nodes.');return;}
   const one = singleSel();
   if (!one || !nodeEditable(one.o) || getLayer(one.lid).locked) return;
-  const hit = hitNodePart(one.o, p.sx, p.sy);
+  let hit = hitNodePart(one.o, p.sx, p.sy);
+  if(hit?.part==='anchor'){const q=nodeScreen(one.o,one.o.contours[hit.ci].nodes[hit.ni],'anchor');if(Math.hypot(q[0]-p.sx,q[1]-p.sy)>4.5)hit=null;}
   if (hit && hit.part === 'anchor') {
     pushUndo(); C.ensureEditable(getLayer(one.lid), S.frame);
     const o = findEditable(one.lid, one.id), c = o.contours[hit.ci], n = c.nodes[hit.ni];
@@ -7348,7 +7357,7 @@ function nodeDbl(p) {
     S.nodeSel = { ci: hit.ci, ni: hit.ni };
     C.constrainImageMask(o);commit(); return;
   }
-  if (hit) return;
+  // A control handle never blocks double-click subdivision of the actual curve.
   const curve=kCurveHit(one.o,p.sx,p.sy);
   if (!curve) return;
   const best={ci:curve.ci,i:curve.ni,t:Math.max(0.001,Math.min(0.999,curve.t))};
@@ -8731,16 +8740,16 @@ function mirrorSources(){
   return C.evalLayerObjs(l,S.frame).filter(o=>o.kind==='path'&&!o.skel&&!o.invisMask&&o.fill!=null&&o.contours.some(c=>c.closed)&&(MIR.ids==null||MIR.ids.includes(o.id)));
 }
 function mirrorBegin(){
-  if(REC.armed){toast('Leave Record mode before opening a mirror.');return false;}
+  if(REC.armed){protest('Leave Record mode before opening a mirror.');return false;}
   const selected=selEval(),existing=selected.length===1&&selected[0].o.mirror?selected[0]:null;
   if(existing){MIR.active=true;MIR.placing=false;MIR.id=existing.id;MIR.lid=existing.lid;MIR.scope=mirrorScope();MIR.near=true;mirrorSync();setTool('mirror');invalidate();return true;}
   if(MIR.active&&MIR.id){mirrorSync();if(!MIR.box)mirrorCancel();}
   if(MIR.active){setTool('mirror');MIR.near=true;invalidate();return true;}
   const lids=new Set(selected.map(s=>s.lid));
-  if(lids.size>1){toast('Mirror: select filled vector paths on one layer.');return false;}
+  if(lids.size>1){protest('Mirror: select filled vector paths on one layer.');return false;}
   const layer=selected.length?getLayer(selected[0].lid):curLayer();
-  if(!layer||layer.locked||layer.visible===false){toast('Mirror: choose an unlocked visible layer.');return false;}
-  if(selected.some(s=>s.o.kind!=='path'||s.o.skel||s.o.fill==null)){toast('Mirror currently works with filled vector paths.');return false;}
+  if(!layer||layer.locked||layer.visible===false){protest('Mirror: choose an unlocked visible layer.');return false;}
+  if(selected.some(s=>s.o.kind!=='path'||s.o.skel||s.o.fill==null)){protest('Mirror currently works with filled vector paths.');return false;}
   MIR.active=true;MIR.placing=true;MIR.id=null;MIR.box=null;MIR.lid=MIR.sourceLid=layer.id;MIR.ids=selected.length?selected.map(s=>s.id):null;MIR.scope=mirrorScope();MIR.near=true;setTool('mirror');invalidate();return true;
 }
 function mirrorCancel(){MIR.active=false;MIR.placing=false;MIR.id=null;MIR.box=null;MIR.near=false;MIR.palette=null;const hud=$('#mirrorHud');if(hud)hud.hidden=true;if(S.drag?.type==='mirror')S.drag=null;}
@@ -8840,7 +8849,7 @@ function mirrorBoolean(a,b,op,template){
 function mirrorApply(){
   mirrorSync();
   if(MIR.busy||!MIR.active||!MIR.box)return;
-  const layer=getLayer(MIR.lid),sources=mirrorSources();if(sources.some(o=>o._softParts)){toast('Detach the ordered soft body before baking its mirror.');return;}if(!layer||layer.locked||!sources.length){toast('Mirror: no editable filled vector paths in the frame.');return;}
+  const layer=getLayer(MIR.lid),sources=mirrorSources();if(sources.some(o=>o._softParts)){protest('Detach the ordered soft body before baking its mirror.');return;}if(!layer||layer.locked||!sources.length){protest('Mirror: no editable filled vector paths in the frame.');return;}
   MIR.busy=true;
   try{
     const b=MIR.box,frame=C.mkPath([{closed:true,nodes:[[0,-b.h/2],[b.w,-b.h/2],[b.w,b.h/2],[0,b.h/2]].map(p=>C.node(...p))}],{fill:'#000000'},{x:b.x,y:b.y,r:b.r,sx:b.sx??1,sy:b.sy??1}),reflection=mirrorReflection(),plans=new Map();
@@ -8857,7 +8866,7 @@ function mirrorApply(){
       else {if(visible){visible.id=source.id;objects.push(visible);}if(clipped){clipped.id=uid();objects.push(clipped);}}
       plans.set(source.id,{objects});
     }
-    if(!plans.size){toast('Move the mirror so the reflected drawing enters its frame.');return;}
+    if(!plans.size){protest('Move the mirror so the reflected drawing enters its frame.');return;}
     pushUndo();if(!C.kfAt(layer,S.frame))C.insertKeyframe(layer,S.frame,false);const key=C.ensureEditable(layer,S.frame),next=[],selected=[];
     for(const o of key.objs){if(o.id===MIR.id)continue;const plan=plans.get(o.id);if(!plan){next.push(o);continue;}next.push(...plan.objects);selected.push(...plan.objects.map(out=>({lid:layer.id,id:out.id})));}
     key.objs=next;S.sel=selected;S.nodeSel=null;S.kNodeSelection=[];mirrorCancel();setTool('select');commit();refreshAll();toast('Mirror saved as vector artwork. Overlapping reflections were joined with Union.');
@@ -8922,11 +8931,12 @@ function editorShow(all=false){
 }
 function refreshEditorHideButtons(){
   const hide=$('#bEditorHide'),show=$('#bEditorShow');if(!hide||!show)return;
-  hide.disabled=!editorHideCandidates().length;show.disabled=!editorHideState().stack.length;
+  const state=editorHideState(),hidden=state.stack.some(group=>group.some(r=>{const l=getLayer(r.lid);return l&&l.visible!==false&&C.evalLayerObjs(l,S.frame).some(o=>o.id===r.id);}));hide.disabled=!editorHideCandidates().length;show.disabled=!state.stack.length;
+  const outlines=$('#bHiddenOutlines');if(outlines){outlines.hidden=!hidden;outlines.setAttribute('aria-pressed',String(state.outlines));outlines.title=state.outlines?'Hide hidden object outlines':'Show hidden object outlines';outlines.setAttribute('aria-label',outlines.title);}
 }
 function editorHiddenEntries(entries){return entries.map(e=>({...e,objs:e.objs.filter(o=>!editorObjectHidden(e.layer.id,o.id))}));}
 function editorShowMenu(button){
-  const state=editorHideState();showMenu(button,[{label:'Show last hidden',disabled:!state.stack.length,fn:()=>editorShow()}, {label:'Show all hidden',disabled:!state.stack.length,fn:()=>editorShow(true)},'-',{label:(state.outlines?'✓ ':'')+'Show hidden outlines',fn:()=>{state.outlines=!state.outlines;invalidate();}}]);
+  const state=editorHideState();showMenu(button,[{label:'Show last hidden',disabled:!state.stack.length,fn:()=>editorShow()}, {label:'Show all hidden',disabled:!state.stack.length,fn:()=>editorShow(true)},'-',{label:(state.outlines?'✓ ':'')+'Show hidden outlines',fn:()=>{state.outlines=!state.outlines;refreshEditorHideButtons();invalidate();}}]);
 }
 const editorHideNativeOverlay=drawOverlay;
 drawOverlay=function(ctx){
@@ -8960,9 +8970,11 @@ function multiNodeContext(one,fn,refs=multiNodeRefs()){
 function multiNodeHit(p){
   const objects=multiNodeObjects().slice().reverse();
   // Anchors of every open figure win over any figure's curve handles.
+  let closest=null,distance=10;
   for(const one of objects)for(let ci=0;ci<one.o.contours.length;ci++)for(let ni=0;ni<one.o.contours[ci].nodes.length;ni++){
-    const q=nodeScreen(one.o,one.o.contours[ci].nodes[ni],'anchor');if(Math.hypot(q[0]-p.sx,q[1]-p.sy)<=10)return {one,ci,ni,part:'anchor'};
+    const q=nodeScreen(one.o,one.o.contours[ci].nodes[ni],'anchor'),d=Math.hypot(q[0]-p.sx,q[1]-p.sy);if(d<distance){distance=d;closest={one,ci,ni,part:'anchor'};}
   }
+  if(closest)return closest;
   for(const one of objects){const hit=multiNodeContext(one,()=>hitNodePart(one.o,p.sx,p.sy));if(hit)return {one,...hit};}
   return null;
 }
@@ -9164,7 +9176,7 @@ const multiRecordNativeBegin=recordBegin;
 recordBegin=function(){
   if(!MULTIREC)return multiRecordNativeBegin();
   if(REC.running||!REC.armed||!REC.held||!REC.drag?.started||!multiRecordValid())return;
-  if(S.frame>=899){toast('Record: the 900-frame timeline limit has been reached.');return;}
+  if(S.frame>=899){protest('Record: the 900-frame timeline limit has been reached.');return;}
   if(!recordAudioReady()){recordAudioWait();return;}
   if(!REC.creationUndo)recordHistory();REC.creationUndo=false;
   const start=MULTIREC.append&&REC.lastFrame===S.frame?S.frame+1:S.frame;REC.startFrame=start;
@@ -9198,6 +9210,72 @@ recordEntries=function(entries,frame){
 };
 const multiRecordNativeFind=findEval;
 findEval=function(lid,id){const t=MULTIREC?.targets.find(t=>t.lid===lid&&t.id===id);return t&&REC.armed?multiRecordPose(t,S.frame):multiRecordNativeFind(lid,id);};
+/* Handle visibility is editor state. New nodes retain exact subdivision until
+   their first anchor drag, which straightens only their adjacent segments. */
+const NODE_UI={hidden:new Map(),fresh:new Set(),lastToggle:null};
+function nodeUiKey(one,ci,ni){const n=one.o.contours[ci]?.nodes[ni];return JSON.stringify([S.projects?.active||'',S.edit.map(e=>e.sym),one.lid,one.id,ci,n?.mid||ni]);}
+function nodeUiObjects(){const one=singleSel();return multiNodeActive()?multiNodeObjects():one&&nodeEditable(one.o)&&!one.o.skin&&!one.o.skel&&!one.o.rig?[one]:[];}
+const nodeUiNativeHandles=visibleNodeHandles;
+visibleNodeHandles=function(o){
+  const one=singleSel();if(!one||one.o.id!==o.id)return nodeUiNativeHandles(o);
+  const keys=S.kNodeSelection,node=S.nodeSel,selected=kNodeKeys().filter(k=>{const r=kNodeFromKey(k);return !NODE_UI.hidden.get(nodeUiKey(one,r.ci,r.ni));});
+  S.kNodeSelection=selected;S.nodeSel=selected.length?kNodeFromKey(selected.at(-1)):null;
+  try{return nodeUiNativeHandles(o).filter(r=>!NODE_UI.hidden.get(nodeUiKey(one,r.ci,r.ni)));}finally{S.kNodeSelection=keys;S.nodeSel=node;}
+};
+const nodeUiNativeDown=nodeDown;
+nodeDown=function(e,p){
+  const selected=[];
+  if(!REC.armed&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey){
+    for(const one of nodeUiObjects()){
+      const refs=multiNodeActive()?multiNodeRefs().filter(r=>multiNodeSame(r,one)):kNodeKeys().map(k=>({...kNodeFromKey(k),lid:one.lid,id:one.id}));
+      selected.push(...refs);
+    }
+  }
+  nodeUiNativeDown(e,p);const d=S.drag;
+  if(d?.type==='node'&&d.part==='anchor'&&selected.some(r=>r.lid===d.lid&&r.id===d.id&&r.ci===d.ci&&r.ni===d.ni)){
+    const o=findEval(d.lid,d.id),q=o&&nodeScreen(o,o.contours[d.ci].nodes[d.ni],'anchor');
+    if(q&&Math.hypot(q[0]-p.sx,q[1]-p.sy)<=4.5)d.nodeUiToggle=nodeUiKey({lid:d.lid,id:d.id,o},d.ci,d.ni);
+  }
+};
+const nodeUiNativeUp=onUp;
+onUp=function(e){
+  const d=S.drag;
+  if(d?.nodeUiToggle&&!d.started&&e.type!=='pointercancel'){
+    const previous=!!NODE_UI.hidden.get(d.nodeUiToggle),recent=NODE_UI.lastToggle?.key===d.nodeUiToggle&&performance.now()-NODE_UI.lastToggle.time<500?NODE_UI.lastToggle:null;NODE_UI.hidden.set(d.nodeUiToggle,!previous);NODE_UI.lastToggle={key:d.nodeUiToggle,previous:recent?recent.previous:previous,time:performance.now()};
+  }return nodeUiNativeUp(e);
+};
+const nodeUiNativeDouble=nodeDbl;
+nodeDbl=function(p){
+  const before=nodeUiObjects().map(one=>({lid:one.lid,id:one.id,lengths:one.o.contours.map(c=>c.nodes.length),mids:one.o.contours.flatMap(c=>c.nodes.map(n=>n.mid)).filter(Boolean)}));
+  if(NODE_UI.lastToggle&&performance.now()-NODE_UI.lastToggle.time<700){NODE_UI.hidden.set(NODE_UI.lastToggle.key,NODE_UI.lastToggle.previous);NODE_UI.lastToggle=null;}
+  nodeUiNativeDouble(p);
+  for(const old of before){const o=findEval(old.lid,old.id);if(!o)continue;const ci=o.contours.findIndex((c,i)=>c.nodes.length===(old.lengths[i]||0)+1);if(ci<0)continue;
+    // The inserted anchor has a fresh morph identity and a birth record.
+    const ni=o.contours[ci].nodes.findIndex(n=>n.birth&&!old.mids.includes(n.mid));
+    if(ni<0)continue;const one={lid:old.lid,id:old.id,o},key=nodeUiKey(one,ci,ni);NODE_UI.fresh.add(key);NODE_UI.hidden.set(key,true);
+    if(S.sel.length>1)S.multiNodeRefs=[...multiNodeRefs().filter(r=>!multiNodeSame(r,one)),{lid:one.lid,id:one.id,ci,ni}];
+    else {S.nodeSel={ci,ni};S.kNodeSelection=[ci+':'+ni];}
+  }invalidate();
+};
+function nodeUiStraighten(one,ci,ni){
+  const c=one.o.contours[ci],n=c?.nodes[ni];if(!n||!NODE_UI.fresh.has(nodeUiKey(one,ci,ni)))return;
+  n.ix=n.iy=n.ox=n.oy=0;n.s=false;
+  if(ni>0||c.closed){const prev=c.nodes[(ni+c.nodes.length-1)%c.nodes.length];prev.ox=prev.oy=0;prev.s=false;}
+  if(ni+1<c.nodes.length||c.closed){const next=c.nodes[(ni+1)%c.nodes.length];next.ix=next.iy=0;next.s=false;}
+}
+const nodeUiNativeDrag=nodeDrag;
+nodeDrag=function(w,e){
+  const d=S.drag,started=d.started;nodeUiNativeDrag(w,e);if(!d.started||REC.armed)return;
+  if(d.part==='anchor'&&!started){
+    if(d.items)for(const item of d.items)nodeUiStraighten({lid:item.lid,id:item.id,o:item.o},item.ci,item.ni);
+    else if(d.o){const keys=d.groupKeys||[d.ci+':'+d.ni];for(const k of keys){const r=kNodeFromKey(k);nodeUiStraighten({lid:d.lid,id:d.id,o:d.o},r.ci,r.ni);}}
+  }else if(d.part!=='anchor'&&d.o){const key=nodeUiKey({lid:d.lid,id:d.id,o:d.o},d.ci,d.ni);NODE_UI.fresh.delete(key);NODE_UI.hidden.set(key,false);}
+};
+const nodeUiNativeCurve=kCurveDrag;
+kCurveDrag=function(w){
+  nodeUiNativeCurve(w);const d=S.drag;if(!d?.started||!d.o)return;const c=d.o.contours[d.ci];
+  for(const ni of [d.ni,(d.ni+1)%c.nodes.length]){const key=nodeUiKey({lid:d.lid,id:d.id,o:d.o},d.ci,ni);NODE_UI.hidden.set(key,false);NODE_UI.fresh.delete(key);}invalidate();
+};
 const tlC = $('#tlCells'), tlR = $('#tlRuler'), tctx = tlC.getContext('2d'), rctx = tlR.getContext('2d');
 const tlScroll = $('#tlScroll');
 const MONO = '10.5px "IBM Plex Mono", ui-monospace, Menlo, monospace';
@@ -9416,11 +9494,11 @@ function pasteWouldCreateSymbolCycle(source) {
 
 /* ---------- Paste Frames: pārraksta kadru diapazonu bez nobīdes ---------- */
 function pasteSelectedFrames(layer, start) {
-  if (!copiedFrames) { toast('Vispirms izmanto Copy Frames.'); return; } // Bez kopijas nav ko ielīmēt
-  if (!layer || layer.locked) { toast('Slānis nav pieejams ielīmēšanai.'); return; } // Aizsargā bloķētu slāni
+  if (!copiedFrames) { protest('Vispirms izmanto Copy Frames.'); return; } // Bez kopijas nav ko ielīmēt
+  if (!layer || layer.locked) { protest('Slānis nav pieejams ielīmēšanai.'); return; } // Aizsargā bloķētu slāni
   if (pasteWouldCreateSymbolCycle(copiedFrames)) { protest('Paste blocked: a symbol cannot contain itself. Copy frames from inside the symbol instead.'); return; } // Novērš bezgalīgu simbolu rekursiju
   const end = start + copiedFrames.count - 1; // Pēdējais pārrakstāmais kadrs
-  if (end >= 900) { toast('Paste Frames: maksimālais projekta garums ir 900 kadri.'); return; } // Dokumenta drošības limits
+  if (end >= 900) { protest('Paste Frames: maksimālais projekta garums ir 900 kadri.'); return; } // Dokumenta drošības limits
   const after = end + 1; // Pirmais kadrs, kuru nedrīkst mainīt
   const oldAfter = after < S.doc.frames ? clone(C.kfAt(layer, after) || C.kfFor(layer, after)) : null; // Saglabā nākamā posma stāvokli
   const oldAfterObjs = after < S.doc.frames ? clone(C.evalLayerObjs(layer, after)) : null; // Saglabā redzamo saturu pēc ielīmēšanas
@@ -9429,11 +9507,11 @@ function pasteSelectedFrames(layer, start) {
   const targetSpace = frameSpaceMatrix(); // Mērķa koordinātu sistēma
   const sameSpace = JSON.stringify(source.path) === JSON.stringify(S.edit.map(e => e.sym));
   if (!sameSpace && (!source.space || !targetSpace)) {
-    toast('Paste in Place: ambiguous symbol instance. Paste within the same symbol or use a unique instance.');
+    protest('Paste in Place: ambiguous symbol instance. Paste within the same symbol or use a unique instance.');
     return; // Nesabojā kadrus ar minētu nobīdi
   }
   const placement = sameSpace ? null : mmul(minv(targetSpace), source.space); // Avots -> Main -> mērķis
-  if (after < S.doc.frames && !originalBoundary && oldAfter.tween !== 'none') { toast('Paste Frames: robežu šķērso Tween. Vispirms izveido Keyframe aiz ielīmēšanas diapazona.'); return; } // Nepārveido ārējo Tween
+  if (after < S.doc.frames && !originalBoundary && oldAfter.tween !== 'none') { protest('Paste Frames: robežu šķērso Tween. Vispirms izveido Keyframe aiz ielīmēšanas diapazona.'); return; } // Nepārveido ārējo Tween
   const first = clone(source.keyframes.find(k => k.f === source.start) || source.preceding); // Iegūst sākuma kadra saturu
   if (!first) { toast('Copy Frames: trūkst sākuma kadra datu.'); return; } // Drošības pārbaude
   pushUndo(); // Viena Undo darbība visam ielīmējumam
@@ -10010,12 +10088,13 @@ function refreshSelectionActions(sels){
   const ungroup=unlocked.some(s=>s.o.kind==='group')&&!sels.some(s=>s.o.mirror||s.o.sbind||s.o.skin);
   const enabled={backward,forward,back:backward,front:forward,group,ungroup};
   document.querySelectorAll('#kSelectBar [data-karrange]').forEach(b=>{b.disabled=!enabled[b.dataset.karrange];});
+  return enabled;
 }
 function refreshProps() {
   if (!S.doc) return;
   skeletonPanel();
   const sels = selEval(), one = sels.length === 1 ? sels[0] : null, st = S.style;
-  refreshSelectionActions(sels);refreshEditorHideButtons();
+  const selectionActions=refreshSelectionActions(sels);refreshEditorHideButtons();
   $('#selInfo').textContent = sels.length ? (one ? (one.o.mirror ? 'mirror' : one.o.kind === 'group' ? 'group' : one.o.kind === 'clip' ? 'symbol' : one.o.kind === 'text' ? 'text' : one.o.kind === 'image' ? 'image' : 'path') : sels.length + ' objects') : 'none';
   let src = null;
   if (sels.length) walkPaths(sels[0].o, (p) => { if (!src) src = p; });
@@ -10051,7 +10130,7 @@ function refreshProps() {
   $('#objBlur').disabled = !sels.length;
   $('#objInvis').checked = !!(one && one.o.invisMask);
   $('#objInvis').disabled = !one || one.o.kind !== 'path';
-  $$('[data-act]').forEach((b) => { b.disabled = !sels.length; });
+  $$('[data-act]').forEach((b) => { b.disabled = ['group','ungroup'].includes(b.dataset.act)?!selectionActions[b.dataset.act]:!sels.length; });
   refreshTransformFields();
   setVal($('#radius'), st.radius); setVal($('#smooth'), st.smooth);
   setVal($('#bsize'), st.bsize); setVal($('#bsizeR'), Math.min(200, st.bsize)); setVal($('#esize'), st.esize || 20); setVal($('#esizeR'), Math.min(200, st.esize || 20)); setVal($('#bshape'), st.bshape); $('#bpress').checked = !!st.bpress; $('#bmerge').checked = st.bmerge !== false; $('#bgap').value = st.bgap || 'small'; $('#ball').checked = !!st.ball; setVal($('#bangle'), st.bangle); setVal($('#bangleR'), st.bangle); setVal($('#bcolor'), st.bcolor); if (window.__angOff) window.__angOff(); fbSync();
@@ -10448,11 +10527,8 @@ function arrange(act) {
   commit();
 }
 function groupSel() {
-  if(selEval().some(s=>s.o.mirror)){toast('Use the mirror checkmark to bake it to paths before grouping.');return;}
-  if(selEval().some(s=>s.o.skel||s.o.sbind||s.o.skin)){toast('Group artwork before attaching it to a skeleton. Detach it first to regroup.');return;}
+  if(!refreshSelectionActions(selEval()).group)return;
   const lids = selLayerIds();
-  if (S.sel.length < 2) { toast('Select two or more objects to group.'); return; }
-  if (lids.length > 1) { toast('Grouping works within a single layer.'); return; }
   const l = getLayer(lids[0]);
   if (l.locked) return;
   pushUndo();
@@ -10471,10 +10547,9 @@ function groupSel() {
   commit();
 }
 function ungroupSel() {
-  if(selEval().some(s=>s.o.mirror)){toast('Use the mirror checkmark to bake it to editable paths.');return;}
-  if(selEval().some(s=>s.o.sbind||s.o.skin)){toast('Detach this group from its bone before ungrouping.');return;}
+  if(!refreshSelectionActions(selEval()).ungroup)return;
   const groups = selEval().filter((s) => s.o.kind === 'group');
-  if (!groups.length) { toast('Select a group to ungroup.'); return; }
+  if (!groups.length) return;
   pushUndo();
   const newSel = [],copies=new Map();
   for (const lid of new Set(groups.map((g) => g.lid))) {
@@ -10605,7 +10680,7 @@ function prepareObjectImport(bundle){
 function pastePortableObjects(bundle,inPlace){
   const l=curLayer();if(!l||l.locked||!l.visible){toast('Pick an unlocked, visible layer to paste into.');return;}
   const destination=inPlace?frameSpaceMatrix():null;
-  if(inPlace&&(!Array.isArray(bundle.space)||bundle.space.length!==6||!bundle.space.every(Number.isFinite)||!destination)){toast('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
+  if(inPlace&&(!Array.isArray(bundle.space)||bundle.space.length!==6||!bundle.space.every(Number.isFinite)||!destination)){protest('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
   const prepared=prepareObjectImport(bundle),b=prepared.bundle;
   pushUndo();
   for(const kind of ['lib','images','sounds'])for(const [name,record] of Object.entries(b[kind])){
@@ -10625,11 +10700,11 @@ let pasteN = 0;
 function pasteClip(inPlace = false) {
   if(objectTransfer&&objectTransfer.source!==clipboardDocumentId()){pastePortableObjects(objectTransfer,inPlace);return;}
   if (!S.clipboard.length) return;
-  if(pasteWouldCreateSymbolCycle({startObjs:S.clipboard})){toast('Paste blocked: a symbol cannot contain itself.');return;}
+  if(pasteWouldCreateSymbolCycle({startObjs:S.clipboard})){protest('Paste blocked: a symbol cannot contain itself.');return;}
   const l = curLayer();
   if (!l || l.locked || !l.visible) { toast('Pick an unlocked, visible layer to paste into.'); return; }
   const destination = inPlace ? frameSpaceMatrix() : null;
-  if(inPlace && (!clipboardSpace || !destination)){toast('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
+  if(inPlace && (!clipboardSpace || !destination)){protest('Paste in Place: open a unique symbol instance to preserve the scene position.');return;}
   const placement = inPlace ? mmul(minv(destination),clipboardSpace) : null;
   pushUndo();
   const kf = C.ensureEditable(l, S.frame);
@@ -12449,7 +12524,7 @@ function convertToSymbol() {
   try { convertToSymbolRaw(); } catch (err) { toast('Could not convert: ' + (err && err.message || err)); FCLOG.errs.push('convert: ' + (err && err.stack || err)); }
 }
 function convertToSymbolRaw() {
-  if(selEval().some(s=>s.o.mirror)){toast('Bake the mirror with its checkmark before converting it to a symbol.');return;}
+  if(selEval().some(s=>s.o.mirror)){protest('Bake the mirror with its checkmark before converting it to a symbol.');return;}
   if(selEval().some(s=>s.o.skel||s.o.sbind||s.o.skin)){toast('Convert the artwork before attaching it to a skeleton. Detach it first to convert.');return;}
   if (!S.doc.lib) S.doc.lib = {};
   const sels = selEval();
@@ -12780,6 +12855,7 @@ function init() {
   $('#crumbBack').addEventListener('click', exitSym);
   $('#crumbPreview').addEventListener('click',openSymbolPreview);
   $('#bEditorHide').addEventListener('click',editorHide);
+  $('#bHiddenOutlines').addEventListener('click',()=>{const state=editorHideState();state.outlines=!state.outlines;refreshEditorHideButtons();invalidate();});
   $('#bEditorShow').addEventListener('click',()=>editorShow());
   $('#bEditorShow').addEventListener('contextmenu',e=>{e.preventDefault();editorShowMenu(e.currentTarget);});
   $('#bPreview').addEventListener('click', openPreview);
@@ -12942,7 +13018,7 @@ init();
     else if(existing===c){arr[idx]=c}
     else{
       let gap=arr.findIndex((x,j)=>j>idx&&x===null);
-      if(gap<0){if(holder==='custom'){toast('Custom palette is full (16 colors).');if(sourceIdx>=0)arr[sourceIdx]=c;render();return}gap=arr.length;arr.push(null)}
+      if(gap<0){if(holder==='custom'){protest('Custom palette is full (16 colors).');if(sourceIdx>=0)arr[sourceIdx]=c;render();return}gap=arr.length;arr.push(null)}
       for(let j=gap;j>idx;j--)arr[j]=arr[j-1];
       arr[idx]=c;
     }
@@ -13005,7 +13081,7 @@ init();
     render();
   }
   function apply(color){setSelected(color,true)}
-  function saveAt(idx){const c=norm(selected);if(manual.includes(c)){toast('Color already exists in Custom.');return}if(idx<0||idx>=16){toast('Custom palette is full.');return}manual[idx]=c;persist();render()}
+  function saveAt(idx){const c=norm(selected);if(manual.includes(c)){toast('Color already exists in Custom.');return}if(idx<0||idx>=16){protest('Custom palette is full.');return}manual[idx]=c;persist();render()}
   window.kroganSyncProjectPalette=()=>syncUsed();
   function close(){lab.classList.remove('on');target=null}
   function hsv(h,s,v){const f=n=>{const k=(n+h/60)%6;return Math.round(255*(v-v*s*Math.max(Math.min(k,4-k,1),0)))};return '#'+[f(5),f(3),f(1)].map(n=>n.toString(16).padStart(2,'0')).join('').toUpperCase()}

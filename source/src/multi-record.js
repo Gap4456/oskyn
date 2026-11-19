@@ -67,7 +67,7 @@ const multiRecordNativeBegin=recordBegin;
 recordBegin=function(){
   if(!MULTIREC)return multiRecordNativeBegin();
   if(REC.running||!REC.armed||!REC.held||!REC.drag?.started||!multiRecordValid())return;
-  if(S.frame>=899){toast('Record: the 900-frame timeline limit has been reached.');return;}
+  if(S.frame>=899){protest('Record: the 900-frame timeline limit has been reached.');return;}
   if(!recordAudioReady()){recordAudioWait();return;}
   if(!REC.creationUndo)recordHistory();REC.creationUndo=false;
   const start=MULTIREC.append&&REC.lastFrame===S.frame?S.frame+1:S.frame;REC.startFrame=start;

@@ -18,9 +18,11 @@ function multiNodeContext(one,fn,refs=multiNodeRefs()){
 function multiNodeHit(p){
   const objects=multiNodeObjects().slice().reverse();
   // Anchors of every open figure win over any figure's curve handles.
+  let closest=null,distance=10;
   for(const one of objects)for(let ci=0;ci<one.o.contours.length;ci++)for(let ni=0;ni<one.o.contours[ci].nodes.length;ni++){
-    const q=nodeScreen(one.o,one.o.contours[ci].nodes[ni],'anchor');if(Math.hypot(q[0]-p.sx,q[1]-p.sy)<=10)return {one,ci,ni,part:'anchor'};
+    const q=nodeScreen(one.o,one.o.contours[ci].nodes[ni],'anchor'),d=Math.hypot(q[0]-p.sx,q[1]-p.sy);if(d<distance){distance=d;closest={one,ci,ni,part:'anchor'};}
   }
+  if(closest)return closest;
   for(const one of objects){const hit=multiNodeContext(one,()=>hitNodePart(one.o,p.sx,p.sy));if(hit)return {one,...hit};}
   return null;
 }

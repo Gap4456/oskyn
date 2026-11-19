@@ -1438,11 +1438,13 @@ function nodeDown(e, p) {
 }
 function hitNodePart(o, sx, sy) {
   const near = (a, r) => Math.hypot(a[0] - sx, a[1] - sy) <= r;
-  // Anchor ALWAYS wins, even if a large handle sits directly on it.
-  for (let ci = 0; ci < o.contours.length; ci++)
-    for (let ni = 0; ni < o.contours[ci].nodes.length; ni++)
-      if (near(nodeScreen(o, o.contours[ci].nodes[ni], 'anchor'), 9))
-        return {ci, ni, part:'anchor'};
+  // The nearest anchor wins, so a newly inserted node remains grabbable in a tight gap.
+  let closest=null,distance=9;
+  for(let ci=0;ci<o.contours.length;ci++)for(let ni=0;ni<o.contours[ci].nodes.length;ni++){
+    const q=nodeScreen(o,o.contours[ci].nodes[ni],'anchor'),d=Math.hypot(q[0]-sx,q[1]-sy);
+    if(d<distance){distance=d;closest={ci,ni,part:'anchor'};}
+  }
+  if(closest)return closest;
   // The same handle list drives display and picking, including facing neighbours.
   for(const {ci,ni,part} of visibleNodeHandles(o)){
     const n=o.contours[ci].nodes[ni];
@@ -1562,7 +1564,8 @@ function nodeDbl(p) {
   if(singleSel()?.o.skin){protest('Detach the soft body before editing nodes.');return;}
   const one = singleSel();
   if (!one || !nodeEditable(one.o) || getLayer(one.lid).locked) return;
-  const hit = hitNodePart(one.o, p.sx, p.sy);
+  let hit = hitNodePart(one.o, p.sx, p.sy);
+  if(hit?.part==='anchor'){const q=nodeScreen(one.o,one.o.contours[hit.ci].nodes[hit.ni],'anchor');if(Math.hypot(q[0]-p.sx,q[1]-p.sy)>4.5)hit=null;}
   if (hit && hit.part === 'anchor') {
     pushUndo(); C.ensureEditable(getLayer(one.lid), S.frame);
     const o = findEditable(one.lid, one.id), c = o.contours[hit.ci], n = c.nodes[hit.ni];
@@ -1578,7 +1581,7 @@ function nodeDbl(p) {
     S.nodeSel = { ci: hit.ci, ni: hit.ni };
     C.constrainImageMask(o);commit(); return;
   }
-  if (hit) return;
+  // A control handle never blocks double-click subdivision of the actual curve.
   const curve=kCurveHit(one.o,p.sx,p.sy);
   if (!curve) return;
   const best={ci:curve.ci,i:curve.ni,t:Math.max(0.001,Math.min(0.999,curve.t))};
@@ -2961,16 +2964,16 @@ function mirrorSources(){
   return C.evalLayerObjs(l,S.frame).filter(o=>o.kind==='path'&&!o.skel&&!o.invisMask&&o.fill!=null&&o.contours.some(c=>c.closed)&&(MIR.ids==null||MIR.ids.includes(o.id)));
 }
 function mirrorBegin(){
-  if(REC.armed){toast('Leave Record mode before opening a mirror.');return false;}
+  if(REC.armed){protest('Leave Record mode before opening a mirror.');return false;}
   const selected=selEval(),existing=selected.length===1&&selected[0].o.mirror?selected[0]:null;
   if(existing){MIR.active=true;MIR.placing=false;MIR.id=existing.id;MIR.lid=existing.lid;MIR.scope=mirrorScope();MIR.near=true;mirrorSync();setTool('mirror');invalidate();return true;}
   if(MIR.active&&MIR.id){mirrorSync();if(!MIR.box)mirrorCancel();}
   if(MIR.active){setTool('mirror');MIR.near=true;invalidate();return true;}
   const lids=new Set(selected.map(s=>s.lid));
-  if(lids.size>1){toast('Mirror: select filled vector paths on one layer.');return false;}
+  if(lids.size>1){protest('Mirror: select filled vector paths on one layer.');return false;}
   const layer=selected.length?getLayer(selected[0].lid):curLayer();
-  if(!layer||layer.locked||layer.visible===false){toast('Mirror: choose an unlocked visible layer.');return false;}
-  if(selected.some(s=>s.o.kind!=='path'||s.o.skel||s.o.fill==null)){toast('Mirror currently works with filled vector paths.');return false;}
+  if(!layer||layer.locked||layer.visible===false){protest('Mirror: choose an unlocked visible layer.');return false;}
+  if(selected.some(s=>s.o.kind!=='path'||s.o.skel||s.o.fill==null)){protest('Mirror currently works with filled vector paths.');return false;}
   MIR.active=true;MIR.placing=true;MIR.id=null;MIR.box=null;MIR.lid=MIR.sourceLid=layer.id;MIR.ids=selected.length?selected.map(s=>s.id):null;MIR.scope=mirrorScope();MIR.near=true;setTool('mirror');invalidate();return true;
 }
 function mirrorCancel(){MIR.active=false;MIR.placing=false;MIR.id=null;MIR.box=null;MIR.near=false;MIR.palette=null;const hud=$('#mirrorHud');if(hud)hud.hidden=true;if(S.drag?.type==='mirror')S.drag=null;}
@@ -3070,7 +3073,7 @@ function mirrorBoolean(a,b,op,template){
 function mirrorApply(){
   mirrorSync();
   if(MIR.busy||!MIR.active||!MIR.box)return;
-  const layer=getLayer(MIR.lid),sources=mirrorSources();if(sources.some(o=>o._softParts)){toast('Detach the ordered soft body before baking its mirror.');return;}if(!layer||layer.locked||!sources.length){toast('Mirror: no editable filled vector paths in the frame.');return;}
+  const layer=getLayer(MIR.lid),sources=mirrorSources();if(sources.some(o=>o._softParts)){protest('Detach the ordered soft body before baking its mirror.');return;}if(!layer||layer.locked||!sources.length){protest('Mirror: no editable filled vector paths in the frame.');return;}
   MIR.busy=true;
   try{
     const b=MIR.box,frame=C.mkPath([{closed:true,nodes:[[0,-b.h/2],[b.w,-b.h/2],[b.w,b.h/2],[0,b.h/2]].map(p=>C.node(...p))}],{fill:'#000000'},{x:b.x,y:b.y,r:b.r,sx:b.sx??1,sy:b.sy??1}),reflection=mirrorReflection(),plans=new Map();
@@ -3087,7 +3090,7 @@ function mirrorApply(){
       else {if(visible){visible.id=source.id;objects.push(visible);}if(clipped){clipped.id=uid();objects.push(clipped);}}
       plans.set(source.id,{objects});
     }
-    if(!plans.size){toast('Move the mirror so the reflected drawing enters its frame.');return;}
+    if(!plans.size){protest('Move the mirror so the reflected drawing enters its frame.');return;}
     pushUndo();if(!C.kfAt(layer,S.frame))C.insertKeyframe(layer,S.frame,false);const key=C.ensureEditable(layer,S.frame),next=[],selected=[];
     for(const o of key.objs){if(o.id===MIR.id)continue;const plan=plans.get(o.id);if(!plan){next.push(o);continue;}next.push(...plan.objects);selected.push(...plan.objects.map(out=>({lid:layer.id,id:out.id})));}
     key.objs=next;S.sel=selected;S.nodeSel=null;S.kNodeSelection=[];mirrorCancel();setTool('select');commit();refreshAll();toast('Mirror saved as vector artwork. Overlapping reflections were joined with Union.');

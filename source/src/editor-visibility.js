@@ -19,11 +19,12 @@ function editorShow(all=false){
 }
 function refreshEditorHideButtons(){
   const hide=$('#bEditorHide'),show=$('#bEditorShow');if(!hide||!show)return;
-  hide.disabled=!editorHideCandidates().length;show.disabled=!editorHideState().stack.length;
+  const state=editorHideState(),hidden=state.stack.some(group=>group.some(r=>{const l=getLayer(r.lid);return l&&l.visible!==false&&C.evalLayerObjs(l,S.frame).some(o=>o.id===r.id);}));hide.disabled=!editorHideCandidates().length;show.disabled=!state.stack.length;
+  const outlines=$('#bHiddenOutlines');if(outlines){outlines.hidden=!hidden;outlines.setAttribute('aria-pressed',String(state.outlines));outlines.title=state.outlines?'Hide hidden object outlines':'Show hidden object outlines';outlines.setAttribute('aria-label',outlines.title);}
 }
 function editorHiddenEntries(entries){return entries.map(e=>({...e,objs:e.objs.filter(o=>!editorObjectHidden(e.layer.id,o.id))}));}
 function editorShowMenu(button){
-  const state=editorHideState();showMenu(button,[{label:'Show last hidden',disabled:!state.stack.length,fn:()=>editorShow()}, {label:'Show all hidden',disabled:!state.stack.length,fn:()=>editorShow(true)},'-',{label:(state.outlines?'✓ ':'')+'Show hidden outlines',fn:()=>{state.outlines=!state.outlines;invalidate();}}]);
+  const state=editorHideState();showMenu(button,[{label:'Show last hidden',disabled:!state.stack.length,fn:()=>editorShow()}, {label:'Show all hidden',disabled:!state.stack.length,fn:()=>editorShow(true)},'-',{label:(state.outlines?'✓ ':'')+'Show hidden outlines',fn:()=>{state.outlines=!state.outlines;refreshEditorHideButtons();invalidate();}}]);
 }
 const editorHideNativeOverlay=drawOverlay;
 drawOverlay=function(ctx){

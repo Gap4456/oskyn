@@ -485,3 +485,8 @@ body.bone-hud-hidden #boneMenu,body.bone-hud-hidden #boneAngle,body.bone-hud-hid
 #kSelectBar .karrange:hover:not(:disabled) { background:var(--panel2); }
 #kSelectBar .karrange:disabled { opacity:.35; cursor:default; }
 </style>
+
+<style>
+#kSelectBar #bHiddenOutlines[hidden] { display:none; }
+#kSelectBar #bHiddenOutlines[aria-pressed="true"] { background:var(--panel2); color:color-mix(in srgb,var(--fg) 50%,var(--panel)); }
+</style>
