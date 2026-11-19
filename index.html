@@ -4772,7 +4772,7 @@ const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const CW = 16, RH = 26, RULER = 24;
 const LS_THEME = 'flashcraft.theme';
-const APP_VERSION = '1.0.1', PROJECT_VERSION = 3;
+const APP_VERSION = '1.0.2', PROJECT_VERSION = 3;
 /* diagnostics ring buffers + unsaved-work tracking */
 const FCLOG = { errs: [], msgs: [] };
 const logPush = (a, m) => { a.push(new Date().toISOString().slice(11, 19) + ' ' + String(m).slice(0, 240)); if (a.length > 15) a.shift(); };
