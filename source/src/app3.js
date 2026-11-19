@@ -852,6 +852,10 @@ function refreshProps() {
   $('#objBlur').disabled = !sels.length;
   $('#objInvis').checked = !!(one && one.o.invisMask);
   $('#objInvis').disabled = !one || one.o.kind !== 'path';
+  for(const [id,key] of [['objMaskLower','maskLowerLayers'],['objMaskOutline','maskOutline']]){
+    $('#'+id).checked=!!(one&&one.o[key]);
+    $('#'+id).disabled=!one||one.o.kind!=='path'||!one.o.invisMask;
+  }
   $$('[data-act]').forEach((b) => { b.disabled = ['group','ungroup'].includes(b.dataset.act)?!selectionActions[b.dataset.act]:!sels.length; });
   refreshTransformFields();
   setVal($('#radius'), st.radius); setVal($('#smooth'), st.smooth);
@@ -1030,7 +1034,13 @@ function bindProps() {
     C.ensureEditable(getLayer(one[0].lid), S.frame);
     const obj = findEditable(one[0].lid, one[0].o.id);
     if (obj) obj.invisMask = e.target.checked;
-    commit();
+    commit();refreshProps();
+  });
+  for(const [id,key] of [['objMaskLower','maskLowerLayers'],['objMaskOutline','maskOutline']])on('#'+id,'change',e=>{
+    const selected=selEval();if(selected.length!==1||!selected[0].o.invisMask)return;
+    beginEditOnce();C.ensureEditable(getLayer(selected[0].lid),S.frame);
+    const obj=findEditable(selected[0].lid,selected[0].o.id);if(obj)obj[key]=e.target.checked;
+    commit();refreshProps();
   });
   on('#objBlur', 'input', (e) => {
     const v = Math.max(0, Math.min(30, Number(e.target.value) || 0));

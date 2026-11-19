@@ -86,6 +86,15 @@ npm test
 
 The build reproduces `index.html` and `oskyn.html` from source without changing the application version (`1.0.2`). Edit the source and rebuild rather than editing generated HTML alone.
 
+## Invisibility masks
+
+Select a vector path and enable **Invisibility Mask** in Object properties. It cuts earlier objects in its own layer. Two optional checkboxes become available:
+
+- **Affect lower layers** also cuts artwork on lower layers. Locked recipient layers are immune to masks from other layers, but their own masks still work. Locking the mask's source layer does not disable it; hiding that layer does. These rules apply in the editor, Preview and exports at every frame.
+- **Outline cut edges** uses each covered vector shape's stroke colour, width, opacity, cap/join and dash style on the cut boundary. Shapes without a stroke receive no new outline. It works independently of the lower-layer option.
+
+Both options default to off, preserving existing projects. Masks inside symbols stay inside that symbol; external masks can cut symbol instances. Multiple cuts combine. The existing timeline **Mask** button and legacy reveal-mask behaviour remain available.
+
 ## Included features
 
 - Vector drawing, corner and curve node editing, transforms and selection. Adding a node preserves existing curves.

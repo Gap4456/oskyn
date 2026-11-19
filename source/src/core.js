@@ -201,11 +201,56 @@ function maskedDraw(ctx, drawMembers, drawMask) {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(a, 0, 0); ctx.restore();
   } finally { _md--; }
 }
-// KROGAN Invisibility Mask V1.3: erase only earlier objects in the SAME layer.
+// Invisibility masks: same-layer cuts, optional lower-layer cuts and inherited cut-edge ink.
 // Composite each layer unit separately so higher artwork remains untouched.
 function invisMaskShape(o) {
   return Object.assign({}, o, { invisMask: false, fill: '#ffffff', fa: 1,
     grad: null, stroke: null, sw: 0, op: 1 });
+}
+// Lock protects a recipient from OTHER layers, never from its own mask.
+function invisMasksAbove(masks, entries, li, oi) {
+  return masks.filter(m => (m.li === li && m.oi > oi) ||
+    (m.li > li && m.o.maskLowerLayers && !entries[li].layer.locked));
+}
+// Bake only temporary geometry into the containing timeline's coordinates.
+function cutEdgeShapes(o, parent, alpha, depth) {
+  if (!o || depth > 32 || o.invisMask) return [];
+  let M = mmul(parent || [1,0,0,1,0,0], matOf(o.t));
+  alpha = nz(alpha,1) * nz(o.op,1);
+  if (o.kind === 'clip' && o.pv) M = mmul(M,[1,0,0,1,-o.pv[0],-o.pv[1]]);
+  if (o.kind === 'group' || o.kind === 'clip') return kidsOf(o).flatMap(ch => cutEdgeShapes(ch,M,alpha,(depth||0)+1));
+  if (o.kind !== 'path' || !o.fill || !o.stroke || !(o.sw > 0)) return [];
+  const shape = {...o,t:newT(),contours:clone(o.contours),op:alpha,blur:0};
+  applyMatrixToNodes(shape.contours,M);
+  return [shape];
+}
+function cutEdgeInk(mask, target) {
+  const ink = {...invisMaskShape(mask),fill:null,stroke:target.stroke,
+    sw:target.sw*2,sa:nz(target.sa,1),op:nz(target.op,1),
+    cap:target.cap,join:target.join,dash:target.dash,_dashWidth:target.sw,blur:0};
+  // Preserve dash lengths when doubling the stroke width for the outside half.
+  return ink;
+}
+function drawCutEdges(ctx, objects, masks, opt) {
+  const outlined=masks.filter(m=>m.o.maskOutline);
+  if(!outlined.length)return;
+  for(const o of objects)for(const shape of cutEdgeShapes(o)) {
+    const path=new Path2D();tracePath(path,shape.contours);
+    ctx.save();ctx.clip(path,shape.nz?'nonzero':'evenodd');
+    if(o.kind==='group'||o.kind==='clip')ctx.globalCompositeOperation='source-atop';
+    for(const m of outlined)drawObj(ctx,cutEdgeInk(m.o,shape),opt);
+    ctx.restore();
+  }
+}
+function cutEdgesSVG(objects,masks) {
+  const outlined=masks.filter(m=>m.o.maskOutline);if(!outlined.length)return '';
+  return objects.map(o=>{
+    const ink=cutEdgeShapes(o).map(shape=>{
+      const id='cutEdge'+(++_gid);
+      return '<defs><clipPath id="'+id+'"><path d="'+pathD(shape.contours)+'" clip-rule="'+(shape.nz?'nonzero':'evenodd')+'"/></clipPath></defs><g clip-path="url(#'+id+')">'+outlined.map(m=>objSVG(cutEdgeInk(m.o,shape))).join('')+'</g>';
+    }).join('');
+    return o.kind==='group'||o.kind==='clip'?svgMasked([o],ink):ink;
+  }).join('');
 }
 // A Division partitions native pixels, but filtering the two transparent
 // edges separately leaves a seam at fractional zoom. Rejoin aligned siblings
@@ -277,12 +322,17 @@ function drawUnits(ctx, entries, opt, drawLayer) {
   const tc = tmp.getContext('2d');
   const cut = document.createElement('canvas'); cut.width = w; cut.height = h;
   const cc = cut.getContext('2d');
-  function paint(draw, li, oi) {
+  function paint(draw, li, oi, objects) {
     tc.setTransform(1,0,0,1,0,0); tc.globalAlpha = 1;
     tc.globalCompositeOperation = 'source-over'; tc.filter = 'none'; tc.clearRect(0,0,w,h);
-    tc.setTransform(T); draw(tc);
-    const above = masks.filter(m => m.li === li && m.oi > oi);
+    const above = invisMasksAbove(masks, entries, li, oi);
+    const target=objects?.length===1&&objects[0].kind==='path'&&above.some(m=>m.o.maskOutline)?objects[0]:null;
+    const opacity=target?nz(target.op,1):1;
+    const inkObjects=target?[{...target,op:1}]:objects;
+    tc.setTransform(T);
+    if(target)drawObj(tc,inkObjects[0],opt);else draw(tc);
     if (above.length) {
+      drawCutEdges(tc,inkObjects||[],above,opt);
       cc.setTransform(1,0,0,1,0,0); cc.globalAlpha = 1;
       cc.globalCompositeOperation = 'source-over'; cc.filter = 'none'; cc.clearRect(0,0,w,h);
       cc.setTransform(T);
@@ -292,24 +342,29 @@ function drawUnits(ctx, entries, opt, drawLayer) {
       tc.drawImage(cut,0,0);
     }
     ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(tmp,0,0); ctx.restore();
+    ctx.globalAlpha*=opacity;ctx.drawImage(tmp,0,0); ctx.restore();
   }
   for (const u of units) {
     if (!u.mask) {
       const li = entries.indexOf(u.e);
       u.e.objs.forEach((o, oi) => {
         if (o.invisMask && o.kind === 'path') return;
-        paint(c => drawLayer(c, Object.assign({}, u.e, { objs: [o] }), false), li, oi);
+        paint(c => drawLayer(c, Object.assign({}, u.e, { objs: [o] }), false), li, oi, [o]);
       });
     } else {
-      const li = Math.max(...u.members.map(m => entries.indexOf(m)));
-      paint(c => maskedDraw(c,
-        mc => { for (const m of u.members) drawLayer(mc, m, false); },
-        mc => drawLayer(mc, u.mask, true)), li, Number.MAX_SAFE_INTEGER);
+      maskedDraw(ctx, c => {
+        for(const member of u.members){const li=entries.indexOf(member);
+          member.objs.forEach((o,oi)=>{if(o.invisMask)return;
+            const previous=ctx;ctx=c;
+            try{paint(mc=>drawLayer(mc,{...member,objs:[o]},false),li,oi,[o]);}finally{ctx=previous;}
+          });
+        }
+      }, c=>drawLayer(c,u.mask,true));
     }
   }
 }
 function entriesToObjs(entries) {
+  if(entries.some(e=>e.objs.some(o=>o.invisMask)))return [{id:'timelineMasks',kind:'group',t:newT(),op:1,children:entries.flatMap(e=>e.objs.filter(o=>!o.invisMask)),_layerEntries:entries}];
   const out = [];
   for (const u of groupEntries(entries)) {
     if (!u.mask) { for (const o of u.e.objs) out.push(o); continue; }
@@ -492,7 +547,7 @@ function rectContour(w, h, r) {
 function dashArray(o) {
   const presets = { solid: [], dash: [5, 3], short: [2, 2], dot: [0.01, 2.5], dashdot: [5, 2, 0.01, 2], long: [9, 3] };
   const p = presets[o.dash] || presets.solid;
-  return p.map(n => n * Math.max(0.1, o.sw || 1));
+  return p.map(n => n * Math.max(0.1, o._dashWidth || o.sw || 1));
 }
 // Parametric Star/Cog: four corresponding edge families per tooth.
 function starDefaults(radius=60) {
@@ -2077,7 +2132,8 @@ function drawObjRaw(ctx, o, opt, noOp) {
   if (!noOp) ctx.globalAlpha *= nz(o.op, 1);
   if (o.kind === 'group' || o.kind === 'clip') {
     if (o.kind === 'clip' && o.pv) ctx.translate(-o.pv[0], -o.pv[1]);
-    if(o.mirror){ctx.save();mirrorPixelClip(ctx,{matrix:[1,0,0,1,0,0],width:Math.max(.0001,o.mirror.width),height:Math.max(.0001,o.mirror.height)});for(const ch of o.children)drawObj(ctx,ch,opt);ctx.restore();}
+    if(o._layerEntries)drawUnits(ctx,o._layerEntries,opt);
+    else if(o.mirror){ctx.save();mirrorPixelClip(ctx,{matrix:[1,0,0,1,0,0],width:Math.max(.0001,o.mirror.width),height:Math.max(.0001,o.mirror.height)});for(const ch of o.children)drawObj(ctx,ch,opt);ctx.restore();}
     else if(o.softClip&&o.mask){ctx.save();for(const mask of o.mask){const local=new Path2D(),path=new Path2D();tracePath(local,mask.contours);path.addPath(local,new DOMMatrix(matOf(mask.t)));ctx.clip(path,mask.nz?'nonzero':'evenodd');}for(const ch of o.children)drawObj(ctx,ch,opt);ctx.restore();}
     else if (o.mask) maskedDraw(ctx, (c) => { for (const ch of joinedRasterCuts(o.children)) drawObj(c, ch, opt); }, (c) => { for (const m of o.mask) drawObj(c, m, {strokeBase:opt.strokeBase}); });
     else for (const ch of joinedRasterCuts(kidsOf(o))) drawObj(ctx, ch, opt);
@@ -2186,25 +2242,29 @@ function layersSVG(entries) {
     if (e.layer.visible === false) return;
     e.objs.forEach((o, oi) => { if (o.invisMask && o.kind === 'path') masks.push({ o, li, oi }); });
   });
-  function applyMasks(inner, li, oi) {
+  function applyMasks(inner, li, oi, objects) {
     if (!inner) return '';
-    const above = masks.filter(m => m.li === li && m.oi > oi);
+    const above = invisMasksAbove(masks, entries, li, oi);
     if (!above.length) return inner;
+    const target=objects?.length===1&&objects[0].kind==='path'&&above.some(m=>m.o.maskOutline)?objects[0]:null;
+    const opacity=target?nz(target.op,1):1;
+    const inkObjects=target?[{...target,op:1}]:objects;
+    if(target)inner=objSVG(inkObjects[0]);
+    inner += cutEdgesSVG(inkObjects||[],above);
     const id = 'invis' + (++_gid);
     const shapes = above.map(m => objSVG(Object.assign({}, invisMaskShape(m.o), { fill: '#000000' }))).join('');
-    return '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" style="mask-type:luminance" x="-100000" y="-100000" width="200000" height="200000"><rect x="-100000" y="-100000" width="200000" height="200000" fill="white"/>' + shapes + '</mask></defs><g mask="url(#' + id + ')">' + inner + '</g>';
+    return '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" style="mask-type:luminance" x="-100000" y="-100000" width="200000" height="200000"><rect x="-100000" y="-100000" width="200000" height="200000" fill="white"/>' + shapes + '</mask></defs><g opacity="'+opacity+'" mask="url(#' + id + ')">' + inner + '</g>';
   }
   for (const u of groupEntries(entries)) {
     if (!u.mask) {
       const li = entries.indexOf(u.e);
       u.e.objs.forEach((o, oi) => {
-        if (!o.invisMask) body += applyMasks(objSVG(o), li, oi);
+        if (!o.invisMask) body += applyMasks(objSVG(o), li, oi, [o]);
       });
     } else {
       let contents = '';
-      for (const m of u.members) contents += m.objs.filter(o => !o.invisMask).map(objSVG).join('');
-      const li = Math.max(...u.members.map(m => entries.indexOf(m)));
-      body += applyMasks(svgMasked(u.mask.objs, contents), li, Number.MAX_SAFE_INTEGER);
+      for (const m of u.members) m.objs.forEach((o,oi)=>{if(!o.invisMask)contents+=applyMasks(objSVG(o),entries.indexOf(m),oi,[o]);});
+      body += svgMasked(u.mask.objs, contents);
     }
   }
   return body;
@@ -2226,7 +2286,7 @@ function objSVG(o) {
   const blurDef = blurId ? '<defs><filter id="' + blurId + '" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="' + blur + '"/></filter></defs>' : '';
   const blurAttr = blurId ? ' filter="url(#' + blurId + ')"' : '';
   const wrapBlur = (svg) => blurId ? blurDef + '<g' + blurAttr + '>' + svg + '</g>' : svg;
-  if (o.kind === 'group') { const inner = o.children.map(objSVG).join(''); return wrapBlur('<g transform="' + tr + '"' + opa + '>' + (o.mask ? svgMasked(o.mask, inner) : inner) + '</g>'); }
+  if (o.kind === 'group') { const inner = o._layerEntries?layersSVG(o._layerEntries):o.children.map(objSVG).join(''); return wrapBlur('<g transform="' + tr + '"' + opa + '>' + (o.mask ? svgMasked(o.mask, inner) : inner) + '</g>'); }
   if (o.kind === 'clip') {
     const pv = o.pv ? '<g transform="translate(' + -o.pv[0] + ' ' + -o.pv[1] + ')">' : '<g>';
     return wrapBlur('<g transform="' + tr + '"' + opa + '>' + pv + kidsOf(o).map(objSVG).join('') + '</g></g>');
