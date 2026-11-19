@@ -2,7 +2,7 @@
    their original handlers; node coordinates are scoped to an owning object. */
 function multiNodeEligible(o){return o?.kind==='path'&&!o.skin&&!o.skel&&!o.rig&&!o.arc&&!o.star;}
 function multiNodeObjects(){return selEval().filter(s=>multiNodeEligible(s.o)&&!getLayer(s.lid)?.locked&&getLayer(s.lid)?.visible!==false);}
-function multiNodeActive(){return S.tool==='node'&&!REC.armed&&multiNodeObjects().length>1;}
+function multiNodeActive(){return S.tool==='node'&&multiNodeObjects().length>1;}
 function multiNodeSame(a,b){return a.lid===b.lid&&a.id===b.id;}
 function multiNodeRefs(){
   const objects=multiNodeObjects(),seen=new Set();
@@ -29,7 +29,10 @@ kNodeKeys=function(){return multiNodeActive()?multiNodeRefs().map(r=>r.ci+':'+r.
 const multiNodeNativeDown=nodeDown;
 nodeDown=function(e,p){
   const objects=multiNodeObjects(),hit=hitAt(p.w.x,p.w.y,6);
-  if(REC.armed){
+  const recordHit=REC.armed&&objects.length>1?multiNodeHit(p):null;
+  const recordSelected=recordHit&&multiNodeRefs().some(r=>multiNodeSame(r,recordHit.one)&&r.ci===recordHit.ci&&r.ni===recordHit.ni);
+  const recordAnchors=recordHit?.part==='anchor'&&(e.shiftKey||recordSelected&&multiNodeRefs().some(r=>!multiNodeSame(r,recordHit.one)));
+  if(REC.armed&&(!recordAnchors&&!e.shiftKey||recordHit&&recordHit.part!=='anchor')){
     if(S.sel.length>1&&hit&&multiNodeEligible(hit.o)){
       const refs=multiNodeRefs().filter(r=>multiNodeSame(r,hit));S.sel=[{lid:hit.lid,id:hit.id}];S.kNodeSelection=refs.map(r=>r.ci+':'+r.ni);S.nodeSel=refs.at(-1)||null;
     }
@@ -71,7 +74,7 @@ function multiNodeDown(e,p){
 }
 const multiNodeNativeOnDown=onDown;
 onDown=function(e){
-  if(S.tool==='node'&&multiNodeActive()&&e.ctrlKey&&!S.space&&e.button===0){const p=stagePt(e);S.cursorW=p.w;multiNodeDown(e,p);invalidate();return;}
+  if(S.tool==='node'&&multiNodeActive()&&e.ctrlKey&&!S.space&&e.button===0){const p=stagePt(e);S.cursorW=p.w;if(REC.armed)nodeDown(e,p);else multiNodeDown(e,p);invalidate();return;}
   return multiNodeNativeOnDown(e);
 };
 const multiNodeNativeMarquee=kNodeMarqueeUp;
@@ -94,10 +97,11 @@ nodeDrag=function(w,e){
   }
   if(!d.started){
     if(!d.nudge&&Math.hypot(w.x-d.start.x,w.y-d.start.y)*S.view.z<2)return;
-    pushUndo();d.items=[];
+    const recording=typeof MULTIREC!=='undefined'&&MULTIREC?.drag===d;
+    if(!recording)pushUndo();d.items=[];
     const refs=multiNodeRefs();
-    for(const lid of new Set(refs.map(r=>r.lid)))recordDragEditable(getLayer(lid),S.frame);
-    for(const r of refs){const o=findEditable(r.lid,r.id),n=o?.contours[r.ci]?.nodes[r.ni];if(n){const m=matOf(o.t),p=mapply(m,n.x,n.y);d.items.push({...r,o,n,inv:minv(m),x:p[0],y:p[1]});}}
+    if(!recording)for(const lid of new Set(refs.map(r=>r.lid)))recordDragEditable(getLayer(lid),S.frame);
+    for(const r of refs){const o=(typeof MULTIREC!=='undefined'&&MULTIREC?.drag===d?MULTIREC.targets.find(t=>t.lid===r.lid&&t.id===r.id)?.live:null)||findEditable(r.lid,r.id),n=o?.contours[r.ci]?.nodes[r.ni];if(n){const m=matOf(o.t),p=mapply(m,n.x,n.y);d.items.push({...r,o,n,inv:minv(m),x:p[0],y:p[1]});}}
     d.primary=d.items.find(r=>r.lid===d.lid&&r.id===d.id&&r.ci===d.ci&&r.ni===d.ni);d.started=true;
   }
   let dx=w.x-d.start.x,dy=w.y-d.start.y;
@@ -140,6 +144,7 @@ drawOverlay=function(ctx){
   },refs);ctx.restore();
 };
 window.addEventListener('keydown',e=>{
+  if(REC.running&&REC.drag?.multiNode)return;
   if(!multiNodeActive()||e.target.closest?.('input,textarea,[contenteditable="true"]')||$('#modalBg').classList.contains('on')||$('#prev').classList.contains('on'))return;
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){
     e.preventDefault();e.stopImmediatePropagation();S.multiNodeRefs=[];for(const one of multiNodeObjects())one.o.contours.forEach((c,ci)=>c.nodes.forEach((n,ni)=>S.multiNodeRefs.push({lid:one.lid,id:one.id,ci,ni})));refreshProps();invalidate();

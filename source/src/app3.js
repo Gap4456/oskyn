@@ -815,7 +815,7 @@ function refreshProps() {
   if (!S.doc) return;
   skeletonPanel();
   const sels = selEval(), one = sels.length === 1 ? sels[0] : null, st = S.style;
-  refreshSelectionActions(sels);
+  refreshSelectionActions(sels);refreshEditorHideButtons();
   $('#selInfo').textContent = sels.length ? (one ? (one.o.mirror ? 'mirror' : one.o.kind === 'group' ? 'group' : one.o.kind === 'clip' ? 'symbol' : one.o.kind === 'text' ? 'text' : one.o.kind === 'image' ? 'image' : 'path') : sels.length + ' objects') : 'none';
   let src = null;
   if (sels.length) walkPaths(sels[0].o, (p) => { if (!src) src = p; });
@@ -1225,8 +1225,8 @@ function editableSel() {
     const l = getLayer(lid);
     if (!l || l.locked) continue;
     const kf = C.ensureEditable(l, S.frame);
-    for(const q of S.sel.filter(q=>q.lid===lid))findEditable(lid,q.id);
-    out.push({ l, kf, ids: S.sel.filter((s) => s.lid === lid).map((s) => s.id) });
+    for(const q of S.sel.filter(q=>q.lid===lid&&!editorObjectHidden(q.lid,q.id)))findEditable(lid,q.id);
+    out.push({ l, kf, ids: S.sel.filter((s) => s.lid === lid&&!editorObjectHidden(s.lid,s.id)).map((s) => s.id) });
   }
   return out;
 }
@@ -3449,7 +3449,7 @@ window.addEventListener('keydown', (e) => {
       } else {
         S.sel = [];
         for (const l of layers()) if (l.visible && !l.locked)
-          for (const o of C.evalLayerObjs(l, S.frame)) S.sel.push({ lid: l.id, id: o.id });
+          for (const o of C.evalLayerObjs(l, S.frame)) if(!editorObjectHidden(l.id,o.id))S.sel.push({ lid: l.id, id: o.id });
       }
       refreshProps(); invalidate();
     }
@@ -3579,6 +3579,9 @@ function init() {
   buildTools(); bindProps(); bindEase(); bindTabs(); bindFluid(); bindAlign(); bindLib();
   $('#crumbBack').addEventListener('click', exitSym);
   $('#crumbPreview').addEventListener('click',openSymbolPreview);
+  $('#bEditorHide').addEventListener('click',editorHide);
+  $('#bEditorShow').addEventListener('click',()=>editorShow());
+  $('#bEditorShow').addEventListener('contextmenu',e=>{e.preventDefault();editorShowMenu(e.currentTarget);});
   $('#bPreview').addEventListener('click', openPreview);
   bindCed();
   $('#prevClose').addEventListener('click', () => { $('#prev').classList.remove('on'); $('#prevFrame').srcdoc = ''; });

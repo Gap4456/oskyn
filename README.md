@@ -14,9 +14,15 @@ Save projects explicitly with **Save project** (`.oskyn.json`). On supported des
 
 Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/raise one step, send to bottom/bring to top within the current layer, Group and Ungroup. Hover for descriptions and shortcuts; unavailable actions are dimmed. Node edit keeps its own operations. The Pen icon has a plus and a node square to distinguish drawing nodes from editing them.
 
+## Editor visibility and grid
+
+Selection mode adds **H** (Hide) and **S** (Show) buttons; no new keyboard shortcuts are assigned. H hides the selected set as one step, or the next front visible object on the current unlocked layer when nothing is selected. S restores the last hidden set first, without selecting it. Right-click S for **Show all hidden** or optional non-interactive hidden outlines. Each open project and scene/symbol editing context has its own temporary stack. Hiding changes only the editor view and picking; saved artwork, layer order, Preview and exports retain the objects. Show them again before closing if you want to inspect them; the hide stack is not saved in project files.
+
+The grid starts at **0.5 cm**; the existing Grid size controls remain available.
+
 ## Symbols and node editing
 
-In **Node edit**, Shift-click another ordinary vector path away from its nodes/handles to open it alongside the current paths. Shift-click anchors to toggle them, or drag a selection box across the open paths (Shift adds). Ctrl+A selects their anchors. Dragging selected anchors moves them by the same canvas distance even across rotated, mirrored or differently scaled objects; arrows nudge them. Node operations and Delete work across the selection with one Undo. Paths stay separate and locked/hidden layers are excluded. Symbols, groups, bitmap masks and Bone/soft-body controls retain their existing single-object workflows. Record remains the existing single-object/one-pass workflow.
+In **Node edit**, Shift-click another ordinary vector path away from its nodes/handles to open it alongside the current paths. Shift-click anchors to toggle them, or drag a selection box across the open paths (Shift adds). Ctrl+A selects their anchors. Dragging selected anchors moves them by the same canvas distance even across rotated, mirrored or differently scaled objects; arrows nudge them. Node operations and Delete work across the selection with one Undo. Paths stay separate and locked/hidden layers are excluded. Symbols, groups, bitmap masks and Bone/soft-body controls retain their existing single-object workflows. Record also supports a selected set of anchors across these vector objects: arm Record, hold Q and drag a selected anchor. A pass freezes its objects/anchors, shares one clock and Undo, and creates/reuses one Take per source layer. Unselected node coordinates, handles, transforms and other objects keep their prior animation. Later anchor passes can overdub the same Takes; multi-curve and multi-handle recording are not supported.
 
 Inside a symbol, **Preview symbol** beneath the scene/symbol path previews only that symbol, including its own timeline and nested symbols. Restart repeats that preview; closing it keeps the editor at the same symbol and frame. The main Preview button continues to preview the scene.
 

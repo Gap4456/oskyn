@@ -112,7 +112,7 @@ function hitAt(x, y, tolPx, rigFirst) {
       const l = ls[i];
       if (!l.visible || l.locked) continue;
       const objs = C.evalLayerObjs(l, S.frame);
-      for (let j = objs.length - 1; j >= 0; j--) if (!!objs[j].rig === pass && hitObj(objs[j], x, y, tol, hctx)) return { lid: l.id, id: objs[j].id, o: objs[j] };
+      for (let j = objs.length - 1; j >= 0; j--) if (!editorObjectHidden(l.id,objs[j].id)&&!!objs[j].rig === pass && hitObj(objs[j], x, y, tol, hctx)) return { lid: l.id, id: objs[j].id, o: objs[j] };
     }
   }
   return null;
@@ -663,6 +663,7 @@ function marqueeUp(d) {
   for (const l of layers()) {
     if (!l.visible || l.locked) continue;
     for (const o of C.evalLayerObjs(l, S.frame)) {
+      if(editorObjectHidden(l.id,o.id))continue;
       const b = worldBounds(o);
       if (!b) continue;
       const epsilon=.5/Math.max(S.view.z,.001);
@@ -1929,7 +1930,7 @@ function regionFill(p, opt) {
   const ctx = cv.getContext('2d', { willReadFrequently: true });
   ctx.setTransform(s, 0, 0, s, -bx * s, -by * s);
   const ents = opt.all ? C.evalDoc(doc, S.frame) : [{ layer: curLayer(), objs: C.evalLayerObjs(curLayer(), S.frame) }];
-  for (const en of ents) { if (en.layer.visible === false || en.layer.mask) continue; for (const o of en.objs) C.drawObj(ctx, o, {}); }
+  for (const en of ents) { if (en.layer.visible === false || en.layer.mask) continue; for (const o of en.objs) if(!editorObjectHidden(en.layer.id,o.id))C.drawObj(ctx, o, {}); }
   const d = ctx.getImageData(0, 0, W, H).data, obst = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i++) obst[i] = d[i * 4 + 3] >= 16 ? 1 : 0;
   /* close gaps by morphological closing of the walls, so sharp corners of the region keep their exact shape */
@@ -2219,7 +2220,7 @@ function eraseSweep(dr, a, b) {
   const r = eraserR(), P = [a.x, a.y], Q = [b.x, b.y];
   const bx0 = Math.min(P[0], Q[0]) - r, bx1 = Math.max(P[0], Q[0]) + r, by0 = Math.min(P[1], Q[1]) - r, by1 = Math.max(P[1], Q[1]) + r;
   const cand = C.evalLayerObjs(l, S.frame).filter((o) => {
-    if (!['path','image'].includes(o.kind) || o.rig) return false;
+    if (!['path','image'].includes(o.kind) || o.rig||editorObjectHidden(l.id,o.id)) return false;
     const wb = C.worldBounds(o); if (!wb) return false;
     const pad = (o.stroke ? o.sw : 0) / 2 + 1;
     return !(wb.x0 - pad > bx1 || wb.x1 + pad < bx0 || wb.y0 - pad > by1 || wb.y1 + pad < by0);
@@ -2257,7 +2258,7 @@ const BONE_MENU_REACH=128;
 const SK={ctrlHeld:false,shiftHeld:false,menuLock:null,menuAimTimer:0,menuAimCandidate:null,zoneRig:null,softOpen:null,poseOpen:null,rigidPick:null,bindTarget:null,placeReady:false,active:null,joint:null,mode:'pose',visible:true,add:false,binding:false,baseline:new Map(),hover:null,dismissed:null,actionDrag:null,badgeTimer:0,badgeEpoch:performance.now(),angleHover:null,angleEdit:null};
 function skeletonList() {
   C.setSkeletonScope(layers());const result=[];
-  for(const l of layers())if(l.visible!==false)for(const o of C.evalLayerObjs(l,S.frame))if(o.skel)result.push({lid:l.id,id:o.id,o});
+  for(const l of layers())if(l.visible!==false)for(const o of C.evalLayerObjs(l,S.frame))if(o.skel&&!editorObjectHidden(l.id,o.id))result.push({lid:l.id,id:o.id,o});
   return result;
 }
 function skeletonActive() {const one=singleSel();if(one?.o.skel)SK.active=one.id;return skeletonList().find(r=>r.id===SK.active)||null;}

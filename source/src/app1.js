@@ -98,12 +98,12 @@ function findEditable(lid, id) {
 }
 function selEval() {
   const out = [];
-  for (const s of S.sel) { const o = findEval(s.lid, s.id); if (o) out.push({ lid: s.lid, id: s.id, o }); }
+  for (const s of S.sel) { const o = findEval(s.lid, s.id); if (o&&!editorObjectHidden(s.lid,s.id)) out.push({ lid: s.lid, id: s.id, o }); }
   return out;
 }
 function nodeEditable(o) {return o&&(o.kind==='path'||o.kind==='image');}
 function singleSel() { const a = selEval(); return a.length === 1 ? a[0] : null; }
-function pruneSel() { S.sel = S.sel.filter((s) => findEval(s.lid, s.id)); if (!nodeEditable(singleSel()?.o)) S.nodeSel = null; }
+function pruneSel() { S.sel = S.sel.filter((s) => findEval(s.lid, s.id)&&!editorObjectHidden(s.lid,s.id)); if (!nodeEditable(singleSel()?.o)) S.nodeSel = null; }
 function walkPaths(o, fn) {
   if(o.mirror)return;
   if (o.kind === 'image') return;
@@ -340,7 +340,7 @@ function recordSync() {
   button.setAttribute('aria-pressed',String(REC.armed));
   button.classList.toggle('recording',REC.running);
   button.textContent=REC.running?'● REC':REC.armed?'● Record · Q':'● Record';
-  button.title=REC.armed?'Drag one object, node, curve or ellipse mouth handle and hold Q to record. Click to leave Record mode.':'Enable performance recording (hold Q while dragging)';
+  button.title=REC.armed?'Drag an object, selected anchors across figures, a curve or an ellipse mouth handle and hold Q to record. Click to leave Record mode.':'Enable performance recording (hold Q while dragging)';
   if(status){status.hidden=!REC.armed;status.textContent=REC.running?'● Recording · release Q to pause':REC_AUDIO.waiting?'Audio loading… keep Q held':'Overdub ready · drag + hold Q';}
 }
 function recordHistory() {
@@ -373,7 +373,7 @@ function recordPrepareDrag(d,w) {
       const baseName=source.name.replace(/ — Take \d+$/,'');
       let number=1;while(layers().some(l=>l.name===baseName+' — Take '+number))number++;
       take.name=baseName+' — Take '+number;
-      source.visible=false;layers().splice(layers().indexOf(source)+1,0,take);
+      source.visible=false;layers().splice(layers().indexOf(source)+1,0,take);editorHideCloneLayer(source.id,take.id);
       S.layerId=take.id;S.sel=[{lid:take.id,id:one.id}];S.fsel=null;
       buildLayerList();markDirty();
     }
@@ -680,7 +680,7 @@ const s2w = (x, y) => ({ x: (x - S.view.px) / S.view.z, y: (y - S.view.py) / S.v
 
 /* ---------- editor-only drawing grid (CSS cm at 96 dpi) ---------- */
 const GRID_CM = [0.5, 1, 2, 4, 8, 16];
-const GRID = { visible: false, snap: false, cm: 1, color: '#4A90E2' };
+const GRID = { visible: false, snap: false, cm: 0.5, color: '#4A90E2' };
 try {
   const saved = JSON.parse(sessionPrefs.getItem('onionskyn.grid') || '{}');
   GRID.visible = saved.visible === true;
@@ -777,6 +777,7 @@ function onionPinsUI(){
 function drawFrameObjs(ctx, f, opt) {
   let entries=recordEntries(C.evalDoc(S.doc,f,!!(opt&&(opt.ghosts||opt.onion))),f);
   if(opt?.onionCurrent)entries=entries.map(e=>({...e,objs:e.layer.mask?e.objs:e.objs.filter(o=>{if(o.invisMask)return true;const current=opt.onionCurrent.get(e.layer.id+':'+o.id);if(!current)return true;if(current.o===o)return false;current.signature??=JSON.stringify([current.o,current.o._f,current.o._el,current.o.mirror?current.o.children:null,current.o._mirrorCuts]);return current.signature!==JSON.stringify([o,o._f,o._el,o.mirror?o.children:null,o._mirrorCuts]);})}));
+  if(opt?.editorZones||opt?.onion)entries=editorHiddenEntries(entries);
   if(opt?.editorZones)entries=skeletonZoneEntries(entries);
   C.drawUnits(ctx,entries,opt);
   if(opt?.onion&&S.tool==='bone')for(const e of entries)if(e.layer.visible!==false)for(const o of e.objs)if(o.skel){const scale=Math.max(Math.abs(o.t.sx),Math.abs(o.t.sy),.001),radius=3/(S.view.z*scale),contours=[...o.contours,...o.skel.nodes.map(n=>{const c=C.ellipseContour(radius,radius);for(const p of c.nodes){p.x+=n.x;p.y+=n.y;}return c;})];C.drawObj(ctx,{...o,skel:undefined,contours,fill:null,stroke:'#ffffff',sw:1/S.view.z,sa:1,op:1},opt);}
@@ -805,13 +806,13 @@ function renderStage() {
   if (!S.playing) {
     for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) {
       if (layer.visible === false) continue;
-      for (const o of objs) if (o.invisMask && o.kind === 'path') {
+      for (const o of objs) if (!editorObjectHidden(layer.id,o.id)&&o.invisMask && o.kind === 'path') {
         drawObj(ctx, Object.assign({}, o, { invisMask: false, fill: '#688fe9', fa: 0.25, grad: null, stroke: '#4169b4', sa: 0.8, sw: 1, blur: 0 }), {});
       }
     }
   }
   if (!S.playing && !(S.drawGhostOff)) {
-    for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) if (layer.mask && layer.visible !== false) for (const o of objs) drawObj(ctx, o, { tint: { c: CSSV.accent, a: layer.id === S.layerId ? 0.4 : 0.22 } });
+    for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) if (layer.mask && layer.visible !== false) for (const o of objs) if(!editorObjectHidden(layer.id,o.id))drawObj(ctx, o, { tint: { c: CSSV.accent, a: layer.id === S.layerId ? 0.4 : 0.22 } });
   }
   if (S.playing) ctx.restore();
   drawGrid(ctx);
@@ -839,7 +840,7 @@ function kroganDrawGhostPlaceholders(ctx) {
   for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) {
     if (layer.visible === false || layer.locked) continue;
     for (const o of objs) {
-      if (o.kind !== 'clip') continue;
+      if (o.kind !== 'clip'||editorObjectHidden(layer.id,o.id)) continue;
       const lib = S.doc.lib[o.sym];
       if (!lib || !Array.isArray(lib.layers)) continue;
       const frame = o._f || 0;

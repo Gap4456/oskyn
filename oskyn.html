@@ -580,6 +580,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <button class="tbtn karrange" data-karrange="front" title="Bring to top of current layer (Ctrl+Shift+])" aria-label="Bring to top of current layer (Ctrl+Shift+])">F</button>
       <button class="tbtn karrange" data-karrange="group" title="Group selected objects (Ctrl+G)" aria-label="Group selected objects (Ctrl+G)">G</button>
       <button class="tbtn karrange" data-karrange="ungroup" title="Ungroup selected groups (Ctrl+Shift+G)" aria-label="Ungroup selected groups (Ctrl+Shift+G)">U</button>
+      <button class="tbtn karrange" id="bEditorHide" title="Hide selected objects or next front object (editor only)">H</button>
+      <button class="tbtn karrange" id="bEditorShow" title="Show last hidden (right-click for Show all and outlines)">S</button>
     </div>
     <div class="grow"></div>
     <div id="gridControls" role="group" aria-label="Grid controls">
@@ -4854,12 +4856,12 @@ function findEditable(lid, id) {
 }
 function selEval() {
   const out = [];
-  for (const s of S.sel) { const o = findEval(s.lid, s.id); if (o) out.push({ lid: s.lid, id: s.id, o }); }
+  for (const s of S.sel) { const o = findEval(s.lid, s.id); if (o&&!editorObjectHidden(s.lid,s.id)) out.push({ lid: s.lid, id: s.id, o }); }
   return out;
 }
 function nodeEditable(o) {return o&&(o.kind==='path'||o.kind==='image');}
 function singleSel() { const a = selEval(); return a.length === 1 ? a[0] : null; }
-function pruneSel() { S.sel = S.sel.filter((s) => findEval(s.lid, s.id)); if (!nodeEditable(singleSel()?.o)) S.nodeSel = null; }
+function pruneSel() { S.sel = S.sel.filter((s) => findEval(s.lid, s.id)&&!editorObjectHidden(s.lid,s.id)); if (!nodeEditable(singleSel()?.o)) S.nodeSel = null; }
 function walkPaths(o, fn) {
   if(o.mirror)return;
   if (o.kind === 'image') return;
@@ -5096,7 +5098,7 @@ function recordSync() {
   button.setAttribute('aria-pressed',String(REC.armed));
   button.classList.toggle('recording',REC.running);
   button.textContent=REC.running?'● REC':REC.armed?'● Record · Q':'● Record';
-  button.title=REC.armed?'Drag one object, node, curve or ellipse mouth handle and hold Q to record. Click to leave Record mode.':'Enable performance recording (hold Q while dragging)';
+  button.title=REC.armed?'Drag an object, selected anchors across figures, a curve or an ellipse mouth handle and hold Q to record. Click to leave Record mode.':'Enable performance recording (hold Q while dragging)';
   if(status){status.hidden=!REC.armed;status.textContent=REC.running?'● Recording · release Q to pause':REC_AUDIO.waiting?'Audio loading… keep Q held':'Overdub ready · drag + hold Q';}
 }
 function recordHistory() {
@@ -5129,7 +5131,7 @@ function recordPrepareDrag(d,w) {
       const baseName=source.name.replace(/ — Take \d+$/,'');
       let number=1;while(layers().some(l=>l.name===baseName+' — Take '+number))number++;
       take.name=baseName+' — Take '+number;
-      source.visible=false;layers().splice(layers().indexOf(source)+1,0,take);
+      source.visible=false;layers().splice(layers().indexOf(source)+1,0,take);editorHideCloneLayer(source.id,take.id);
       S.layerId=take.id;S.sel=[{lid:take.id,id:one.id}];S.fsel=null;
       buildLayerList();markDirty();
     }
@@ -5436,7 +5438,7 @@ const s2w = (x, y) => ({ x: (x - S.view.px) / S.view.z, y: (y - S.view.py) / S.v
 
 /* ---------- editor-only drawing grid (CSS cm at 96 dpi) ---------- */
 const GRID_CM = [0.5, 1, 2, 4, 8, 16];
-const GRID = { visible: false, snap: false, cm: 1, color: '#4A90E2' };
+const GRID = { visible: false, snap: false, cm: 0.5, color: '#4A90E2' };
 try {
   const saved = JSON.parse(sessionPrefs.getItem('onionskyn.grid') || '{}');
   GRID.visible = saved.visible === true;
@@ -5533,6 +5535,7 @@ function onionPinsUI(){
 function drawFrameObjs(ctx, f, opt) {
   let entries=recordEntries(C.evalDoc(S.doc,f,!!(opt&&(opt.ghosts||opt.onion))),f);
   if(opt?.onionCurrent)entries=entries.map(e=>({...e,objs:e.layer.mask?e.objs:e.objs.filter(o=>{if(o.invisMask)return true;const current=opt.onionCurrent.get(e.layer.id+':'+o.id);if(!current)return true;if(current.o===o)return false;current.signature??=JSON.stringify([current.o,current.o._f,current.o._el,current.o.mirror?current.o.children:null,current.o._mirrorCuts]);return current.signature!==JSON.stringify([o,o._f,o._el,o.mirror?o.children:null,o._mirrorCuts]);})}));
+  if(opt?.editorZones||opt?.onion)entries=editorHiddenEntries(entries);
   if(opt?.editorZones)entries=skeletonZoneEntries(entries);
   C.drawUnits(ctx,entries,opt);
   if(opt?.onion&&S.tool==='bone')for(const e of entries)if(e.layer.visible!==false)for(const o of e.objs)if(o.skel){const scale=Math.max(Math.abs(o.t.sx),Math.abs(o.t.sy),.001),radius=3/(S.view.z*scale),contours=[...o.contours,...o.skel.nodes.map(n=>{const c=C.ellipseContour(radius,radius);for(const p of c.nodes){p.x+=n.x;p.y+=n.y;}return c;})];C.drawObj(ctx,{...o,skel:undefined,contours,fill:null,stroke:'#ffffff',sw:1/S.view.z,sa:1,op:1},opt);}
@@ -5561,13 +5564,13 @@ function renderStage() {
   if (!S.playing) {
     for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) {
       if (layer.visible === false) continue;
-      for (const o of objs) if (o.invisMask && o.kind === 'path') {
+      for (const o of objs) if (!editorObjectHidden(layer.id,o.id)&&o.invisMask && o.kind === 'path') {
         drawObj(ctx, Object.assign({}, o, { invisMask: false, fill: '#688fe9', fa: 0.25, grad: null, stroke: '#4169b4', sa: 0.8, sw: 1, blur: 0 }), {});
       }
     }
   }
   if (!S.playing && !(S.drawGhostOff)) {
-    for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) if (layer.mask && layer.visible !== false) for (const o of objs) drawObj(ctx, o, { tint: { c: CSSV.accent, a: layer.id === S.layerId ? 0.4 : 0.22 } });
+    for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) if (layer.mask && layer.visible !== false) for (const o of objs) if(!editorObjectHidden(layer.id,o.id))drawObj(ctx, o, { tint: { c: CSSV.accent, a: layer.id === S.layerId ? 0.4 : 0.22 } });
   }
   if (S.playing) ctx.restore();
   drawGrid(ctx);
@@ -5595,7 +5598,7 @@ function kroganDrawGhostPlaceholders(ctx) {
   for (const { layer, objs } of C.evalDoc(S.doc, S.frame)) {
     if (layer.visible === false || layer.locked) continue;
     for (const o of objs) {
-      if (o.kind !== 'clip') continue;
+      if (o.kind !== 'clip'||editorObjectHidden(layer.id,o.id)) continue;
       const lib = S.doc.lib[o.sym];
       if (!lib || !Array.isArray(lib.layers)) continue;
       const frame = o._f || 0;
@@ -5879,7 +5882,7 @@ function hitAt(x, y, tolPx, rigFirst) {
       const l = ls[i];
       if (!l.visible || l.locked) continue;
       const objs = C.evalLayerObjs(l, S.frame);
-      for (let j = objs.length - 1; j >= 0; j--) if (!!objs[j].rig === pass && hitObj(objs[j], x, y, tol, hctx)) return { lid: l.id, id: objs[j].id, o: objs[j] };
+      for (let j = objs.length - 1; j >= 0; j--) if (!editorObjectHidden(l.id,objs[j].id)&&!!objs[j].rig === pass && hitObj(objs[j], x, y, tol, hctx)) return { lid: l.id, id: objs[j].id, o: objs[j] };
     }
   }
   return null;
@@ -6430,6 +6433,7 @@ function marqueeUp(d) {
   for (const l of layers()) {
     if (!l.visible || l.locked) continue;
     for (const o of C.evalLayerObjs(l, S.frame)) {
+      if(editorObjectHidden(l.id,o.id))continue;
       const b = worldBounds(o);
       if (!b) continue;
       const epsilon=.5/Math.max(S.view.z,.001);
@@ -7696,7 +7700,7 @@ function regionFill(p, opt) {
   const ctx = cv.getContext('2d', { willReadFrequently: true });
   ctx.setTransform(s, 0, 0, s, -bx * s, -by * s);
   const ents = opt.all ? C.evalDoc(doc, S.frame) : [{ layer: curLayer(), objs: C.evalLayerObjs(curLayer(), S.frame) }];
-  for (const en of ents) { if (en.layer.visible === false || en.layer.mask) continue; for (const o of en.objs) C.drawObj(ctx, o, {}); }
+  for (const en of ents) { if (en.layer.visible === false || en.layer.mask) continue; for (const o of en.objs) if(!editorObjectHidden(en.layer.id,o.id))C.drawObj(ctx, o, {}); }
   const d = ctx.getImageData(0, 0, W, H).data, obst = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i++) obst[i] = d[i * 4 + 3] >= 16 ? 1 : 0;
   /* close gaps by morphological closing of the walls, so sharp corners of the region keep their exact shape */
@@ -7986,7 +7990,7 @@ function eraseSweep(dr, a, b) {
   const r = eraserR(), P = [a.x, a.y], Q = [b.x, b.y];
   const bx0 = Math.min(P[0], Q[0]) - r, bx1 = Math.max(P[0], Q[0]) + r, by0 = Math.min(P[1], Q[1]) - r, by1 = Math.max(P[1], Q[1]) + r;
   const cand = C.evalLayerObjs(l, S.frame).filter((o) => {
-    if (!['path','image'].includes(o.kind) || o.rig) return false;
+    if (!['path','image'].includes(o.kind) || o.rig||editorObjectHidden(l.id,o.id)) return false;
     const wb = C.worldBounds(o); if (!wb) return false;
     const pad = (o.stroke ? o.sw : 0) / 2 + 1;
     return !(wb.x0 - pad > bx1 || wb.x1 + pad < bx0 || wb.y0 - pad > by1 || wb.y1 + pad < by0);
@@ -8024,7 +8028,7 @@ const BONE_MENU_REACH=128;
 const SK={ctrlHeld:false,shiftHeld:false,menuLock:null,menuAimTimer:0,menuAimCandidate:null,zoneRig:null,softOpen:null,poseOpen:null,rigidPick:null,bindTarget:null,placeReady:false,active:null,joint:null,mode:'pose',visible:true,add:false,binding:false,baseline:new Map(),hover:null,dismissed:null,actionDrag:null,badgeTimer:0,badgeEpoch:performance.now(),angleHover:null,angleEdit:null};
 function skeletonList() {
   C.setSkeletonScope(layers());const result=[];
-  for(const l of layers())if(l.visible!==false)for(const o of C.evalLayerObjs(l,S.frame))if(o.skel)result.push({lid:l.id,id:o.id,o});
+  for(const l of layers())if(l.visible!==false)for(const o of C.evalLayerObjs(l,S.frame))if(o.skel&&!editorObjectHidden(l.id,o.id))result.push({lid:l.id,id:o.id,o});
   return result;
 }
 function skeletonActive() {const one=singleSel();if(one?.o.skel)SK.active=one.id;return skeletonList().find(r=>r.id===SK.active)||null;}
@@ -8897,11 +8901,50 @@ function kroganSelectionTransform(action) {
   commit();
 }
 /* ===== Onionskyn app, part 3: timeline, layers, properties, menus, export, import, init ===== */
+/* Editor-only hide stack. Kept on in-memory projects, never in saved documents. */
+function editorHideState(){
+  const ps=projectSession(),project=ps.items.find(p=>p.id===ps.active);project.editorHides ||=new Map();
+  const scope=JSON.stringify(S.edit.map(e=>e.sym));let state=project.editorHides.get(scope);
+  if(!state){state={stack:[],outlines:false};project.editorHides.set(scope,state);}return state;
+}
+function editorObjectHidden(lid,id){return editorHideState().stack.some(group=>group.some(r=>r.lid===lid&&r.id===id));}
+function editorHideCandidates(){
+  const chosen=selEval().filter(r=>!getLayer(r.lid)?.locked&&getLayer(r.lid)?.visible!==false);if(chosen.length)return chosen;
+  const l=curLayer();if(!l||l.locked||l.visible===false)return [];
+  const o=C.evalLayerObjs(l,S.frame).slice().reverse().find(o=>!editorObjectHidden(l.id,o.id));return o?[{lid:l.id,id:o.id,o}]:[];
+}
+function editorHide(){
+  const group=editorHideCandidates().map(({lid,id})=>({lid,id}));if(!group.length)return;
+  editorHideState().stack.push(group);S.sel=[];S.nodeSel=null;S.kNodeSelection=[];S.multiNodeRefs=[];refreshProps();invalidate();
+}
+function editorShow(all=false){
+  const state=editorHideState();if(all)state.stack=[];else state.stack.pop();refreshProps();invalidate();
+}
+function refreshEditorHideButtons(){
+  const hide=$('#bEditorHide'),show=$('#bEditorShow');if(!hide||!show)return;
+  hide.disabled=!editorHideCandidates().length;show.disabled=!editorHideState().stack.length;
+}
+function editorHiddenEntries(entries){return entries.map(e=>({...e,objs:e.objs.filter(o=>!editorObjectHidden(e.layer.id,o.id))}));}
+function editorShowMenu(button){
+  const state=editorHideState();showMenu(button,[{label:'Show last hidden',disabled:!state.stack.length,fn:()=>editorShow()}, {label:'Show all hidden',disabled:!state.stack.length,fn:()=>editorShow(true)},'-',{label:(state.outlines?'✓ ':'')+'Show hidden outlines',fn:()=>{state.outlines=!state.outlines;invalidate();}}]);
+}
+const editorHideNativeOverlay=drawOverlay;
+drawOverlay=function(ctx){
+  editorHideNativeOverlay(ctx);const state=editorHideState();if(!state.outlines)return;
+  ctx.save();ctx.globalAlpha=.55;ctx.setLineDash([5,5]);
+  for(const group of state.stack)for(const r of group){const l=getLayer(r.lid);if(!l)continue;const o=C.evalLayerObjs(l,S.frame).find(o=>o.id===r.id),corners=o&&worldCorners(o);if(!corners)continue;
+    ctx.beginPath();corners.forEach((p,i)=>{const q=w2s(...p);i?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.closePath();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();ctx.strokeStyle='#171721';ctx.lineWidth=1;ctx.stroke();
+  }ctx.restore();
+};
+
+function editorHideCloneLayer(from,to){
+  for(const group of editorHideState().stack)for(const r of group.slice())if(r.lid===from&&!group.some(q=>q.lid===to&&q.id===r.id))group.push({...r,lid:to});
+}
 /* Multi-object node editing. Legacy single-object and Record gestures retain
    their original handlers; node coordinates are scoped to an owning object. */
 function multiNodeEligible(o){return o?.kind==='path'&&!o.skin&&!o.skel&&!o.rig&&!o.arc&&!o.star;}
 function multiNodeObjects(){return selEval().filter(s=>multiNodeEligible(s.o)&&!getLayer(s.lid)?.locked&&getLayer(s.lid)?.visible!==false);}
-function multiNodeActive(){return S.tool==='node'&&!REC.armed&&multiNodeObjects().length>1;}
+function multiNodeActive(){return S.tool==='node'&&multiNodeObjects().length>1;}
 function multiNodeSame(a,b){return a.lid===b.lid&&a.id===b.id;}
 function multiNodeRefs(){
   const objects=multiNodeObjects(),seen=new Set();
@@ -8928,7 +8971,10 @@ kNodeKeys=function(){return multiNodeActive()?multiNodeRefs().map(r=>r.ci+':'+r.
 const multiNodeNativeDown=nodeDown;
 nodeDown=function(e,p){
   const objects=multiNodeObjects(),hit=hitAt(p.w.x,p.w.y,6);
-  if(REC.armed){
+  const recordHit=REC.armed&&objects.length>1?multiNodeHit(p):null;
+  const recordSelected=recordHit&&multiNodeRefs().some(r=>multiNodeSame(r,recordHit.one)&&r.ci===recordHit.ci&&r.ni===recordHit.ni);
+  const recordAnchors=recordHit?.part==='anchor'&&(e.shiftKey||recordSelected&&multiNodeRefs().some(r=>!multiNodeSame(r,recordHit.one)));
+  if(REC.armed&&(!recordAnchors&&!e.shiftKey||recordHit&&recordHit.part!=='anchor')){
     if(S.sel.length>1&&hit&&multiNodeEligible(hit.o)){
       const refs=multiNodeRefs().filter(r=>multiNodeSame(r,hit));S.sel=[{lid:hit.lid,id:hit.id}];S.kNodeSelection=refs.map(r=>r.ci+':'+r.ni);S.nodeSel=refs.at(-1)||null;
     }
@@ -8970,7 +9016,7 @@ function multiNodeDown(e,p){
 }
 const multiNodeNativeOnDown=onDown;
 onDown=function(e){
-  if(S.tool==='node'&&multiNodeActive()&&e.ctrlKey&&!S.space&&e.button===0){const p=stagePt(e);S.cursorW=p.w;multiNodeDown(e,p);invalidate();return;}
+  if(S.tool==='node'&&multiNodeActive()&&e.ctrlKey&&!S.space&&e.button===0){const p=stagePt(e);S.cursorW=p.w;if(REC.armed)nodeDown(e,p);else multiNodeDown(e,p);invalidate();return;}
   return multiNodeNativeOnDown(e);
 };
 const multiNodeNativeMarquee=kNodeMarqueeUp;
@@ -8993,10 +9039,11 @@ nodeDrag=function(w,e){
   }
   if(!d.started){
     if(!d.nudge&&Math.hypot(w.x-d.start.x,w.y-d.start.y)*S.view.z<2)return;
-    pushUndo();d.items=[];
+    const recording=typeof MULTIREC!=='undefined'&&MULTIREC?.drag===d;
+    if(!recording)pushUndo();d.items=[];
     const refs=multiNodeRefs();
-    for(const lid of new Set(refs.map(r=>r.lid)))recordDragEditable(getLayer(lid),S.frame);
-    for(const r of refs){const o=findEditable(r.lid,r.id),n=o?.contours[r.ci]?.nodes[r.ni];if(n){const m=matOf(o.t),p=mapply(m,n.x,n.y);d.items.push({...r,o,n,inv:minv(m),x:p[0],y:p[1]});}}
+    if(!recording)for(const lid of new Set(refs.map(r=>r.lid)))recordDragEditable(getLayer(lid),S.frame);
+    for(const r of refs){const o=(typeof MULTIREC!=='undefined'&&MULTIREC?.drag===d?MULTIREC.targets.find(t=>t.lid===r.lid&&t.id===r.id)?.live:null)||findEditable(r.lid,r.id),n=o?.contours[r.ci]?.nodes[r.ni];if(n){const m=matOf(o.t),p=mapply(m,n.x,n.y);d.items.push({...r,o,n,inv:minv(m),x:p[0],y:p[1]});}}
     d.primary=d.items.find(r=>r.lid===d.lid&&r.id===d.id&&r.ci===d.ci&&r.ni===d.ni);d.started=true;
   }
   let dx=w.x-d.start.x,dy=w.y-d.start.y;
@@ -9039,6 +9086,7 @@ drawOverlay=function(ctx){
   },refs);ctx.restore();
 };
 window.addEventListener('keydown',e=>{
+  if(REC.running&&REC.drag?.multiNode)return;
   if(!multiNodeActive()||e.target.closest?.('input,textarea,[contenteditable="true"]')||$('#modalBg').classList.contains('on')||$('#prev').classList.contains('on'))return;
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){
     e.preventDefault();e.stopImmediatePropagation();S.multiNodeRefs=[];for(const one of multiNodeObjects())one.o.contours.forEach((c,ci)=>c.nodes.forEach((n,ni)=>S.multiNodeRefs.push({lid:one.lid,id:one.id,ci,ni})));refreshProps();invalidate();
@@ -9047,6 +9095,109 @@ window.addEventListener('keydown',e=>{
     S.drag={type:'node',multiNode:true,nudge:true,part:'anchor',...r,start:{x:p[0],y:p[1]},started:false};nodeDrag({x:p[0]+(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0),y:p[1]+(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0)},{ctrlKey:false,shiftKey:false});S.drag=null;commit();
   }
 },true);
+/* A multi-anchor pass shares one clock, one undo and one Take per source layer.
+   Each object still uses the existing per-channel pose merger. */
+let MULTIREC=null;
+function multiRecordContext(target,fn){
+  const saved={takeId:REC.takeId,targetId:REC.targetId,baseLayer:REC.baseLayer,live:REC.live,mask:REC.mask,controlStart:REC.controlStart};
+  Object.assign(REC,{takeId:target.lid,targetId:target.id,baseLayer:target.base,live:target.live,mask:target.mask,controlStart:target.start});
+  try{return fn();}finally{Object.assign(REC,saved);}
+}
+function multiRecordPose(target,frame){return multiRecordContext(target,()=>recordMergePose(C.evalLayerObjs(target.base,frame).find(o=>o.id===target.id),target.live));}
+function multiRecordValid(){return MULTIREC&&MULTIREC.doc===S.doc&&MULTIREC.targets.every(t=>getLayer(t.lid));}
+function multiRecordPrepare(d){
+  if(MULTIREC?.drag===d)return true;
+  const refs=multiNodeRefs(),objects=multiNodeObjects().filter(o=>refs.some(r=>multiNodeSame(o,r)));
+  if(objects.length<2||!refs.length)return false;
+  if(objects.some(o=>{const l=getLayer(o.lid);return !l||l.locked||!l.visible||l.mask||o.o.bind||o.o.sbind||o.o.skin;})){
+    S.drag=null;protest('Multi Record needs unlocked, visible vector paths without bone bindings or mask layers.');return false;
+  }
+  const mapping=new Map(),create=objects.some(o=>{const l=getLayer(o.lid);return !l.recordTake&&!/ — Take \d+$/.test(l.name);});
+  if(create)recordHistory();
+  for(const lid of new Set(objects.map(o=>o.lid))){
+    const source=getLayer(lid);let take=source;
+    if(!source.recordTake&&!/ — Take \d+$/.test(source.name)){
+      take=clone(source);take.id=uid();take.visible=true;take.locked=false;take.recordTake=true;
+      const name=source.name.replace(/ — Take \d+$/,'');let n=1;while(layers().some(l=>l.name===name+' — Take '+n))n++;
+      take.name=name+' — Take '+n;source.visible=false;layers().splice(layers().indexOf(source)+1,0,take);editorHideCloneLayer(source.id,take.id);
+    }mapping.set(lid,take);
+  }
+  const targets=objects.map(one=>{
+    const lid=mapping.get(one.lid).id,base=clone(mapping.get(one.lid)),live=clone(C.evalLayerObjs(base,S.frame).find(o=>o.id===one.id));
+    return {lid,id:one.id,base,live,start:clone(live),mask:{type:'node',nodes:refs.filter(r=>multiNodeSame(r,one)).map(r=>({ci:r.ci,ni:r.ni,keys:['x','y']}))}};
+  });
+  MULTIREC={doc:S.doc,drag:d,targets,append:false};
+  S.sel=S.sel.map(r=>mapping.has(r.lid)?{...r,lid:mapping.get(r.lid).id}:r);
+  S.multiNodeRefs=refs.map(r=>({...r,lid:mapping.get(r.lid).id}));d.lid=mapping.get(d.lid).id;S.layerId=d.lid;
+  const primary=targets.find(t=>t.lid===d.lid&&t.id===d.id)||targets[0];
+  Object.assign(REC,{doc:S.doc,drag:d,takeId:primary.lid,targetId:primary.id,baseLayer:primary.base,live:primary.live,mask:primary.mask,controlStart:primary.start,lastFrame:null,lastPose:null,creationUndo:create,append:false});
+  buildLayerList();refreshProps();markDirty();return true;
+}
+function multiRecordWrite(frame,after=false){
+  for(const lid of new Set(MULTIREC.targets.map(t=>t.lid))){
+    const targets=MULTIREC.targets.filter(t=>t.lid===lid),source=targets[0].base,take=getLayer(lid),objs=clone(C.evalLayerObjs(source,frame));
+    for(const target of targets){
+      if(after&&target.hadAnimation)continue;
+      const at=objs.findIndex(o=>o.id===target.id),pose=multiRecordPose(target,frame);if(at<0)objs.push(pose);else objs[at]=pose;
+    }
+    let key=C.kfAt(take,frame);if(!key){const original=C.kfAt(source,frame);key=original?clone(original):C.mkKf(frame);take.kfs.push(key);}
+    key.objs=objs;key.tween='none';delete key.rot;C.sortKfs(take);
+  }
+}
+const multiRecordNativePrepare=recordPrepareDrag;
+recordPrepareDrag=function(d,w){
+  if(REC.armed&&d.multiNode&&d.type==='node'&&d.part==='anchor'){
+    if(MULTIREC?.drag===d)return true;if(Math.hypot(w.x-d.start.x,w.y-d.start.y)*S.view.z<3)return false;return multiRecordPrepare(d);
+  }return multiRecordNativePrepare(d,w);
+};
+const multiRecordNativeCapture=recordCapture;
+recordCapture=function(frame){
+  if(!MULTIREC)return multiRecordNativeCapture(frame);
+  if(!multiRecordValid())return;multiRecordWrite(frame);REC.lastFrame=frame;REC.lastPose=clone(REC.live);S.doc.frames=Math.max(S.doc.frames,frame+1);S.frame=frame;updateTime();keepPlayheadVisible();invalidate();
+};
+const multiRecordNativeAdvance=recordAdvance;
+recordAdvance=function(now){
+  if(!MULTIREC)return multiRecordNativeAdvance(now);if(!multiRecordValid())return false;
+  const end=Math.min(899,REC.startFrame+Math.floor(recordElapsed(now)*REC.fps/1000));for(let f=REC.lastFrame+1;f<=end;f++)recordCapture(f);return end<899;
+};
+const multiRecordNativeBegin=recordBegin;
+recordBegin=function(){
+  if(!MULTIREC)return multiRecordNativeBegin();
+  if(REC.running||!REC.armed||!REC.held||!REC.drag?.started||!multiRecordValid())return;
+  if(S.frame>=899){toast('Record: the 900-frame timeline limit has been reached.');return;}
+  if(!recordAudioReady()){recordAudioWait();return;}
+  if(!REC.creationUndo)recordHistory();REC.creationUndo=false;
+  const start=MULTIREC.append&&REC.lastFrame===S.frame?S.frame+1:S.frame;REC.startFrame=start;
+  for(const t of MULTIREC.targets){t.base=clone(getLayer(t.lid));t.hadAnimation=multiRecordContext(t,()=>recordHadChannelAnimation());}
+  for(const lid of new Set(MULTIREC.targets.map(t=>t.lid))){
+    if(!start)continue;const take=getLayer(lid),source=MULTIREC.targets.find(t=>t.lid===lid).base,previous=C.kfFor(source,start-1);
+    if(previous&&previous.tween!=='none')for(let f=previous.f;f<start;f++){
+      let k=C.kfAt(take,f);if(!k){k=C.mkKf(f);take.kfs.push(k);}k.objs=clone(C.evalLayerObjs(source,f));k.tween='none';delete k.rot;
+    }
+    if(!C.kfAt(take,start-1))take.kfs.push(C.mkKf(start-1,clone(C.evalLayerObjs(source,start-1))));C.sortKfs(take);
+  }
+  REC.startFrame=start;REC.startedAt=performance.now();REC.fps=clamp(S.doc.fps,1,120);REC.running=true;
+  try{recordAudioStart(start,REC.fps);}catch(error){recordAudioStop();REC.running=false;toast('Could not start audio: '+error.message);return;}
+  recordCapture(start);recordSync();
+  const tick=now=>{if(!REC.running)return;if(!recordAdvance(now)){recordStop();REC.held=false;toast('Record stopped at the 900-frame limit.');return;}REC.raf=requestAnimationFrame(tick);};REC.raf=requestAnimationFrame(tick);
+};
+const multiRecordNativeStop=recordStop;
+recordStop=function(){
+  if(!MULTIREC)return multiRecordNativeStop();recordAudioCancelWait();
+  if(!REC.running){recordAudioStop();recordSync();return;}
+  cancelAnimationFrame(REC.raf);recordAdvance(performance.now());if(multiRecordValid())recordCapture(REC.lastFrame);REC.running=false;recordAudioStop();
+  if(multiRecordValid())for(let f=REC.lastFrame+1;f<S.doc.frames;f++)multiRecordWrite(f,true);
+  MULTIREC.append=true;REC.append=true;setFrame(REC.startFrame);markDirty();commit();recordSync();refreshProps();
+};
+const multiRecordNativeFinish=recordFinishDrag;
+recordFinishDrag=function(){multiRecordNativeFinish();MULTIREC=null;};
+const multiRecordNativeEntries=recordEntries;
+recordEntries=function(entries,frame){
+  if(!MULTIREC||!REC.armed||frame!==S.frame)return multiRecordNativeEntries(entries,frame);
+  return entries.map(e=>({...e,objs:e.objs.map(o=>{const target=MULTIREC.targets.find(t=>t.lid===e.layer.id&&t.id===o.id);return target?multiRecordPose(target,frame):o;})}));
+};
+const multiRecordNativeFind=findEval;
+findEval=function(lid,id){const t=MULTIREC?.targets.find(t=>t.lid===lid&&t.id===id);return t&&REC.armed?multiRecordPose(t,S.frame):multiRecordNativeFind(lid,id);};
 const tlC = $('#tlCells'), tlR = $('#tlRuler'), tctx = tlC.getContext('2d'), rctx = tlR.getContext('2d');
 const tlScroll = $('#tlScroll');
 const MONO = '10.5px "IBM Plex Mono", ui-monospace, Menlo, monospace';
@@ -9864,7 +10015,7 @@ function refreshProps() {
   if (!S.doc) return;
   skeletonPanel();
   const sels = selEval(), one = sels.length === 1 ? sels[0] : null, st = S.style;
-  refreshSelectionActions(sels);
+  refreshSelectionActions(sels);refreshEditorHideButtons();
   $('#selInfo').textContent = sels.length ? (one ? (one.o.mirror ? 'mirror' : one.o.kind === 'group' ? 'group' : one.o.kind === 'clip' ? 'symbol' : one.o.kind === 'text' ? 'text' : one.o.kind === 'image' ? 'image' : 'path') : sels.length + ' objects') : 'none';
   let src = null;
   if (sels.length) walkPaths(sels[0].o, (p) => { if (!src) src = p; });
@@ -10274,8 +10425,8 @@ function editableSel() {
     const l = getLayer(lid);
     if (!l || l.locked) continue;
     const kf = C.ensureEditable(l, S.frame);
-    for(const q of S.sel.filter(q=>q.lid===lid))findEditable(lid,q.id);
-    out.push({ l, kf, ids: S.sel.filter((s) => s.lid === lid).map((s) => s.id) });
+    for(const q of S.sel.filter(q=>q.lid===lid&&!editorObjectHidden(q.lid,q.id)))findEditable(lid,q.id);
+    out.push({ l, kf, ids: S.sel.filter((s) => s.lid === lid&&!editorObjectHidden(s.lid,s.id)).map((s) => s.id) });
   }
   return out;
 }
@@ -12498,7 +12649,7 @@ window.addEventListener('keydown', (e) => {
       } else {
         S.sel = [];
         for (const l of layers()) if (l.visible && !l.locked)
-          for (const o of C.evalLayerObjs(l, S.frame)) S.sel.push({ lid: l.id, id: o.id });
+          for (const o of C.evalLayerObjs(l, S.frame)) if(!editorObjectHidden(l.id,o.id))S.sel.push({ lid: l.id, id: o.id });
       }
       refreshProps(); invalidate();
     }
@@ -12628,6 +12779,9 @@ function init() {
   buildTools(); bindProps(); bindEase(); bindTabs(); bindFluid(); bindAlign(); bindLib();
   $('#crumbBack').addEventListener('click', exitSym);
   $('#crumbPreview').addEventListener('click',openSymbolPreview);
+  $('#bEditorHide').addEventListener('click',editorHide);
+  $('#bEditorShow').addEventListener('click',()=>editorShow());
+  $('#bEditorShow').addEventListener('contextmenu',e=>{e.preventDefault();editorShowMenu(e.currentTarget);});
   $('#bPreview').addEventListener('click', openPreview);
   bindCed();
   $('#prevClose').addEventListener('click', () => { $('#prev').classList.remove('on'); $('#prevFrame').srcdoc = ''; });
