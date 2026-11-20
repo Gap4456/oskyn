@@ -850,6 +850,7 @@ function refreshProps() {
   const blurValue = one ? Math.max(0, Math.min(30, Number(one.o.blur) || 0)) : 0;
   setVal($('#objBlur'), blurValue); $('#objBlurVal').textContent = blurValue + ' px';
   $('#objBlur').disabled = !sels.length;
+  $('#textToPaths').disabled=!textPathsSelection();
   $('#objInvis').checked = !!(one && one.o.invisMask);
   $('#objInvis').disabled = !one || one.o.kind !== 'path';
   for(const [id,key] of [['objMaskLower','maskLowerLayers'],['objMaskOutline','maskOutline']]){
@@ -1012,6 +1013,7 @@ function bindProps() {
     for (const s of S.sel) { const o = findEditable(s.lid, s.id); if (o && o.kind === 'text') { if (tpatch.align) o.align = tpatch.align; const rp = Object.assign({}, tpatch); delete rp.align; o.runs.forEach((r) => Object.assign(r, rp)); } }
     commit();
   };
+  on('#textToPaths','click',openTextPaths);
   on('#tFont', 'change', (e) => textEdit({ font: e.target.value }, { font: e.target.value }));
   on('#tSize', 'input', (e) => { const v = clamp(parseFloat(e.target.value) || 0, 1, 600); if (e.target.value) textEdit({ size: v }, { size: v }); });
   on('#tBold', 'change', (e) => textEdit({ bold: e.target.checked }, { b: e.target.checked }));

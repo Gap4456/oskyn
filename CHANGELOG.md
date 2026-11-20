@@ -2,6 +2,9 @@
 
 ## 1.0.2 — 2026-11-19
 
+- Added Text → Convert to paths using local static TTF/OTF files, with one object per letter and Undo.
+- Added opt-in cross-layer invisibility masks, locked-layer immunity and inherited cut-edge strokes.
+- Added Ctrl-click selection toggling and contrasting Node Edit group bounds.
 - Added editor-only Hide/Show with a last-hidden-first-restored stack and a hidden-outline toggle.
 - Added multi-object node editing and selected-anchor recording across vector objects.
 - Improved node insertion, nearest-anchor picking, handle visibility and local straight-segment editing.

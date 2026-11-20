@@ -144,6 +144,8 @@
       <div class="row"><span>Size</span><div class="ctl"><input type="number" id="tSize" min="1" max="600" step="1"><label><input type="checkbox" id="tBold"> B</label><label><input type="checkbox" id="tItalic"> I</label></div></div>
       <div class="row"><span>Align</span><div class="ctl"><select id="tAlign" aria-label="Text align"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select></div></div>
       <p class="hint" style="margin:6px 0 0">Styles the selected text. With nothing selected, these set the look of the next text you type (Text tool, T).</p>
+      <button id="textToPaths" class="btn" type="button" disabled style="margin-top:10px" title="Convert selected text into one vector object per letter using its TTF or OTF font file">Convert to paths</button>
+      <p class="hint" style="margin:6px 0 0">Requires the matching TTF/OTF font file. Each letter becomes a separate editable path.</p>
     </div>
     </div>
     <div class="pane" role="tabpanel" id="pane-brush" data-pane="brush" aria-labelledby="tab-brush">

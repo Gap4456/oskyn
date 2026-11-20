@@ -13,6 +13,13 @@
   },
   "src/vendor/polygon-clipping.min.js",
   {
+    "text": "\n"
+  },
+  "src/vendor/opentype.min.js",
+  {
+    "text": "\n"
+  },
+  {
     "text": "</script>"
   },
   "src/page.html",
@@ -41,6 +48,7 @@
   "src/multi-node.js",
   "src/multi-record.js",
   "src/node-interaction.js",
+  "src/text-paths.js",
   "src/app3.js",
   {
     "text": "</script>"

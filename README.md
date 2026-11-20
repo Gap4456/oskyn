@@ -88,6 +88,14 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
 
+## Text to paths
+
+Select one text object, open **Text** and choose **Convert to paths**. Supply the matching static `.ttf` or `.otf` file for every font/style used by that text, then confirm conversion. Font files are parsed locally and reused for the current session; they are not uploaded or included in saved projects. Using a different font, or replacing a font the browser had substituted, can change the letter shapes.
+
+Each visible letter becomes a separate filled vector path. Counters and accents stay in the same object; spaces produce no objects. Layout, colour, opacity and transforms are retained, and one Undo restores the editable text. Converting on a held frame inserts a keyframe there, leaving earlier frames unchanged. The resulting paths work with Node Edit, Difference and exports without needing the font. Difference still requires two filled paths on the same layer.
+
+The initial implementation supports static TrueType/OpenType outlines and ordinary left-to-right lettering, including Latvian accents. Ligatures are separated into letters. Variable fonts, joined-script shaping and emoji sequences are not supported. Missing glyphs or invalid font files leave the text unchanged.
+
 ## Invisibility masks
 
 Select a vector path and enable **Invisibility Mask** in Object properties. It cuts earlier objects in its own layer. Two optional checkboxes become available:

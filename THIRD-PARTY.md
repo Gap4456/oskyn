@@ -4,6 +4,9 @@ The original Onionskyn MIT licence and Dylan Papp copyright are preserved unchan
 
 | Component | Attribution | Licence text |
 |---|---|---|
+| opentype.js 1.3.4 | Frederik De Bleser and contributors | [MIT](licenses/opentype-LICENSE) |
+| tiny-inflate, bundled with opentype.js | Devon Govett | [MIT](licenses/tiny-inflate-LICENSE) |
+| string.prototype.codepointat, bundled with opentype.js | Mathias Bynens | [MIT](licenses/codepointat-LICENSE) |
 | polygon-clipping 0.15.7 | Mike Fogel; portions by Alexander Milevski | [MIT](licenses/polygon-clipping.LICENSE.md) |
 | splay-tree, bundled with polygon-clipping | Alexander Milevski | [MIT](licenses/splay-tree-LICENSE) |
 | JSZip 3.10.1 | Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso | [MIT option](licenses/JSZip-LICENSE.markdown) |
