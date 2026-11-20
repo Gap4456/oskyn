@@ -21,3 +21,11 @@ When there are unsaved projects, window × shows the native dialog. **Save** sta
 The wrapper uses the existing `onionskynDesktop` bridge name for compatibility. Older wrappers can still save a single active project; they keep the window open if other unsaved projects need saving. Browser runs retain their ordinary unsaved-work close guard.
 
 This directory supplies the app wrapper, not the Electron runtime or a signed installer. Replacing an asar in a signed/distributed application may require rebuilding and signing its package. The current automated checks exercise renderer/host close logic and cancelled/completed downloads; a Windows GUI run is still required for the final Windows distribution.
+
+## Automatic text outlines
+
+**Text → Convert to paths** looks up the exact installed font family and Regular/Bold/Italic style through Electron's native bridge. The first lookup indexes static `.ttf` and `.otf` files in the system and current-user font folders on Windows, macOS and Linux; later lookups reuse that index until the app closes. No font data is uploaded or stored in projects. Font filenames do not need to match family names.
+
+If the exact face is missing, damaged, variable, or available only as a `.ttc` collection, the dialog keeps **Choose manually…** available. It does not silently substitute another font/style. New font installations require restarting oskyn. Browser builds keep manual file selection. Rebuild the whole `app.asar` to install this feature: updating HTML alone does not update the native bridge.
+
+Automated checks cover font discovery, style matching, the renderer conversion flow, manual fallback and existing window-close saving. A real Windows/macOS Electron GUI run is still required to validate the platform distribution.

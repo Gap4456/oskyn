@@ -812,7 +812,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="row"><span>Align</span><div class="ctl"><select id="tAlign" aria-label="Text align"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select></div></div>
       <p class="hint" style="margin:6px 0 0">Styles the selected text. With nothing selected, these set the look of the next text you type (Text tool, T).</p>
       <button id="textToPaths" class="btn" type="button" disabled style="margin-top:10px" title="Convert selected text into one vector object per letter using its TTF or OTF font file">Convert to paths</button>
-      <p class="hint" style="margin:6px 0 0">Requires the matching TTF/OTF font file. Each letter becomes a separate editable path.</p>
+      <p id="textPathsHint" class="hint" style="margin:6px 0 0">Requires the matching TTF/OTF font file. Each letter becomes a separate editable path.</p>
     </div>
     </div>
     <div class="pane" role="tabpanel" id="pane-brush" data-pane="brush" aria-labelledby="tab-brush">
@@ -9548,14 +9548,22 @@ function textPathObjects(source,fonts){
   }
   if(!out.length)throw Error('The selected text has no visible letter outlines.');return out;
 }
+function textFontRecord(data){
+  const font=opentype.parse(data);
+  if(font.tables.fvar)throw Error('Choose a static font file; variable fonts are not supported yet.');
+  const family=font.names.fontFamily?.en||Object.values(font.names.fontFamily||{})[0]||'Font';
+  const sub=font.names.fontSubfamily?.en||Object.values(font.names.fontSubfamily||{})[0]||'';
+  return {font,name:family+' '+sub};
+}
 function openTextPaths(){
   const one=textPathsSelection();if(!one)return;
   if(typeof opentype==='undefined'||!Intl.Segmenter){protest('Text to paths is unavailable in this browser.');return;}
   const doc=S.doc,frame=S.frame,scope=JSON.stringify(S.edit),original=JSON.stringify(one.o);
   const specs=[...new Map(one.o.runs.filter(r=>String(r.t).trim()).map(r=>[textFontKey(r),r])).entries()];
   if(!specs.length){protest('Select text containing visible letters.');return;}
+  const nativeFont=typeof window.onionskynDesktop?.resolveSystemFont==='function';
   const fonts=new Map(),body=openModal('Convert text to paths',
-    '<p>Choose the exact static TTF or OTF font file for each style. Fonts stay on this device. A different font or an existing browser fallback can change letter shapes.</p>'+specs.map(([key,r],i)=>'<div style="margin:12px 0"><label for="textFont'+i+'">'+escH(textFontLabel(r))+'</label><input type="file" id="textFont'+i+'" accept=".ttf,.otf" style="display:block;max-width:100%;margin-top:4px"><div class="hint" id="textFontStatus'+i+'"></div></div>').join('')+'<p class="hint">Each letter becomes a separate path; holes and accents stay together. Text editing is replaced by node editing. Undo restores the text.</p><p id="textPathError" role="status"></p>',
+    (nativeFont?'<p>oskyn looks for the matching installed font automatically. If it cannot find a supported static font, choose its TTF or OTF file manually.</p>':'<p>Choose the exact static TTF or OTF font file for each style. Fonts stay on this device. A different font or an existing browser fallback can change letter shapes.</p>')+specs.map(([key,r],i)=>'<div style="margin:12px 0"><label for="textFont'+i+'">'+escH(textFontLabel(r))+'</label><input type="file" id="textFont'+i+'" accept=".ttf,.otf" style="display:'+(nativeFont?'none':'block')+';max-width:100%;margin-top:4px">'+(nativeFont?'<button class="btn" type="button" id="textFontManual'+i+'" style="margin-top:4px">Choose manually…</button>':'')+'<div class="hint" id="textFontStatus'+i+'"></div></div>').join('')+'<p class="hint">Each letter becomes a separate path; holes and accents stay together. Text editing is replaced by node editing. Undo restores the text.</p><p id="textPathError" role="status"></p>',
     [{label:'Cancel'},{label:'Convert to paths',primary:true,keep:true,fn:()=>{
       if(convert.disabled)return;
       try{
@@ -9575,17 +9583,27 @@ function openTextPaths(){
     function show(record){fonts.set(key,record);status.textContent='Loaded: '+record.name;sync();}
     const cached=TEXT_PATH_FONTS.get(key);if(cached)show(cached);
     let generation=0;
+    if(nativeFont){
+      $('#textFontManual'+i,body).addEventListener('click',()=>input.click());
+      if(!cached){
+        const gen=++generation;status.textContent='Looking for the installed font…';
+        window.onionskynDesktop.resolveSystemFont({family:r.font||'Arial',bold:!!r.b,italic:!!r.i}).then(result=>{
+          if(gen!==generation||!modalBg.classList.contains('on'))return;
+          if(!result?.found){status.textContent='No matching static font found. Choose a TTF/OTF file manually.';return;}
+          const bytes=result.data instanceof Uint8Array?result.data:new Uint8Array(result.data);
+          const record=textFontRecord(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+          TEXT_PATH_FONTS.set(key,record);show(record);status.textContent='Found installed font: '+record.name;
+        }).catch(()=>{if(gen===generation)status.textContent='Automatic font lookup is unavailable. Choose a font file manually.';});
+      }
+    }
     input.addEventListener('change',async()=>{
       const gen=++generation,file=input.files?.[0];fonts.delete(key);sync();if(!file)return;
       status.textContent='Reading font…';
       try{
         if(file.size>20*1024*1024)throw Error('Choose a font file smaller than 20 MB.');
-        const font=opentype.parse(await file.arrayBuffer());
-        if(font.tables.fvar)throw Error('Choose a static font file; variable fonts are not supported yet.');
-        const family=font.names.fontFamily?.en||Object.values(font.names.fontFamily||{})[0]||file.name;
-        const sub=font.names.fontSubfamily?.en||Object.values(font.names.fontSubfamily||{})[0]||'';
+        const record=textFontRecord(await file.arrayBuffer());
         if(gen!==generation||!body.isConnected||!modalBg.classList.contains('on'))return;
-        const record={font,name:family+' '+sub};TEXT_PATH_FONTS.set(key,record);show(record);
+        TEXT_PATH_FONTS.set(key,record);show(record);
       }catch(error){if(gen===generation){status.textContent='Cannot use this font: '+(error.message||error);sync();}}
     });
   }sync();
@@ -10443,6 +10461,7 @@ function refreshProps() {
   setVal($('#objBlur'), blurValue); $('#objBlurVal').textContent = blurValue + ' px';
   $('#objBlur').disabled = !sels.length;
   $('#textToPaths').disabled=!textPathsSelection();
+  $('#textPathsHint').textContent=typeof window.onionskynDesktop?.resolveSystemFont==='function'?'Uses matching installed fonts automatically. Each letter becomes a separate editable path.':'Requires the matching TTF/OTF font file. Each letter becomes a separate editable path.';
   $('#objInvis').checked = !!(one && one.o.invisMask);
   $('#objInvis').disabled = !one || one.o.kind !== 'path';
   for(const [id,key] of [['objMaskLower','maskLowerLayers'],['objMaskOutline','maskOutline']]){

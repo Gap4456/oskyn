@@ -11,11 +11,11 @@ async function host(responses){
   static getAllWindows(){return win?.closed?[]:[win];}
  }
  const dialog={async showMessageBox(_win,options){prompts.push(options);return {response:options.buttons.length===3?responses.shift():0};}};
- vm.runInNewContext(code,{require(name){return name==='electron'?{app,BrowserWindow:Window,dialog,ipcMain,shell:{openExternal(){}}}:require(name);},__dirname:'/test',process:{platform:'win32'}});
- await tick();return {win,prompts,ipcMain,invoke:(name,arg)=>handlers.get(name)({sender:win.webContents},arg),dirty(value=true){ipcMain.emit('onionskyn:dirty',{sender:win.webContents},value);},ack(ok,count){ipcMain.emit('onionskyn:save-request-result',{sender:win.webContents},{ok,count});},download(){const item=new EventEmitter();item.getFilename=()=> 'project.oskyn.json';item.setSaveDialogOptions=()=>{};win.webContents.session.emit('will-download',{},item,win.webContents);return item;}};
+ vm.runInNewContext(code,{require(name){return name==='electron'?{app,BrowserWindow:Window,dialog,ipcMain,shell:{openExternal(){}}}:name==='./font-resolver.cjs'?require('../../desktop/font-resolver.cjs'):require(name);},__dirname:'/test',process:{platform:'win32'}});
+ await tick();return {win,prompts,ipcMain,handlers,invoke:(name,arg)=>handlers.get(name)({sender:win.webContents},arg),dirty(value=true){ipcMain.emit('onionskyn:dirty',{sender:win.webContents},value);},ack(ok,count){ipcMain.emit('onionskyn:save-request-result',{sender:win.webContents},{ok,count});},download(){const item=new EventEmitter();item.getFilename=()=> 'project.oskyn.json';item.setSaveDialogOptions=()=>{};win.webContents.session.emit('will-download',{},item,win.webContents);return item;}};
 }
 (async()=>{
- let h=await host([2]);h.dirty();h.win.close();await tick();assert(!h.win.closed);assert.deepEqual(Array.from(h.prompts[0].buttons),['Save',"Don't Save",'Cancel']);
+ let h=await host([2]);assert.throws(()=>h.handlers.get('oskyn:system-font')({sender:{}},{family:'Arial',bold:false,italic:false}),/Invalid font sender/);assert.throws(()=>h.handlers.get('oskyn:system-font')({sender:h.win.webContents,senderFrame:{}},{family:'Arial',bold:false,italic:false}),/Invalid font sender/);h.dirty();h.win.close();await tick();assert(!h.win.closed);assert.deepEqual(Array.from(h.prompts[0].buttons),['Save',"Don't Save",'Cancel']);
  h=await host([1]);h.dirty();h.win.close();await tick();assert(h.win.closed);
  h=await host([0]);h.dirty();h.win.close();await tick();assert.equal(h.win.sent[0],'onionskyn:save-before-close');h.ack(true,2);const a=h.download(),z=h.download();a.emit('done',{},'completed');assert(!h.win.closed);z.emit('done',{},'completed');assert(h.win.closed);assert.equal(h.ipcMain.listenerCount('onionskyn:dirty'),0);assert.equal(h.win.webContents.session.listenerCount('will-download'),0);
  h=await host([0]);h.dirty();h.win.close();await tick();h.download().emit('done',{},'completed');assert(!h.win.closed);h.ack(true,1);assert(h.win.closed);

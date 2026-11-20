@@ -1,9 +1,14 @@
 const {app,BrowserWindow,dialog,ipcMain,shell}=require('electron');
 const path=require('node:path');
+const resolveSystemFont=require('./font-resolver.cjs').createFontResolver();
 app.setName('oskyn');
 function createWindow(){
   const win=new BrowserWindow({width:1360,height:860,minWidth:800,minHeight:550,title:'oskyn',autoHideMenuBar:true,
     webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,preload:path.join(__dirname,'preload.cjs')}});
+  ipcMain.handle('oskyn:system-font',(event,query)=>{
+    if(event.sender!==win.webContents||(event.senderFrame&&event.senderFrame!==win.webContents.mainFrame))throw Error('Invalid font sender');
+    return resolveSystemFont(query);
+  });
   const session=win.webContents.session,tickets=new Map();let ticketId=0;
   let dirty=false,allowClose=false,prompting=false,save=null;
   ipcMain.handle('oskyn:prepare-download',(event,name)=>{
@@ -63,7 +68,7 @@ function createWindow(){
     });
   };
   session.on('will-download',onDownload);
-  win.on('closed',()=>{ipcMain.removeListener('onionskyn:dirty',onDirty);ipcMain.removeListener('onionskyn:save-request-result',onSaveResult);session.removeListener('will-download',onDownload);ipcMain.removeHandler('oskyn:prepare-download');ipcMain.removeHandler('oskyn:download-result');for(const t of tickets.values())if(t.resolve)t.resolve(false);tickets.clear();});
+  win.on('closed',()=>{ipcMain.removeListener('onionskyn:dirty',onDirty);ipcMain.removeListener('onionskyn:save-request-result',onSaveResult);session.removeListener('will-download',onDownload);ipcMain.removeHandler('oskyn:system-font');ipcMain.removeHandler('oskyn:prepare-download');ipcMain.removeHandler('oskyn:download-result');for(const t of tickets.values())if(t.resolve)t.resolve(false);tickets.clear();});
   win.webContents.on('will-navigate',(event,url)=>{if(url!==win.webContents.getURL())event.preventDefault();});
   win.webContents.setWindowOpenHandler(({url})=>{if(url.startsWith('https://'))shell.openExternal(url);return {action:'deny'};});
   win.loadFile(path.join(__dirname,'oskyn.html'));

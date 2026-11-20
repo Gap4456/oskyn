@@ -851,6 +851,7 @@ function refreshProps() {
   setVal($('#objBlur'), blurValue); $('#objBlurVal').textContent = blurValue + ' px';
   $('#objBlur').disabled = !sels.length;
   $('#textToPaths').disabled=!textPathsSelection();
+  $('#textPathsHint').textContent=typeof window.onionskynDesktop?.resolveSystemFont==='function'?'Uses matching installed fonts automatically. Each letter becomes a separate editable path.':'Requires the matching TTF/OTF font file. Each letter becomes a separate editable path.';
   $('#objInvis').checked = !!(one && one.o.invisMask);
   $('#objInvis').disabled = !one || one.o.kind !== 'path';
   for(const [id,key] of [['objMaskLower','maskLowerLayers'],['objMaskOutline','maskOutline']]){

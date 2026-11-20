@@ -90,7 +90,7 @@ Ctrl-click an object with the Selection tool to remove it from or add it to the 
 
 ## Text to paths
 
-Select one text object, open **Text** and choose **Convert to paths**. Supply the matching static `.ttf` or `.otf` file for every font/style used by that text, then confirm conversion. Font files are parsed locally and reused for the current session; they are not uploaded or included in saved projects. Using a different font, or replacing a font the browser had substituted, can change the letter shapes.
+Select one text object, open **Text** and choose **Convert to paths**. In a browser, supply the matching static `.ttf` or `.otf` file for every font/style used by that text, then confirm conversion. The updated Electron wrapper automatically finds matching installed static fonts and offers manual file selection if lookup fails. Font files are parsed locally and reused for the current session; they are not uploaded or included in saved projects. Using a different font, or replacing a font the browser had substituted, can change the letter shapes.
 
 Each visible letter becomes a separate filled vector path. Counters and accents stay in the same object; spaces produce no objects. Layout, colour, opacity and transforms are retained, and one Undo restores the editable text. Converting on a held frame inserts a keyframe there, leaving earlier frames unchanged. The resulting paths work with Node Edit, Difference and exports without needing the font. Difference still requires two filled paths on the same layer.
 
