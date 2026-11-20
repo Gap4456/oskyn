@@ -650,18 +650,24 @@ function segLen(a, b) {
   return Math.hypot(x1 - a.x, y1 - a.y) + Math.hypot(x2 - x1, y2 - y1) + Math.hypot(b.x - x2, b.y - y2);
 }
 function subdivideTo(c, target) {
-  const nodes = c.nodes.map((n) => Object.assign({}, n));
-  for (let guard = 0; guard < 5000; guard++) {
-    const segs = c.closed ? nodes.length : nodes.length - 1;
-    if (segs >= target) break;
-    let bi = 0, bl = -1;
-    for (let i = 0; i < segs; i++) { const l = segLen(nodes[i], nodes[(i + 1) % nodes.length]); if (l > bl) { bl = l; bi = i; } }
-    const j = (bi + 1) % nodes.length;
-    const r = splitSeg(nodes[bi], nodes[j], 0.5);
-    nodes[bi] = r[0]; nodes[j] = r[2];
-    nodes.splice(bi + 1, 0, r[1]);
+  if(segCount(c)>=target||c.nodes.length<2)return c.nodes.map(n=>({...n}));
+  const list=c.nodes.map(n=>({node:{...n},next:null}));
+  if(list.length<2)return list.map(e=>e.node);
+  for(let i=0;i<list.length;i++)list[i].next=list[i+1]||(c.closed?list[0]:null);
+  let segments=segCount(c);if(segments>=target)return list.map(e=>e.node);
+  // Split the longest remaining edge with a heap instead of rescanning the
+  // entire growing contour for every added node. Preserve curve geometry.
+  const heap=[],higher=(a,b)=>a.length>b.length||a.length===b.length&&a.order<b.order;
+  const push=e=>{let i=heap.length;heap.push(e);while(i){const j=(i-1)>>1;if(!higher(e,heap[j]))break;heap[i]=heap[j];i=j;}heap[i]=e;};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){let i=0;while(i*2+1<heap.length){let j=i*2+1;if(j+1<heap.length&&higher(heap[j+1],heap[j]))j++;if(!higher(heap[j],last))break;heap[i]=heap[j];i=j;}heap[i]=last;}return top;};
+  const edge=(entry,order,span)=>({entry,order,span,length:segLen(entry.node,entry.next.node)});
+  for(let i=0;i<segments;i++)push(edge(list[i],i,1));
+  while(segments<target){
+    const e=pop(),a=e.entry,b=a.next,r=splitSeg(a.node,b.node,.5),middle={node:r[1],next:b};
+    a.node=r[0];b.node=r[2];a.next=middle;
+    push(edge(a,e.order,e.span/2));push(edge(middle,e.order+e.span/2,e.span/2));segments++;
   }
-  return nodes;
+  const out=[];let e=list[0];do{out.push(e.node);e=e.next;}while(e&&e!==list[0]);return out;
 }
 function signedArea(nodes) {
   let s = 0;
@@ -700,6 +706,21 @@ function lerpNode(a, b, p) {
 // edge at its other endpoint instead of assigning an existing corner to it.
 function morphNodePair(a,b) {
   if(!a.nodes.every(n=>n.mid)||!b.nodes.every(n=>n.mid))return null;
+  const idsA=new Set(a.nodes.map(n=>n.mid)),idsB=new Set(b.nodes.map(n=>n.mid));
+  if(idsA.size!==a.nodes.length||idsB.size!==b.nodes.length)return null;
+  // The usual animation/deformation case: identical identities, already in
+  // order. Avoid deep cloning and the former quadratic membership search.
+  if(a.nodes.length===b.nodes.length&&a.nodes.every((n,i)=>n.mid===b.nodes[i].mid))return [a.nodes,b.nodes];
+  if(a.nodes.length===b.nodes.length&&a.nodes.every(n=>idsB.has(n.mid))){
+    let aligned=b.nodes;
+    if(a.closed){const first=b.nodes.findIndex(n=>n.mid===a.nodes[0].mid);aligned=b.nodes.slice(first).concat(b.nodes.slice(0,first));if(aligned.length>2&&aligned[1].mid!==a.nodes[1].mid){const rev=reverseNodes(b.nodes),k=rev.findIndex(n=>n.mid===a.nodes[0].mid);aligned=rev.slice(k).concat(rev.slice(0,k));}}
+    else if(aligned[0].mid!==a.nodes[0].mid)aligned=reverseNodes(aligned);
+    return a.nodes.every((n,i)=>n.mid===aligned[i].mid)?[a.nodes,aligned]:null;
+  }
+  const known=new Map([...a.nodes,...b.nodes,...(a.gone||[]),...(b.gone||[])].map(n=>[n.mid,n]));
+  for(const id of idsA)if(!idsB.has(id)&&!known.get(id)?.birth)return null;
+  for(const id of idsB)if(!idsA.has(id)&&!known.get(id)?.birth)return null;
+  let work=0,exhausted=false;
   const na=clone(a.nodes),nb=clone(b.nodes),all=new Map([...na,...nb].map(n=>[n.mid,n]));
   // A deleted node becomes a virtual subdivision on its surviving edge.
   for(const n of [...(a.gone||[]),...(b.gone||[])])all.set(n.mid,n);
@@ -709,6 +730,7 @@ function morphNodePair(a,b) {
       const have=new Set(nodes.map(n=>n.mid));let changed=false;
       for(const [id,n] of all){
         if(have.has(id)||!n.birth)continue;
+        if((work+=nodes.length+all.size)>2000000){exhausted=true;return;}
         const [left,right,t]=n.birth,i=nodes.findIndex(n=>n.mid===left),j=(i+1)%nodes.length;
         if(n.end&&!a.closed){
           const at=n.end==='start'?0:nodes.length-1;if(nodes[at].mid!==left)continue;
@@ -729,8 +751,9 @@ function morphNodePair(a,b) {
       if(!changed)break;
     }
   };
-  expand(na);expand(nb);
-  if(na.length!==nb.length||na.some(n=>!nb.some(m=>m.mid===n.mid)))return null;
+  expand(na);if(exhausted)return null;expand(nb);if(exhausted)return null;
+  const expandedIds=new Set(nb.map(n=>n.mid));
+  if(na.length!==nb.length||na.some(n=>!expandedIds.has(n.mid)))return null;
   let aligned=nb;
   if(a.closed){
     const first=nb.findIndex(n=>n.mid===na[0].mid);aligned=nb.slice(first).concat(nb.slice(0,first));
@@ -746,6 +769,7 @@ function morphContours(A, B, p) {
     if (a.closed !== b.closed || a.nodes.length < 2 || b.nodes.length < 2) return null;
     const tgt = Math.max(segCount(a), segCount(b));
     const pair=morphNodePair(a,b);
+    if(!pair&&tgt>50000)return null;
     const na = pair?pair[0]:subdivideTo(a, tgt);
     const nb = pair?pair[1]:alignNodes(na, subdivideTo(b, tgt), a.closed);
     const gone=[...new Map([...(a.gone||[]),...(b.gone||[])].map(n=>[n.mid,n])).values()];

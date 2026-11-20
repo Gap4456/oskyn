@@ -1513,18 +1513,24 @@ function segLen(a, b) {
   return Math.hypot(x1 - a.x, y1 - a.y) + Math.hypot(x2 - x1, y2 - y1) + Math.hypot(b.x - x2, b.y - y2);
 }
 function subdivideTo(c, target) {
-  const nodes = c.nodes.map((n) => Object.assign({}, n));
-  for (let guard = 0; guard < 5000; guard++) {
-    const segs = c.closed ? nodes.length : nodes.length - 1;
-    if (segs >= target) break;
-    let bi = 0, bl = -1;
-    for (let i = 0; i < segs; i++) { const l = segLen(nodes[i], nodes[(i + 1) % nodes.length]); if (l > bl) { bl = l; bi = i; } }
-    const j = (bi + 1) % nodes.length;
-    const r = splitSeg(nodes[bi], nodes[j], 0.5);
-    nodes[bi] = r[0]; nodes[j] = r[2];
-    nodes.splice(bi + 1, 0, r[1]);
+  if(segCount(c)>=target||c.nodes.length<2)return c.nodes.map(n=>({...n}));
+  const list=c.nodes.map(n=>({node:{...n},next:null}));
+  if(list.length<2)return list.map(e=>e.node);
+  for(let i=0;i<list.length;i++)list[i].next=list[i+1]||(c.closed?list[0]:null);
+  let segments=segCount(c);if(segments>=target)return list.map(e=>e.node);
+  // Split the longest remaining edge with a heap instead of rescanning the
+  // entire growing contour for every added node. Preserve curve geometry.
+  const heap=[],higher=(a,b)=>a.length>b.length||a.length===b.length&&a.order<b.order;
+  const push=e=>{let i=heap.length;heap.push(e);while(i){const j=(i-1)>>1;if(!higher(e,heap[j]))break;heap[i]=heap[j];i=j;}heap[i]=e;};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){let i=0;while(i*2+1<heap.length){let j=i*2+1;if(j+1<heap.length&&higher(heap[j+1],heap[j]))j++;if(!higher(heap[j],last))break;heap[i]=heap[j];i=j;}heap[i]=last;}return top;};
+  const edge=(entry,order,span)=>({entry,order,span,length:segLen(entry.node,entry.next.node)});
+  for(let i=0;i<segments;i++)push(edge(list[i],i,1));
+  while(segments<target){
+    const e=pop(),a=e.entry,b=a.next,r=splitSeg(a.node,b.node,.5),middle={node:r[1],next:b};
+    a.node=r[0];b.node=r[2];a.next=middle;
+    push(edge(a,e.order,e.span/2));push(edge(middle,e.order+e.span/2,e.span/2));segments++;
   }
-  return nodes;
+  const out=[];let e=list[0];do{out.push(e.node);e=e.next;}while(e&&e!==list[0]);return out;
 }
 function signedArea(nodes) {
   let s = 0;
@@ -1563,6 +1569,21 @@ function lerpNode(a, b, p) {
 // edge at its other endpoint instead of assigning an existing corner to it.
 function morphNodePair(a,b) {
   if(!a.nodes.every(n=>n.mid)||!b.nodes.every(n=>n.mid))return null;
+  const idsA=new Set(a.nodes.map(n=>n.mid)),idsB=new Set(b.nodes.map(n=>n.mid));
+  if(idsA.size!==a.nodes.length||idsB.size!==b.nodes.length)return null;
+  // The usual animation/deformation case: identical identities, already in
+  // order. Avoid deep cloning and the former quadratic membership search.
+  if(a.nodes.length===b.nodes.length&&a.nodes.every((n,i)=>n.mid===b.nodes[i].mid))return [a.nodes,b.nodes];
+  if(a.nodes.length===b.nodes.length&&a.nodes.every(n=>idsB.has(n.mid))){
+    let aligned=b.nodes;
+    if(a.closed){const first=b.nodes.findIndex(n=>n.mid===a.nodes[0].mid);aligned=b.nodes.slice(first).concat(b.nodes.slice(0,first));if(aligned.length>2&&aligned[1].mid!==a.nodes[1].mid){const rev=reverseNodes(b.nodes),k=rev.findIndex(n=>n.mid===a.nodes[0].mid);aligned=rev.slice(k).concat(rev.slice(0,k));}}
+    else if(aligned[0].mid!==a.nodes[0].mid)aligned=reverseNodes(aligned);
+    return a.nodes.every((n,i)=>n.mid===aligned[i].mid)?[a.nodes,aligned]:null;
+  }
+  const known=new Map([...a.nodes,...b.nodes,...(a.gone||[]),...(b.gone||[])].map(n=>[n.mid,n]));
+  for(const id of idsA)if(!idsB.has(id)&&!known.get(id)?.birth)return null;
+  for(const id of idsB)if(!idsA.has(id)&&!known.get(id)?.birth)return null;
+  let work=0,exhausted=false;
   const na=clone(a.nodes),nb=clone(b.nodes),all=new Map([...na,...nb].map(n=>[n.mid,n]));
   // A deleted node becomes a virtual subdivision on its surviving edge.
   for(const n of [...(a.gone||[]),...(b.gone||[])])all.set(n.mid,n);
@@ -1572,6 +1593,7 @@ function morphNodePair(a,b) {
       const have=new Set(nodes.map(n=>n.mid));let changed=false;
       for(const [id,n] of all){
         if(have.has(id)||!n.birth)continue;
+        if((work+=nodes.length+all.size)>2000000){exhausted=true;return;}
         const [left,right,t]=n.birth,i=nodes.findIndex(n=>n.mid===left),j=(i+1)%nodes.length;
         if(n.end&&!a.closed){
           const at=n.end==='start'?0:nodes.length-1;if(nodes[at].mid!==left)continue;
@@ -1592,8 +1614,9 @@ function morphNodePair(a,b) {
       if(!changed)break;
     }
   };
-  expand(na);expand(nb);
-  if(na.length!==nb.length||na.some(n=>!nb.some(m=>m.mid===n.mid)))return null;
+  expand(na);if(exhausted)return null;expand(nb);if(exhausted)return null;
+  const expandedIds=new Set(nb.map(n=>n.mid));
+  if(na.length!==nb.length||na.some(n=>!expandedIds.has(n.mid)))return null;
   let aligned=nb;
   if(a.closed){
     const first=nb.findIndex(n=>n.mid===na[0].mid);aligned=nb.slice(first).concat(nb.slice(0,first));
@@ -1609,6 +1632,7 @@ function morphContours(A, B, p) {
     if (a.closed !== b.closed || a.nodes.length < 2 || b.nodes.length < 2) return null;
     const tgt = Math.max(segCount(a), segCount(b));
     const pair=morphNodePair(a,b);
+    if(!pair&&tgt>50000)return null;
     const na = pair?pair[0]:subdivideTo(a, tgt);
     const nb = pair?pair[1]:alignNodes(na, subdivideTo(b, tgt), a.closed);
     const gone=[...new Map([...(a.gone||[]),...(b.gone||[])].map(n=>[n.mid,n])).values()];
@@ -9502,7 +9526,7 @@ function openTextPaths(){
 }
 /* A persistent editor controller; only ordinary path nodes are exported.
    Confirmation flattens curves once. Dragging never changes node topology. */
-const DEFORM={draft:null,active:null,palette:null};
+const DEFORM={draft:null,active:null,palette:null,pending:null,raf:0};
 const deformScope=()=>JSON.stringify(S.edit.map(e=>e.sym));
 function deformDraft(){
   const d=DEFORM.draft;
@@ -9662,7 +9686,14 @@ function deformDrag(p,e){
   const frame=key.objs.find(o=>o.id===d.id);if(frame)frame.deformFrame.quad=quad;
   invalidate();
 }
+function deformQueueMove(p){
+  DEFORM.pending={drag:S.drag,p};
+  if(!DEFORM.raf)DEFORM.raf=requestAnimationFrame(()=>{DEFORM.raf=0;const next=DEFORM.pending;DEFORM.pending=null;if(next&&S.drag===next.drag)deformDrag(next.p);});
+}
 function deformEnd(cancel=false){
+  if(DEFORM.raf)cancelAnimationFrame(DEFORM.raf);DEFORM.raf=0;
+  const pending=DEFORM.pending;DEFORM.pending=null;
+  if(!cancel&&pending&&S.drag===pending.drag)deformDrag(pending.p);
   const d=S.drag;if(d?.type!=='deform')return;
   S.drag=null;
   if(cancel&&d.rollback){const r=d.rollback;restoreSnap(r.doc);H.stack=r.undo;H.redo=r.redo;unsaved=r.dirty;S.changeSerial=r.serial;S.sel=r.sel;$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();refreshAll();}
@@ -9671,7 +9702,7 @@ function deformEnd(cancel=false){
   else invalidate();
 }
 const deformNativeDown=onDown;onDown=function(e){const p=stagePt(e);if(deformDown(e,p)){if(S.playing)stopPlay();return;}return deformNativeDown(e);};
-const deformNativeMove=onMove;onMove=function(e){if(S.drag?.type==='deform'){deformDrag(stagePt(e),e);return;}return deformNativeMove(e);};
+const deformNativeMove=onMove;onMove=function(e){if(S.drag?.type==='deform'){deformQueueMove(stagePt(e));return;}return deformNativeMove(e);};
 const deformNativeUp=onUp;onUp=function(e){if(S.drag?.type==='deform'){deformEnd(e.type==='pointercancel');return;}return deformNativeUp(e);};
 const deformNativePinch=startPinch;startPinch=function(){if(S.drag?.type==='deform')deformEnd(true);return deformNativePinch();};
 const deformNativeOverlay=drawOverlay;drawOverlay=function(ctx){deformNativeOverlay(ctx);deformOverlay(ctx);};
@@ -11623,26 +11654,32 @@ function kroganPathBoolean(op) {
 
 
 /* KROGAN: reduce polygon-clipping nodes while reconstructing Bézier handles. */
+function simplifyShapeTweenConflict(chosen){
+  for(const s of chosen){
+    const l=getLayer(s.lid),i=C.kfIndexAt(l,S.frame),key=l.kfs[i],prev=l.kfs[i-1],next=l.kfs[i+1];
+    if(!key)continue;
+    if(key.tween==='shape'&&next&&[...C.tweenPairs(key,next).keys()].some(o=>o.id===s.id))return true;
+    if(prev?.tween==='shape'&&[...C.tweenPairs(prev,key).values()].some(o=>o.id===s.id))return true;
+  }
+  return false;
+}
 function kroganPathSimplify() {
   if(selEval().some(s=>s.o.skin)){toast('Detach the soft body before simplifying its contour.');return;}
   if(selEval().some(s=>s.o.skel)){toast('Skeletons are control guides. Select artwork to simplify.');return;}
-  const chosen=selEval().filter(s=>s.o.kind==='path');
-  if(!chosen.length){toast('Simplify: select a path first.');return;}
-  const editable=editableSel();
-  const matches=[];
-  for(const {l,kf,ids} of editable)for(const o of kf.objs){
-    if(ids.includes(o.id)&&o.kind==='path')matches.push({o,l});
-  }
-  if(!matches.length){toast('Simplify: select a path on an editable keyframe.');return;}
+  const chosen=selEval().filter(s=>s.o.kind==='path'&&!s.o.deformFrame&&getLayer(s.lid)?.visible&&!getLayer(s.lid)?.locked);
+  if(!chosen.length){toast('Simplify: select an unlocked path first.');return;}
+  // Changing one endpoint's topology can trigger expensive correspondence work
+  // and destroy the intended animation. Refuse before history/keyframe edits.
+  if(simplifyShapeTweenConflict(chosen)){protest('Simplify: this path belongs to a Shape Tween. Simplify before creating the tween, or remove its incoming/outgoing Shape Tween first. Nothing changed.');return;}
   const changes=[];let total=0;
-  for(const {o} of matches){
-    const contours=o.contours.map(c=>C.kroganSimplifyContour(c));
+  for(const s of chosen){
+    const contours=s.o.contours.map(c=>C.kroganSimplifyContour(c));
     const count=contours.reduce((sum,r)=>sum+r.removed,0);
-    if(count){changes.push({o,contours:contours.map(r=>r.contour)});total+=count;}
+    if(count){changes.push({lid:s.lid,id:s.id,contours:contours.map(r=>r.contour)});total+=count;}
   }
   if(!total){toast('Simplify: no removable nodes.');return;}
   pushUndo();
-  for(const {o,contours} of changes){o.contours=contours;delete o.star;}
+  for(const {lid,id,contours} of changes){const key=C.ensureEditable(getLayer(lid),S.frame),o=key.objs.find(o=>o.id===id);if(o){o.contours=contours;delete o.star;}}
   S.nodeSel=null;S.kNodeSelection=[];commit();
   toast('KROGAN Simplify: removed '+total+' nodes. Ctrl+Z to undo.');
 }

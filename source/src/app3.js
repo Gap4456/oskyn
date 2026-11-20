@@ -1921,26 +1921,32 @@ function kroganPathBoolean(op) {
 
 
 /* KROGAN: reduce polygon-clipping nodes while reconstructing Bézier handles. */
+function simplifyShapeTweenConflict(chosen){
+  for(const s of chosen){
+    const l=getLayer(s.lid),i=C.kfIndexAt(l,S.frame),key=l.kfs[i],prev=l.kfs[i-1],next=l.kfs[i+1];
+    if(!key)continue;
+    if(key.tween==='shape'&&next&&[...C.tweenPairs(key,next).keys()].some(o=>o.id===s.id))return true;
+    if(prev?.tween==='shape'&&[...C.tweenPairs(prev,key).values()].some(o=>o.id===s.id))return true;
+  }
+  return false;
+}
 function kroganPathSimplify() {
   if(selEval().some(s=>s.o.skin)){toast('Detach the soft body before simplifying its contour.');return;}
   if(selEval().some(s=>s.o.skel)){toast('Skeletons are control guides. Select artwork to simplify.');return;}
-  const chosen=selEval().filter(s=>s.o.kind==='path');
-  if(!chosen.length){toast('Simplify: select a path first.');return;}
-  const editable=editableSel();
-  const matches=[];
-  for(const {l,kf,ids} of editable)for(const o of kf.objs){
-    if(ids.includes(o.id)&&o.kind==='path')matches.push({o,l});
-  }
-  if(!matches.length){toast('Simplify: select a path on an editable keyframe.');return;}
+  const chosen=selEval().filter(s=>s.o.kind==='path'&&!s.o.deformFrame&&getLayer(s.lid)?.visible&&!getLayer(s.lid)?.locked);
+  if(!chosen.length){toast('Simplify: select an unlocked path first.');return;}
+  // Changing one endpoint's topology can trigger expensive correspondence work
+  // and destroy the intended animation. Refuse before history/keyframe edits.
+  if(simplifyShapeTweenConflict(chosen)){protest('Simplify: this path belongs to a Shape Tween. Simplify before creating the tween, or remove its incoming/outgoing Shape Tween first. Nothing changed.');return;}
   const changes=[];let total=0;
-  for(const {o} of matches){
-    const contours=o.contours.map(c=>C.kroganSimplifyContour(c));
+  for(const s of chosen){
+    const contours=s.o.contours.map(c=>C.kroganSimplifyContour(c));
     const count=contours.reduce((sum,r)=>sum+r.removed,0);
-    if(count){changes.push({o,contours:contours.map(r=>r.contour)});total+=count;}
+    if(count){changes.push({lid:s.lid,id:s.id,contours:contours.map(r=>r.contour)});total+=count;}
   }
   if(!total){toast('Simplify: no removable nodes.');return;}
   pushUndo();
-  for(const {o,contours} of changes){o.contours=contours;delete o.star;}
+  for(const {lid,id,contours} of changes){const key=C.ensureEditable(getLayer(lid),S.frame),o=key.objs.find(o=>o.id===id);if(o){o.contours=contours;delete o.star;}}
   S.nodeSel=null;S.kNodeSelection=[];commit();
   toast('KROGAN Simplify: removed '+total+' nodes. Ctrl+Z to undo.');
 }

@@ -2,6 +2,7 @@
 
 ## 1.0.2 — 2026-11-19
 
+- Prevented Simplify from changing active Shape Tween endpoints; optimized dense morph matching/subdivision and coalesced deformation drag updates.
 - Added a persistent vector Deform frame with one-time curve flattening, projective corner dragging and grouped Shape Tween support.
 - Added Text → Convert to paths using local static TTF/OTF files, with one object per letter and Undo.
 - Added opt-in cross-layer invisibility masks, locked-layer immunity and inherited cut-edge strokes.

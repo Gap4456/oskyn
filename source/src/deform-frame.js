@@ -1,6 +1,6 @@
 /* A persistent editor controller; only ordinary path nodes are exported.
    Confirmation flattens curves once. Dragging never changes node topology. */
-const DEFORM={draft:null,active:null,palette:null};
+const DEFORM={draft:null,active:null,palette:null,pending:null,raf:0};
 const deformScope=()=>JSON.stringify(S.edit.map(e=>e.sym));
 function deformDraft(){
   const d=DEFORM.draft;
@@ -160,7 +160,14 @@ function deformDrag(p,e){
   const frame=key.objs.find(o=>o.id===d.id);if(frame)frame.deformFrame.quad=quad;
   invalidate();
 }
+function deformQueueMove(p){
+  DEFORM.pending={drag:S.drag,p};
+  if(!DEFORM.raf)DEFORM.raf=requestAnimationFrame(()=>{DEFORM.raf=0;const next=DEFORM.pending;DEFORM.pending=null;if(next&&S.drag===next.drag)deformDrag(next.p);});
+}
 function deformEnd(cancel=false){
+  if(DEFORM.raf)cancelAnimationFrame(DEFORM.raf);DEFORM.raf=0;
+  const pending=DEFORM.pending;DEFORM.pending=null;
+  if(!cancel&&pending&&S.drag===pending.drag)deformDrag(pending.p);
   const d=S.drag;if(d?.type!=='deform')return;
   S.drag=null;
   if(cancel&&d.rollback){const r=d.rollback;restoreSnap(r.doc);H.stack=r.undo;H.redo=r.redo;unsaved=r.dirty;S.changeSerial=r.serial;S.sel=r.sel;$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();refreshAll();}
@@ -169,7 +176,7 @@ function deformEnd(cancel=false){
   else invalidate();
 }
 const deformNativeDown=onDown;onDown=function(e){const p=stagePt(e);if(deformDown(e,p)){if(S.playing)stopPlay();return;}return deformNativeDown(e);};
-const deformNativeMove=onMove;onMove=function(e){if(S.drag?.type==='deform'){deformDrag(stagePt(e),e);return;}return deformNativeMove(e);};
+const deformNativeMove=onMove;onMove=function(e){if(S.drag?.type==='deform'){deformQueueMove(stagePt(e));return;}return deformNativeMove(e);};
 const deformNativeUp=onUp;onUp=function(e){if(S.drag?.type==='deform'){deformEnd(e.type==='pointercancel');return;}return deformNativeUp(e);};
 const deformNativePinch=startPinch;startPinch=function(){if(S.drag?.type==='deform')deformEnd(true);return deformNativePinch();};
 const deformNativeOverlay=drawOverlay;drawOverlay=function(ctx){deformNativeOverlay(ctx);deformOverlay(ctx);};
