@@ -86,6 +86,8 @@ npm test
 
 The build reproduces `index.html` and `oskyn.html` from source without changing the application version (`1.0.2`). Edit the source and rebuild rather than editing generated HTML alone.
 
+Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
+
 ## Invisibility masks
 
 Select a vector path and enable **Invisibility Mask** in Object properties. It cuts earlier objects in its own layer. Two optional checkboxes become available:

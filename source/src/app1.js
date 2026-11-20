@@ -920,7 +920,7 @@ function drawOverlay(ctx) {
     ctx.beginPath();
     cs.forEach((p, i) => { const q = w2s(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
     ctx.closePath();
-    if(S.tool==='select'&&sels.length>1){
+    if(S.tool==='select'&&sels.length>1||S.tool==='node'&&s.o.kind==='group'){
       ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([9,6]);
       ctx.strokeStyle='#ffffff';ctx.lineWidth=5;ctx.stroke();
       ctx.strokeStyle='#171721';ctx.lineWidth=2;ctx.stroke();ctx.restore();

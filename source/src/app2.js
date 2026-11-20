@@ -325,6 +325,18 @@ function onUp(e) {
     if(e.type==='pointercancel'){S.drag=null;invalidate();return;}
     if(Math.max(Math.abs(p.w.x-d.start.x),Math.abs(p.w.y-d.start.y))*S.view.z<3){
       S.drag=null;const start={...p,w:d.start};
+      // A stationary Ctrl-click toggles an object; Ctrl-drag remains a marquee.
+      // Editable Node paths retain their anchor/curve gestures.
+      const hit=hitAt(d.start.x,d.start.y,5,e.altKey);
+      if(d.clickTool==='select'||d.clickTool==='node'&&hit&&!nodeEditable(hit.o)){
+        if(hit){
+          const selected=S.sel.some(s=>s.lid===hit.lid&&s.id===hit.id);
+          S.sel=selected?S.sel.filter(s=>s.lid!==hit.lid||s.id!==hit.id):[...S.sel,{lid:hit.lid,id:hit.id}];
+          if(!selected)selectLayer(hit.lid,true);
+          S.nodeSel=null;S.kNodeSelection=[];S.multiNodeRefs=[];
+        }
+        refreshProps();invalidate();return;
+      }
       if(d.clickTool==='node')nodeDown(e,start);else if(d.clickTool==='select')selDown(e,start);
       if(S.drag?.type==='node-marquee')kNodeMarqueeUp(S.drag);
       S.drag=null;refreshProps();invalidate();return;
