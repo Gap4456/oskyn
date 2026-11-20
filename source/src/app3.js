@@ -859,6 +859,8 @@ function refreshProps() {
     $('#'+id).disabled=!one||one.o.kind!=='path'||!one.o.invisMask;
   }
   $$('[data-act]').forEach((b) => { b.disabled = ['group','ungroup'].includes(b.dataset.act)?!selectionActions[b.dataset.act]:!sels.length; });
+  $('#uniqueSymbolActions').hidden=!(one&&one.o.kind==='clip');
+  for(const button of $$('#uniqueSymbolActions button'))button.disabled=!uniqueSymbolSelection();
   refreshTransformFields();
   setVal($('#radius'), st.radius); setVal($('#smooth'), st.smooth);
   setVal($('#bsize'), st.bsize); setVal($('#bsizeR'), Math.min(200, st.bsize)); setVal($('#esize'), st.esize || 20); setVal($('#esizeR'), Math.min(200, st.esize || 20)); setVal($('#bshape'), st.bshape); $('#bpress').checked = !!st.bpress; $('#bmerge').checked = st.bmerge !== false; $('#bgap').value = st.bgap || 'small'; $('#ball').checked = !!st.ball; setVal($('#bangle'), st.bangle); setVal($('#bangleR'), st.bangle); setVal($('#bcolor'), st.bcolor); if (window.__angOff) window.__angOff(); fbSync();
@@ -1249,6 +1251,7 @@ function arrange(act) {
   if (act === 'group') return groupSel();
   if (act === 'ungroup') return ungroupSel();
   if (act === 'dup') return duplicateSel();
+  if (act === 'dup-unique' || act === 'dup-nested') return duplicateUniqueSymbol(act === 'dup-nested');
   if (act === 'del') return deleteSel();
   if (!S.sel.length) return;
   pushUndo();
@@ -1306,6 +1309,43 @@ function ungroupSel() {
   for(const c of copies.values())if(c.sbind&&copies.has(c.sbind.to))c.sbind.to=copies.get(c.sbind.to).id;
   for(const c of copies.values())if(c.skin&&copies.has(c.skin.to))c.skin.to=copies.get(c.skin.to).id;
   S.sel = newSel; commit();
+}
+function uniqueSymbolSelection(){
+  const one=singleSel(),layer=one&&getLayer(one.lid);
+  return one&&one.o.kind==='clip'&&Object.hasOwn(S.doc.lib,one.o.sym)&&layer?.visible&&!layer.locked&&!REC.armed?one:null;
+}
+function uniqueSymbolPlan(root,nested){
+  const names=new Map(),definitions=new Map(),occupied=new Set(Object.keys(S.doc.lib));
+  const pending=[root];
+  // Reserve every name before remapping. Shared children and recursive references
+  // therefore point to exactly one copied definition, without recursive cloning.
+  while(pending.length){
+    const name=pending.shift();if(names.has(name)||!Object.hasOwn(S.doc.lib,name))continue;
+    const base=name+' copy';let fresh=base,index=2;while(occupied.has(fresh))fresh=base+' '+index++;
+    occupied.add(fresh);names.set(name,fresh);
+    const definition=clone(S.doc.lib[name]);
+    const active=S.edit.findIndex(e=>e.sym===name);
+    if(active>=0)definition.frames=active+1<S.edit.length?S.edit[active+1].frames:S.doc.frames;
+    definitions.set(name,definition);
+    if(nested)walkTransfer(definition,o=>{if(o.kind==='clip'&&typeof o.sym==='string'&&!names.has(o.sym))pending.push(o.sym);});
+  }
+  if(nested)for(const definition of definitions.values())walkTransfer(definition,o=>{
+    if(o.kind==='clip'&&names.has(o.sym))o.sym=names.get(o.sym);
+  });
+  return {names,definitions};
+}
+function duplicateUniqueSymbol(nested){
+  const one=uniqueSymbolSelection();if(!one)return;
+  const plan=uniqueSymbolPlan(one.o.sym,nested);
+  if(!plan.definitions.size)return;
+  pushUndo();
+  const layer=getLayer(one.lid),keyframe=C.ensureEditable(layer,S.frame),at=keyframe.objs.findIndex(o=>o.id===one.id);
+  const copy=clone(keyframe.objs[at]);copy.id=uid();copy.sym=plan.names.get(one.o.sym);
+  for(const [name,definition] of plan.definitions)S.doc.lib[plan.names.get(name)]=definition;
+  keyframe.objs.splice(at+1,0,copy);S.sel=[{lid:one.lid,id:copy.id}];
+  S.nodeSel=null;S.kNodeSelection=[];S.multiNodeRefs=[];
+  C.setLib(S.doc.lib);commit();refreshAll();renderLibrary(true);
+  toast(nested?'Duplicated symbol with '+plan.definitions.size+' independent symbol definition(s).':'Duplicated as an independent symbol. Nested symbols remain shared.');
 }
 function duplicateSel() {
   if (!S.sel.length) return;

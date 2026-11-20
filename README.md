@@ -88,6 +88,15 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
 
+## Independent symbol copies
+
+Select one symbol instance and open **Object**:
+
+- **Duplicate as unique** creates a second instance backed by a new symbol definition. Its nested symbols remain shared with the original.
+- **Duplicate with nested symbols** also copies all structurally referenced nested symbols, including references inside groups and later keyframes. Repeated uses of a nested symbol share one new definition within the copied graph.
+
+The copy appears directly above the original in the same position and keeps its transform, playback settings, opacity, instance name and scripts. New definitions receive collision-free `copy` names in the existing Library. Images and sounds remain shared project assets. Each action uses one Undo; ordinary **Duplicate / Ctrl+D** keeps its existing linked-instance behaviour. The buttons are available for one symbol on a visible unlocked layer outside Record mode, including while editing another symbol.
+
 ## Text to paths
 
 Select one text object, open **Text** and choose **Convert to paths**. In a browser, supply the matching static `.ttf` or `.otf` file for every font/style used by that text, then confirm conversion. The updated Electron wrapper automatically finds matching installed static fonts and offers manual file selection if lookup fails. Font files are parsed locally and reused for the current session; they are not uploaded or included in saved projects. Using a different font, or replacing a font the browser had substituted, can change the letter shapes.

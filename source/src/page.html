@@ -135,6 +135,10 @@
       <div class="row"><span>Instance</span><div class="ctl"><input type="text" id="iname" placeholder="name (e.g. btn_next)" spellcheck="false" aria-label="Instance name"></div></div>
       <div class="row" id="iscriptRow" style="align-items:flex-start"><span>Script</span><div class="ctl"><textarea id="iscript" rows="4" spellcheck="false" placeholder="Runs when this clip appears, e.g. on (release) { gotoAndPlay(&quot;menu&quot;); }" aria-label="Instance script"></textarea></div></div>
       <div class="mini" style="margin-top:8px"><button data-act="edit" title="Edit symbol timeline (double-click)">Edit symbol</button><button data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-act="del" title="Delete">Delete</button></div>
+      <div id="uniqueSymbolActions" hidden style="margin-top:6px">
+        <button class="btn" style="display:block;width:100%;margin-top:6px" data-act="dup-unique" title="Duplicate this instance with its own symbol; nested symbols remain shared">Duplicate as unique</button>
+        <button class="btn" style="display:block;width:100%;margin-top:6px" data-act="dup-nested" title="Duplicate this instance and every nested symbol, keeping the original symbols unchanged">Duplicate with nested symbols</button>
+      </div>
     </div>
     </div>
     <div class="pane" role="tabpanel" id="pane-text" data-pane="text" aria-labelledby="tab-text">
