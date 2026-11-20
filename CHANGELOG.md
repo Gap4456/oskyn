@@ -2,6 +2,7 @@
 
 ## 1.0.2 — 2026-11-19
 
+- Added a persistent vector Deform frame with one-time curve flattening, projective corner dragging and grouped Shape Tween support.
 - Added Text → Convert to paths using local static TTF/OTF files, with one object per letter and Undo.
 - Added opt-in cross-layer invisibility masks, locked-layer immunity and inherited cut-edge strokes.
 - Added Ctrl-click selection toggling and contrasting Node Edit group bounds.

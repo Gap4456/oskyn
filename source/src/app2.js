@@ -9,6 +9,7 @@ const TOOLS = [
   { id: 'eraser', k: 'E', n: 'Eraser (cuts fills and lines on the active layer; [ and ] change size)', svg: '<path d="M7.5 16.5h8"/><path d="M4.2 11.8L11 5l4.2 4.2-6.8 6.8H6z"/><path d="M8 8.2l4.2 4.2"/>', cur: 'crosshair' },
   { id: 'bone', k: 'J', n: 'Bones (click to place a bone; hover a joint for actions)', svg: '<circle cx="4" cy="10" r="3" stroke-dasharray="3 2"/><circle cx="16" cy="10" r="3" stroke-dasharray="3 2"/><path d="M7 10h6" stroke-dasharray="2 2"/>', cur: 'crosshair' },
   { id: 'mirror', k: 'M', n: 'Mirror (drag from toolbar or draw a frame; filled vector paths)', svg: '<path d="M10 2v16" stroke-dasharray="2 2"/><path d="M7 5L2 10l5 5zM13 5l5 5-5 5z"/>', cur: 'crosshair' },
+  { id: 'deform', k: '', n: 'Deform frame (draw a rectangle, confirm, then drag its corners; vector paths and groups)', svg: '<path d="M3 3h14v14H3z" stroke-dasharray="2 2"/><path d="m5 5 11 3-2 7-9 1Z"/><path d="M4 4h2v2H4zM15 6h2v2h-2zM13 14h2v2h-2zM4 15h2v2H4z"/>', cur: 'crosshair' },
   { id: 'line', k: 'L', n: 'Line (Shift = 45°)', svg: '<path d="M4 16L16 4"/>', cur: 'crosshair' },
   { id: 'rect', k: 'R', n: 'Rectangle (Shift = square, Alt = from centre)', svg: '<rect x="3.5" y="5.5" width="13" height="9" rx="1"/>', cur: 'crosshair' },
   { id: 'ellipse', k: 'O', n: 'Ellipse (Shift = circle, Alt = from centre)', svg: '<ellipse cx="10" cy="10" rx="7" ry="5.5"/>', cur: 'crosshair' },
@@ -25,10 +26,11 @@ function buildTools() {
   for (const t of TOOLS) {
     if (t.sep) continue; // KROGAN: no divider rows in either layout
     const b = document.createElement('button');
-    b.className = 'tool'; b.dataset.tool = t.id; b.title = t.n + ' (' + t.k + ')'; b.setAttribute('aria-label', t.n); b.setAttribute('aria-pressed', 'false');
+    b.className = 'tool'; b.dataset.tool = t.id; b.title = t.n + (t.k ? ' (' + t.k + ')' : ''); b.setAttribute('aria-label', t.n); b.setAttribute('aria-pressed', 'false');
     b.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true">' + t.svg + '</svg><kbd>' + t.k + '</kbd>';
-    b.addEventListener('click', e => {if(t.id==='mirror'){if(!b.dataset.mirrorDragged)mirrorBegin();return;}setTool(t.id);if(t.id==='dropper')screenDropper(e.altKey);});
+    b.addEventListener('click', e => {if(t.id==='mirror'){if(!b.dataset.mirrorDragged)mirrorBegin();return;}if(t.id==='deform'){if(!b.dataset.deformDragged)deformBegin();return;}setTool(t.id);if(t.id==='dropper')screenDropper(e.altKey);});
     if(t.id==='mirror')b.addEventListener('pointerdown',e=>{if(e.button===0){MIR.palette={x:e.clientX,y:e.clientY,button:b,started:false};b.setPointerCapture(e.pointerId);}});
+    if(t.id==='deform')b.addEventListener('pointerdown',e=>{if(e.button===0){DEFORM.palette={x:e.clientX,y:e.clientY,button:b,started:false};b.setPointerCapture(e.pointerId);}});
     box.appendChild(b);
   }
   const sw = document.createElement('div');

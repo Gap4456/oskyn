@@ -431,6 +431,7 @@ function layoutText(o) {
   return { lines, w: bw, h: y };
 }
 function localBounds(o) {
+  if(o.deformFrame)return null;
   if(o.mirror)return {x0:0,y0:-o.mirror.height/2,x1:o.mirror.width,y1:o.mirror.height/2};
   if (o.kind === 'path') {
     if(o._softParts)return contoursBounds(o._softParts.flatMap(p=>p.fill));
@@ -1674,6 +1675,11 @@ function morphImageMask(A,B,p) {
   return [{closed:true,nodes}];
 }
 function lerpObj(a, b, p, mode, rot) {
+  if(a.deformFrame||b.deformFrame){
+    const out=clone(a);
+    if(a.deformFrame&&b.deformFrame&&mode==='shape')out.deformFrame.quad=a.deformFrame.quad.map((q,i)=>q.map((v,j)=>lerp(v,b.deformFrame.quad[i][j],p)));
+    return out;
+  }
   const o = Object.assign({}, a);
   const rotation=rot?.deltas&&Number.isFinite(rot.deltas[a.id])?{delta:rot.deltas[a.id]}:rot;
   o.t = lerpT(a.t, b.t, p, mode === 'motion' ? rotation : null);
@@ -1718,6 +1724,10 @@ function lerpObj(a, b, p, mode, rot) {
   if(a.arc&&b.arc){o.arc={rx:lerp(a.arc.rx,b.arc.rx,p),ry:lerp(a.arc.ry,b.arc.ry,p),start:a.arc.start+Math.atan2(Math.sin(b.arc.start-a.arc.start),Math.cos(b.arc.start-a.arc.start))*p,mouth:lerp(a.arc.mouth,b.arc.mouth,p)};o.contours=[mouthContour(o.arc)];lerpPaint(o,a,b,p);return o;}
   if(a.arc||b.arc)delete o.arc;
   if(a.skel&&b.skel){o.skel=lerpSkeleton(a.skel,b.skel,p,matOf(o.t),matOf(a.t),matOf(b.t));skeletonBuild(o);return o;}
+  if(a.kind==='group'&&b.kind==='group'&&mode==='shape'&&!a.mirror&&!b.mirror){
+    const pairs=tweenPairs({objs:a.children||[],tween:'shape'},{objs:b.children||[]});
+    o.children=(a.children||[]).map(ch=>pairs.has(ch)?lerpObj(ch,pairs.get(ch),p,mode,rot):ch);
+  }
   if (a.kind === 'text' && b.kind === 'text') { lerpPaint(o, a, b, p); return o; }
   if (a.kind === 'path' && b.kind === 'path') {
     lerpPaint(o, a, b, p);
@@ -1760,9 +1770,9 @@ function tweenPairs(kf, next) {
   const byId = new Map(next.objs.map((o) => [o.id, o])), pairs = new Map(), used = new Set();
   for (const a of kf.objs) { const b = byId.get(a.id); if (b && b.kind === a.kind) { pairs.set(a, b); used.add(b); } }
   if (kf.tween === 'shape') {
-    const free = next.objs.filter((o) => o.kind === 'path' && !used.has(o));
+    const free = next.objs.filter((o) => o.kind === 'path' && !o.deformFrame && !used.has(o));
     let q = 0;
-    for (const a of kf.objs) if (!pairs.has(a) && a.kind === 'path' && q < free.length) pairs.set(a, free[q++]);
+    for (const a of kf.objs) if (!pairs.has(a) && a.kind === 'path' && !a.deformFrame && q < free.length) pairs.set(a, free[q++]);
   }
   return pairs;
 }
@@ -1771,7 +1781,7 @@ function shapeTweenIssues(layer, f) {
   const i = kfIndexAt(layer, f); if (i < 0) return 0;
   const kf = layer.kfs[i], next = layer.kfs[i + 1]; if (!next) return 0;
   let n = 0;
-  for (const [a, b] of tweenPairs(kf, next)) if (a.kind === 'path' && b.kind === 'path' && !morphContours(a.contours, b.contours, 0.5)) n++;
+  for (const [a, b] of tweenPairs(kf, next)) if (a.kind === 'path' && b.kind === 'path' && !a.deformFrame && !morphContours(a.contours, b.contours, 0.5)) n++;
   return n;
 }
 let renderEvalCache=null,renderRawCache=null;
@@ -1854,7 +1864,7 @@ function evalLayerRawUncached(layer, t) {
   }
   return withClips(layer, i, t, editableImages(kf.objs));
 }
-const notGhost = (o) => !o.skel && !(o.rig && o.rig.ghost);
+const notGhost = (o) => !o.deformFrame && !o.skel && !(o.rig && o.rig.ghost);
 /* in the editor a bone arm is always drawn semi-transparent so the artwork under it stays visible; exports draw it as it really is */
 const fadeGhost = (o) => (o.rig ? Object.assign({}, o, { op: nz(o.op, 1) * 0.35 }) : o);
 function evalDoc(doc, t, ghosts) {
@@ -2070,6 +2080,7 @@ function drawMirrorExcluded(ctx,o,opt){
   }finally{ctx.restore();}
 }
 function drawObj(ctx, o, opt) {
+  if(o.deformFrame)return;
   if(o._mirrorCuts?.length){drawMirrorExcluded(ctx,o,opt);return;}
   if(o.skel)return;
   if(o._softParts){drawObj(ctx,softView(o),opt);return;}
@@ -2194,6 +2205,7 @@ function drawObjRaw(ctx, o, opt, noOp) {
   ctx.restore();
 }
 function hitObj(o, x, y, tol, hctx, anyAlpha, parentMatrix) {
+  if(o.deformFrame)return false;
   if(o._mirrorCuts?.length){const q=parentMatrix?mapply(minv(parentMatrix),x,y):[x,y];if(o._mirrorCuts.some(cut=>{const p=mapply(minv(cut.matrix),...q);return p[0]>=0&&p[0]<=cut.width&&Math.abs(p[1])<=cut.height/2;}))return false;}
 
   if(o.skel)return false;
@@ -2270,6 +2282,7 @@ function layersSVG(entries) {
   return body;
 }
 function objSVG(o) {
+  if(o.deformFrame)return '';
   if(o._mirrorCuts?.length){
     const plain={...o};if(o._softParts)Object.defineProperty(plain,'_softParts',{value:o._softParts});const b=worldBounds(plain);if(!b)return '';const pad=100+(Math.max(0,o.sw||0)*5+Math.max(0,o.blur||0)*4)*Math.max(1,Math.abs(o.t.sx),Math.abs(o.t.sy)),id='mc'+(++_gid);
     const holes=o._mirrorCuts.map(cut=>{const points=[[0,-cut.height/2],[cut.width,-cut.height/2],[cut.width,cut.height/2],[0,cut.height/2]].map(p=>mapply(cut.matrix,...p).join(',')).join(' ');return '<polygon points="'+points+'" fill="black" shape-rendering="crispEdges"/>';}).join('');

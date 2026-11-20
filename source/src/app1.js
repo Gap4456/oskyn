@@ -98,14 +98,14 @@ function findEditable(lid, id) {
 }
 function selEval() {
   const out = [];
-  for (const s of S.sel) { const o = findEval(s.lid, s.id); if (o&&!editorObjectHidden(s.lid,s.id)) out.push({ lid: s.lid, id: s.id, o }); }
+  for (const s of S.sel) { const o = findEval(s.lid, s.id); if (o&&!o.deformFrame&&!editorObjectHidden(s.lid,s.id)) out.push({ lid: s.lid, id: s.id, o }); }
   return out;
 }
-function nodeEditable(o) {return o&&(o.kind==='path'||o.kind==='image');}
+function nodeEditable(o) {return o&&!o.deformFrame&&(o.kind==='path'||o.kind==='image');}
 function singleSel() { const a = selEval(); return a.length === 1 ? a[0] : null; }
-function pruneSel() { S.sel = S.sel.filter((s) => findEval(s.lid, s.id)&&!editorObjectHidden(s.lid,s.id)); if (!nodeEditable(singleSel()?.o)) S.nodeSel = null; }
+function pruneSel() { S.sel = S.sel.filter((s) => {const o=findEval(s.lid,s.id);return o&&!o.deformFrame&&!editorObjectHidden(s.lid,s.id);}); if (!nodeEditable(singleSel()?.o)) S.nodeSel = null; }
 function walkPaths(o, fn) {
-  if(o.mirror)return;
+  if(o.mirror||o.deformFrame)return;
   if (o.kind === 'image') return;
   if (o.kind === 'group') o.children.forEach((c) => walkPaths(c, fn));
   else if (o.kind === 'text') { const b = o.fill; fn(o); if (o.fill && o.fill !== b) o.runs.forEach((r) => { r.c = o.fill; }); }
@@ -845,7 +845,7 @@ function kroganDrawGhostPlaceholders(ctx) {
       if (!lib || !Array.isArray(lib.layers)) continue;
       const frame = o._f || 0;
       // A blank symbol frame must have no drawable objects in visible layers.
-      const empty = lib.layers.every(l => l.visible === false || C.evalLayerObjs(l, frame).length === 0);
+      const empty = lib.layers.every(l => l.visible === false || C.evalLayerObjs(l, frame).every(o=>!!o.deformFrame));
       if (empty) candidates.push({ sym: o.sym, name: o.name || o.sym });
     }
   }

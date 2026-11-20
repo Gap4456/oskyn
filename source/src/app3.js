@@ -3499,7 +3499,7 @@ window.addEventListener('keydown', (e) => {
       } else {
         S.sel = [];
         for (const l of layers()) if (l.visible && !l.locked)
-          for (const o of C.evalLayerObjs(l, S.frame)) if(!editorObjectHidden(l.id,o.id))S.sel.push({ lid: l.id, id: o.id });
+          for (const o of C.evalLayerObjs(l, S.frame)) if(!o.deformFrame&&!editorObjectHidden(l.id,o.id))S.sel.push({ lid: l.id, id: o.id });
       }
       refreshProps(); invalidate();
     }
@@ -3708,6 +3708,7 @@ function init() {
   });
 
   mirrorUI();
+  deformUI();
   skeletonBindUI();
   gridSync();
   $('#bGrid').addEventListener('click', () => { GRID.visible = !GRID.visible; if (!GRID.visible) GRID.snap = false; gridSync(); gridSave(); invalidate(); });

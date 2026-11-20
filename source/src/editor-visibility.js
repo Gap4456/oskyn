@@ -8,7 +8,7 @@ function editorObjectHidden(lid,id){return editorHideState().stack.some(group=>g
 function editorHideCandidates(){
   const chosen=selEval().filter(r=>!getLayer(r.lid)?.locked&&getLayer(r.lid)?.visible!==false);if(chosen.length)return chosen;
   const l=curLayer();if(!l||l.locked||l.visible===false)return [];
-  const o=C.evalLayerObjs(l,S.frame).slice().reverse().find(o=>!editorObjectHidden(l.id,o.id));return o?[{lid:l.id,id:o.id,o}]:[];
+  const o=C.evalLayerObjs(l,S.frame).slice().reverse().find(o=>!o.deformFrame&&!editorObjectHidden(l.id,o.id));return o?[{lid:l.id,id:o.id,o}]:[];
 }
 function editorHide(){
   const group=editorHideCandidates().map(({lid,id})=>({lid,id}));if(!group.length)return;

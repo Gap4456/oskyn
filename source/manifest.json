@@ -49,6 +49,7 @@
   "src/multi-record.js",
   "src/node-interaction.js",
   "src/text-paths.js",
+  "src/deform-frame.js",
   "src/app3.js",
   {
     "text": "</script>"

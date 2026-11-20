@@ -88,6 +88,16 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
 
+## Deform frame
+
+Use **Deform frame** beside Mirror in the left toolbar. Drag a rectangle on the canvas (or drag the tool onto the canvas), then resize/move that rectangle before pressing the green **✓**. Only fully enclosed ordinary vector paths or vector-only groups on the current visible unlocked layer are captured, regardless of their stacking order. Geometry exactly on the rectangle boundary is included; partially intersecting objects are excluded. Text, symbol instances, bitmaps, live mirrors, masked groups and bone-bound/soft-body artwork are not supported in this first version.
+
+The check prepares curve geometry once as short straight segments, retains straight edges, and assigns stable node identities. Drag the four corners for a projective deformation, or drag inside the frame with the tool active to move the whole captured geometry. The rectangle stays axis-aligned until confirmed; afterwards it stays convex and corners cannot cross. Each drag is calculated from its starting geometry, uses one Undo, and can be cancelled with Escape or a cancelled pointer gesture.
+
+Prepare nodes **before** making the later keyframes. Duplicate that prepared keyframe and use **Shape Tween** to interpolate the resulting path nodes, including paths inside groups. Motion Tween can move/rotate/scale the artwork, but does not interpolate this node deformation. Existing older keyframes are not automatically densified. **Simplify** is never run automatically; changing node topology separately at one endpoint can change the tween result.
+
+The dashed frame is saved with the project and remains an editor guide when changing tools. Its **×** removes that controller from every keyframe of its layer, preserving all deformed artwork. The frame is excluded from picking, ordinary selection, rendering and SVG/PNG/GIF/video/HTML preview output; the artwork stays ordinary editable vector paths. Fill/stroke styles remain unchanged. Confirmation is limited to 50,000 nodes per frame operation to keep extreme inputs bounded.
+
 ## Independent symbol copies
 
 Select one symbol instance and open **Object**:
