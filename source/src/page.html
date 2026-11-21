@@ -133,7 +133,7 @@
       </div>
       <div class="row" id="iclipRow"><span>Symbol</span><div class="ctl"><select id="itype" aria-label="Symbol type"><option value="mc">Movie clip</option><option value="btn">Button</option><option value="gr">Graphic</option></select><select id="imode" aria-label="Playback"><option value="loop">Loop</option><option value="once">Play once</option><option value="single">Single frame</option></select><input type="number" id="ifirst" min="1" step="1" style="width:56px" aria-label="First frame" title="First frame to show (1 = start)"></div></div>
       <div class="row"><span>Instance</span><div class="ctl"><input type="text" id="iname" placeholder="name (e.g. btn_next)" spellcheck="false" aria-label="Instance name"></div></div>
-      <div class="row" id="iscriptRow" style="align-items:flex-start"><span>Script</span><div class="ctl"><textarea id="iscript" rows="4" spellcheck="false" placeholder="Runs when this clip appears, e.g. on (release) { gotoAndPlay(&quot;menu&quot;); }" aria-label="Instance script"></textarea></div></div>
+      <div class="row" id="iscriptRow" style="align-items:flex-start"><span>Script</span><div class="ctl" style="flex-direction:column;align-items:stretch"><textarea id="iscript" rows="4" spellcheck="false" placeholder="Runs when this clip appears, e.g. on (release) { gotoAndPlay(&quot;menu&quot;); }" aria-label="Instance script"></textarea><button id="iscriptPop" type="button" class="mini1" title="Expand instance script">Expand</button></div></div>
       <div class="mini" style="margin-top:8px"><button data-act="edit" title="Edit symbol timeline (double-click)">Edit symbol</button><button data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-act="del" title="Delete">Delete</button></div>
       <div id="uniqueSymbolActions" hidden style="margin-top:6px">
         <button class="btn" style="display:block;width:100%;margin-top:6px" data-act="dup-unique" title="Duplicate this instance with its own symbol; nested symbols remain shared">Duplicate as unique</button>
@@ -213,7 +213,7 @@
       <div class="row"><span>Label</span><div class="ctl"><input type="text" id="kfLabel" placeholder="frame label" spellcheck="false" aria-label="Frame label"></div></div>
       <div class="row"><span>Sound</span><div class="ctl"><select id="kfSound" aria-label="Frame sound"></select><button id="sndPlay" class="mini1" title="Audition this sound" aria-label="Audition sound">▶</button></div></div>
       <div class="row"><span>Sync</span><div class="ctl"><select id="kfSync" aria-label="Sound sync"><option value="event">Event</option><option value="start">Start</option><option value="stream">Stream</option><option value="stop">Stop</option></select><input type="number" id="kfLoop" min="0" max="99" step="1" title="Extra repeats (0 = play once)" aria-label="Repeats"></div></div>
-      <div class="mini" style="margin:2px 0 8px"><button id="sndLib" title="Open the Library tab">Library…</button><button id="kfPop" title="Open the script in a larger editor (F9)">Edit in window</button></div>
+      <div class="mini" style="margin:2px 0 8px"><button id="sndLib" title="Open the Library tab">Library…</button><button id="kfPop" title="Expand frame script (F9)">Expand script</button></div>
       <textarea id="kfScript" rows="7" spellcheck="false" placeholder="Frame script, e.g. this.stop();" aria-label="Frame script"></textarea>
       <p class="hint" style="margin:4px 0 0">Scripts run in Preview and the exported HTML, never in the editor. Use <code>this.stop()</code>, <code>this.gotoAndPlay(n)</code>, <code>this.myButton.addEventListener("click", fn)</code>.</p>
     </div>
@@ -260,6 +260,7 @@
   </aside>
 
   <section id="tl" aria-label="Timeline">
+    <div id="tlResize" role="separator" aria-label="Resize timeline" aria-orientation="horizontal" tabindex="0" title="Drag to resize · Double-click to reset"></div>
     <div class="tl-bar">
       <button class="tbtn" id="pRecord" title="Enable performance recording (hold Q while dragging)" aria-pressed="false">● Record</button>
       <button class="tbtn" id="pRecordAudio" aria-pressed="true" title="Hear Frame → Sound timeline audio while holding Q">♪ Audio</button>
@@ -316,7 +317,7 @@
 <input type="file" id="imgIn" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple hidden>
 <input type="file" id="sndIn" accept="audio/*,.mp3,.wav,.ogg,.m4a" multiple hidden>
 <div id="ced" role="dialog" aria-label="Script editor">
-  <div class="ch" id="cedHead"><b id="cedTitle">Script</b><span class="grow"></span><button id="cedSmall" title="Smaller text" aria-label="Smaller text">A−</button><button id="cedBig" title="Larger text" aria-label="Larger text">A+</button><button id="cedPrev" title="Preview (Ctrl+Enter)">▶ Preview</button><button id="cedClose" title="Close (Esc)" aria-label="Close">✕</button></div>
+  <div class="ch" id="cedHead"><b id="cedTitle">Script</b><span class="grow"></span><button id="cedSmall" title="Smaller text" aria-label="Smaller text">A−</button><button id="cedBig" title="Larger text" aria-label="Larger text">A+</button><button id="cedWide" title="Toggle full-width code page" aria-label="Toggle full-width code page" aria-pressed="false">↔</button><button id="cedPrev" title="Preview (Ctrl+Enter)">▶ Preview</button><button id="cedClose" title="Close (Esc)" aria-label="Close">✕</button></div>
   <div class="cbody"><div class="gut" id="cedGut"></div><pre id="cedHi" aria-hidden="true"></pre><textarea id="cedTa" spellcheck="false" wrap="off" aria-label="Script code"></textarea></div>
   <div class="cfoot" id="cedStat"></div>
 </div>

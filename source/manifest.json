@@ -50,6 +50,7 @@
   "src/node-interaction.js",
   "src/text-paths.js",
   "src/deform-frame.js",
+  "src/panel-layout.js",
   "src/app3.js",
   {
     "text": "</script>"

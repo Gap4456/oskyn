@@ -2902,8 +2902,8 @@ function showSounds() {
   });
 }
 
-/* ---------- code editor window ---------- */
-const CED = { lid: null, f: 0, fs: 13, tm: 0 };
+/* ---------- in-page script editor ---------- */
+const CED = { lid: null, f: 0, fs: 13, tm: 0, kind:'frame', id:null, doc:null, scope:null };
 try { const v = parseFloat(sessionPrefs.getItem('flashcraft.cedfs')); if (v >= 9 && v <= 26) CED.fs = v; } catch (e) { /* default */ }
 const CED_KW = new Set('break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new return super switch throw try typeof var void while with yield async await of'.split(' '));
 const CED_BI = new Set('this createjs exportRoot stage window document console true false null undefined lib images Math JSON Date Array Object parseInt parseFloat setTimeout setInterval'.split(' '));
@@ -2925,7 +2925,12 @@ function cedHighlight(code) {
   }
   return out + esc(code.slice(last));
 }
-const cedKf = () => { const l = getLayer(CED.lid); return l && C.kfAt(l, CED.f); };
+function cedTarget(){
+  if(S.doc!==CED.doc||JSON.stringify(S.edit.map(e=>e.sym))!==CED.scope)return null;
+  const layer=getLayer(CED.lid);if(!layer)return null;
+  const value=CED.kind==='instance'?C.evalLayerObjs(layer,CED.f).find(o=>o.id===CED.id):C.kfAt(layer,CED.f);
+  return value?{layer,value}:null;
+}
 function cedRender() {
   const ta = $('#cedTa'), v = ta.value;
   $('#cedHi').innerHTML = cedHighlight(v) + '\n ';
@@ -2942,30 +2947,34 @@ function cedScroll() {
 function cedStatus() {
   const ta = $('#cedTa'), v = ta.value, pos = ta.selectionStart, before = v.slice(0, pos).split('\n');
   let msg = '<span class="good">✓ no syntax errors</span>';
-  if (v.trim()) { try { new Function(v); } catch (e) { if (e instanceof SyntaxError) msg = '<span class="bad">' + String(e.message).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'; else msg = ''; } } else msg = '';
+  if (v.trim()) { try { if(S.doc.lang==='as1')new Function('__scope','with (__scope) {\n'+C.as1Prepare(v)+'\n}');else new Function(v); } catch (e) { if (e instanceof SyntaxError) msg = '<span class="bad">' + String(e.message).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'; else msg = ''; } } else msg = '';
   $('#cedStat').innerHTML = '<span>Ln ' + before.length + ', Col ' + (before[before.length - 1].length + 1) + '</span><span>' + v.split('\n').length + ' lines</span>' + msg;
 }
 function cedApplyFont() { $('#ced .cbody').style.fontSize = CED.fs + 'px'; try { sessionPrefs.setItem('flashcraft.cedfs', String(CED.fs)); } catch (e) { /* ignore */ } }
-function openCed() {
-  const l = curLayer(), k = l && C.kfAt(l, S.frame);
-  if (!k) { toast('Select a keyframe first (F6 adds one), then open its script.'); return; }
-  CED.lid = l.id; CED.f = S.frame;
-  const where = S.edit.length ? S.edit[S.edit.length - 1].sym.split('/').pop() + ' › ' : '';
-  $('#cedTitle').textContent = 'Script — ' + where + l.name + ' · frame ' + (S.frame + 1);
+function openCed(kind='frame') {
+  const one=singleSel(),instance=kind==='instance';
+  const l=instance&&one?getLayer(one.lid):curLayer(),value=instance?one?.o:l&&C.kfAt(l,S.frame);
+  if(!l||l.locked||!value||(instance&&(value.kind!=='clip'||!(value.mc||value.btn)))){toast(instance?'Select a Movie clip or Button on an unlocked layer first.':'Select an unlocked keyframe first (F6 adds one).');return;}
+  CED.lid=l.id;CED.f=S.frame;CED.kind=instance?'instance':'frame';CED.id=instance?one.id:null;CED.doc=S.doc;CED.scope=JSON.stringify(S.edit.map(e=>e.sym));
+  const where=S.edit.length?S.edit.map(e=>e.sym.split('/').pop()).join(' › '):'Scene 1';
+  $('#cedTitle').textContent=instance?'Instance script — '+where+' › '+(value.name||value.sym)+' · frame '+(S.frame+1):'Frame script — '+where+' › '+l.name+' · frame '+(S.frame+1);
   $('#ced').classList.add('on');
-  const ta = $('#cedTa'); ta.value = k.script || '';
-  cedApplyFont(); cedRender(); ta.focus(); ta.setSelectionRange(0, 0); ta.scrollTop = 0; ta.scrollLeft = 0; cedScroll(); cedStatus();
+  const ta=$('#cedTa');ta.readOnly=false;ta.value=value.script||'';
+  cedApplyFont();cedRender();ta.focus();ta.setSelectionRange(0,0);ta.scrollTop=0;ta.scrollLeft=0;cedScroll();cedStatus();
 }
-function closeCed() { $('#ced').classList.remove('on'); }
-function cedCommit() {
-  const k = cedKf();
-  if (!k) { toast('That keyframe no longer exists.'); closeCed(); return; }
-  const v = $('#cedTa').value;
+function closeCed(){ $('#ced').classList.remove('on'); }
+function cedCommit(){
+  const target=cedTarget();
+  if(!target){toast('The script target changed. Reopen its script to continue editing.');closeCed();return;}
+  if(target.layer.locked){$('#cedTa').value=target.value.script||'';cedRender();toast('Unlock the layer before editing its script.');return;}
+  const v=$('#cedTa').value;if(v===(target.value.script||''))return;
   beginEditOnce();
-  if (v.trim()) k.script = v; else delete k.script;
-  clearTimeout(saveTimer); saveTimer = 0;
-  drawTimeline(); refreshProps();
+  const value=CED.kind==='instance'?C.ensureEditable(target.layer,CED.f).objs.find(o=>o.id===CED.id):target.value;
+  if(!value)return;
+  if(v.trim())value.script=v;else delete value.script;
+  markDirty();invalidate();drawTimeline();refreshProps();
 }
+
 function cedInsert(ta, text) {
   ta.focus();
   if (!document.execCommand || !document.execCommand('insertText', false, text)) ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end');
@@ -3016,19 +3025,13 @@ function bindCed() {
   $('#cedPrev').addEventListener('click', openPreview);
   $('#cedBig').addEventListener('click', () => { CED.fs = Math.min(26, CED.fs + 1); cedApplyFont(); cedScroll(); });
   $('#cedSmall').addEventListener('click', () => { CED.fs = Math.max(9, CED.fs - 1); cedApplyFont(); cedScroll(); });
-  const head = $('#cedHead'), box = $('#ced');
-  let drag = null;
-  head.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button')) return;
-    const r = box.getBoundingClientRect();
-    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    head.setPointerCapture(e.pointerId);
-  });
-  head.addEventListener('pointermove', (e) => { if (!drag) return; box.style.left = clamp(e.clientX - drag.dx, -200, innerWidth - 80) + 'px'; box.style.top = clamp(e.clientY - drag.dy, 0, innerHeight - 40) + 'px'; });
-  head.addEventListener('pointerup', () => { drag = null; });
-  new ResizeObserver(() => cedScroll()).observe(box);
-  $('#kfPop').addEventListener('click', openCed);
-  $('#kfScript').addEventListener('dblclick', openCed);
+  const box=$('#ced');
+  $('#cedWide').addEventListener('click',()=>{const wide=box.classList.toggle('wide-editor');$('#cedWide').setAttribute('aria-pressed',String(wide));cedScroll();});
+  new ResizeObserver(()=>cedScroll()).observe(box);
+  $('#kfPop').addEventListener('click',()=>openCed('frame'));
+  $('#kfScript').addEventListener('dblclick',()=>openCed('frame'));
+  $('#iscriptPop').addEventListener('click',()=>openCed('instance'));
+  $('#iscript').addEventListener('dblclick',()=>openCed('instance'));
   // sounds
   $('#sndLib').addEventListener('click', showSounds);
   $('#sndPlay').addEventListener('click', (e) => { const n = $('#kfSound').value; if (n) auditionSound(n, e.currentTarget); else toast('Choose a sound first.'); });
@@ -3641,6 +3644,7 @@ function init() {
   $('#bEditorShow').addEventListener('contextmenu',e=>{e.preventDefault();editorShowMenu(e.currentTarget);});
   $('#bPreview').addEventListener('click', openPreview);
   bindCed();
+  initTimelineResize();
   $('#prevClose').addEventListener('click', () => { $('#prev').classList.remove('on'); $('#prevFrame').srcdoc = ''; });
   $('#prevRestart').addEventListener('click', () => { $('#prevErr').textContent = ''; $('#prevFrame').srcdoc = buildPlayer({debug:true,sound:true,doc:previewDocument||S.doc}).html; });
   const kfHere = () => { const l = curLayer(); return l && C.kfAt(l, S.frame); };

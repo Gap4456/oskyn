@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added desktop Timeline edge resizing, conditional striped grip, full collapse/expansion and double-click reset without changing canvas view.
+- Expanded the in-page script editor to support frame and instance scripts, large scrolling code pages, live shared edits and ActionScript-aware syntax checking.
+
 ## 1.0.3 — 2026-11-20
 
 - Added Deform frame beside Mirror: one-time curve flattening, projective corner dragging, persistent editor guides and Shape Tween for paths inside groups. Removing the frame preserves the deformed vector artwork.

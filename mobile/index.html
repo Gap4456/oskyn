@@ -305,6 +305,26 @@ small.mut { color: var(--mut); font-size: 11px; margin: 0 2px 0 6px; }
   .brand span { display: none; }
   .tl-inner { grid-template-columns: 240px max-content; }
 }
+/* Desktop timeline overlay: reserve only its default (or smaller) height. */
+body:not(.oskyn-mobile) #app{--timeline-default-height:232px;grid-template-rows:42px minmax(0,1fr) min(var(--timeline-height,232px),232px)}
+body:not(.oskyn-mobile) #tl{position:fixed;left:0;right:0;bottom:0;height:var(--timeline-height,232px);z-index:45;overflow:hidden}
+#tlResize{position:absolute;left:0;right:0;top:0;height:8px;z-index:12;cursor:ns-resize;touch-action:none;user-select:none;background:transparent}
+body.timeline-adjusted:not(.oskyn-mobile) #tl{padding-top:8px}
+body.timeline-adjusted #tlResize{top:0;height:8px;background:repeating-linear-gradient(45deg,var(--fg) 0,var(--fg) 3px,var(--panel) 3px,var(--panel) 8px)}
+body.timeline-collapsed:not(.oskyn-mobile) #tl{padding-top:0;border:0}
+body.timeline-collapsed:not(.oskyn-mobile) #tl>:not(#tlResize){display:none!important}
+body.timeline-resizing,body.timeline-resizing *{cursor:ns-resize!important;user-select:none!important}
+body.oskyn-mobile #tlResize{display:none}
+@media(max-width:860px){body:not(.oskyn-mobile) #app{--timeline-default-height:210px;grid-template-rows:42px 44px minmax(0,1fr) min(var(--timeline-height,210px),210px)}}
+/* The script editor stays in this page; header and close control never scroll. */
+#ced{inset:54px 20px 16px;width:auto;height:auto;max-height:none;min-width:0;min-height:0;resize:none;background:var(--panel2)}
+#ced .ch{cursor:default;flex-shrink:0}
+#ced .cbody{width:100%;max-width:860px;align-self:center;box-shadow:0 0 0 1px var(--line);}
+#ced.wide-editor .cbody{max-width:none}
+#ced .cfoot{flex-shrink:0;flex-wrap:wrap}
+#ced .ch b{min-width:0;flex:1}
+#ced .ch button{flex-shrink:0}
+@media(max-width:600px){#ced{inset:46px 4px 4px}#ced .ch{gap:3px;padding:5px}#ced .ch button{padding:0 5px}#ced .ch b{font-size:11px}}
 @media (prefers-reduced-motion: reduce) { #props { transition: none; } }
 
 /* KROGAN: global layer controls align with the eye and lock in each row. */
@@ -802,7 +822,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       </div>
       <div class="row" id="iclipRow"><span>Symbol</span><div class="ctl"><select id="itype" aria-label="Symbol type"><option value="mc">Movie clip</option><option value="btn">Button</option><option value="gr">Graphic</option></select><select id="imode" aria-label="Playback"><option value="loop">Loop</option><option value="once">Play once</option><option value="single">Single frame</option></select><input type="number" id="ifirst" min="1" step="1" style="width:56px" aria-label="First frame" title="First frame to show (1 = start)"></div></div>
       <div class="row"><span>Instance</span><div class="ctl"><input type="text" id="iname" placeholder="name (e.g. btn_next)" spellcheck="false" aria-label="Instance name"></div></div>
-      <div class="row" id="iscriptRow" style="align-items:flex-start"><span>Script</span><div class="ctl"><textarea id="iscript" rows="4" spellcheck="false" placeholder="Runs when this clip appears, e.g. on (release) { gotoAndPlay(&quot;menu&quot;); }" aria-label="Instance script"></textarea></div></div>
+      <div class="row" id="iscriptRow" style="align-items:flex-start"><span>Script</span><div class="ctl" style="flex-direction:column;align-items:stretch"><textarea id="iscript" rows="4" spellcheck="false" placeholder="Runs when this clip appears, e.g. on (release) { gotoAndPlay(&quot;menu&quot;); }" aria-label="Instance script"></textarea><button id="iscriptPop" type="button" class="mini1" title="Expand instance script">Expand</button></div></div>
       <div class="mini" style="margin-top:8px"><button data-act="edit" title="Edit symbol timeline (double-click)">Edit symbol</button><button data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-act="del" title="Delete">Delete</button></div>
       <div id="uniqueSymbolActions" hidden style="margin-top:6px">
         <button class="btn" style="display:block;width:100%;margin-top:6px" data-act="dup-unique" title="Duplicate this instance with its own symbol; nested symbols remain shared">Duplicate as unique</button>
@@ -882,7 +902,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="row"><span>Label</span><div class="ctl"><input type="text" id="kfLabel" placeholder="frame label" spellcheck="false" aria-label="Frame label"></div></div>
       <div class="row"><span>Sound</span><div class="ctl"><select id="kfSound" aria-label="Frame sound"></select><button id="sndPlay" class="mini1" title="Audition this sound" aria-label="Audition sound">▶</button></div></div>
       <div class="row"><span>Sync</span><div class="ctl"><select id="kfSync" aria-label="Sound sync"><option value="event">Event</option><option value="start">Start</option><option value="stream">Stream</option><option value="stop">Stop</option></select><input type="number" id="kfLoop" min="0" max="99" step="1" title="Extra repeats (0 = play once)" aria-label="Repeats"></div></div>
-      <div class="mini" style="margin:2px 0 8px"><button id="sndLib" title="Open the Library tab">Library…</button><button id="kfPop" title="Open the script in a larger editor (F9)">Edit in window</button></div>
+      <div class="mini" style="margin:2px 0 8px"><button id="sndLib" title="Open the Library tab">Library…</button><button id="kfPop" title="Expand frame script (F9)">Expand script</button></div>
       <textarea id="kfScript" rows="7" spellcheck="false" placeholder="Frame script, e.g. this.stop();" aria-label="Frame script"></textarea>
       <p class="hint" style="margin:4px 0 0">Scripts run in Preview and the exported HTML, never in the editor. Use <code>this.stop()</code>, <code>this.gotoAndPlay(n)</code>, <code>this.myButton.addEventListener("click", fn)</code>.</p>
     </div>
@@ -929,6 +949,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   </aside>
 
   <section id="tl" aria-label="Timeline">
+    <div id="tlResize" role="separator" aria-label="Resize timeline" aria-orientation="horizontal" tabindex="0" title="Drag to resize · Double-click to reset"></div>
     <div class="tl-bar">
       <button class="tbtn" id="pRecord" title="Enable performance recording (hold Q while dragging)" aria-pressed="false">● Record</button>
       <button class="tbtn" id="pRecordAudio" aria-pressed="true" title="Hear Frame → Sound timeline audio while holding Q">♪ Audio</button>
@@ -985,7 +1006,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <input type="file" id="imgIn" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple hidden>
 <input type="file" id="sndIn" accept="audio/*,.mp3,.wav,.ogg,.m4a" multiple hidden>
 <div id="ced" role="dialog" aria-label="Script editor">
-  <div class="ch" id="cedHead"><b id="cedTitle">Script</b><span class="grow"></span><button id="cedSmall" title="Smaller text" aria-label="Smaller text">A−</button><button id="cedBig" title="Larger text" aria-label="Larger text">A+</button><button id="cedPrev" title="Preview (Ctrl+Enter)">▶ Preview</button><button id="cedClose" title="Close (Esc)" aria-label="Close">✕</button></div>
+  <div class="ch" id="cedHead"><b id="cedTitle">Script</b><span class="grow"></span><button id="cedSmall" title="Smaller text" aria-label="Smaller text">A−</button><button id="cedBig" title="Larger text" aria-label="Larger text">A+</button><button id="cedWide" title="Toggle full-width code page" aria-label="Toggle full-width code page" aria-pressed="false">↔</button><button id="cedPrev" title="Preview (Ctrl+Enter)">▶ Preview</button><button id="cedClose" title="Close (Esc)" aria-label="Close">✕</button></div>
   <div class="cbody"><div class="gut" id="cedGut"></div><pre id="cedHi" aria-hidden="true"></pre><textarea id="cedTa" spellcheck="false" wrap="off" aria-label="Script code"></textarea></div>
   <div class="cfoot" id="cedStat"></div>
 </div>
@@ -9860,6 +9881,37 @@ function deformUI(){
   const end=e=>{const d=DEFORM.palette;if(!d)return;DEFORM.palette=null;if(d.started){const r=stage.getBoundingClientRect();if(e.type==='pointercancel'||e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)DEFORM.draft=null;invalidate();setTimeout(()=>delete d.button.dataset.deformDragged,0);}};
   window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);
 }
+/* Session-only desktop layout. The editor document and history are untouched. */
+const TIMELINE_LAYOUT={height:null,drag:null,raf:0};
+function initTimelineResize(){
+  const app=$('#app'),panel=$('#tl'),grip=$('#tlResize');
+  const mobile=()=>document.body.classList.contains('oskyn-mobile');
+  const maximum=()=>Math.max(8,innerHeight-$('#top').getBoundingClientRect().bottom);
+  const defaultHeight=()=>Math.min(maximum(),parseFloat(getComputedStyle(app).getPropertyValue('--timeline-default-height'))||232);
+  function apply(height,preserve=true){
+    if(mobile())return;
+    const def=defaultHeight();let h=height==null?def:clamp(height,8,maximum());
+    if(Math.abs(h-def)<=8){h=def;TIMELINE_LAYOUT.height=null;}else{h=h<24?8:h;TIMELINE_LAYOUT.height=h;}
+    if(preserve)S.autoFit=false;
+    app.style.setProperty('--timeline-height',h+'px');
+    document.body.classList.toggle('timeline-adjusted',Math.abs(h-def)>.5);
+    document.body.classList.toggle('timeline-collapsed',h===8);
+    grip.setAttribute('aria-valuemin','8');grip.setAttribute('aria-valuemax',String(Math.round(maximum())));grip.setAttribute('aria-valuenow',String(Math.round(h)));
+    if(!TIMELINE_LAYOUT.raf)TIMELINE_LAYOUT.raf=requestAnimationFrame(()=>{TIMELINE_LAYOUT.raf=0;invalidate();});
+  }
+  grip.addEventListener('pointerdown',e=>{
+    if(mobile()||e.button!==0)return;
+    e.preventDefault();grip.setPointerCapture(e.pointerId);
+    TIMELINE_LAYOUT.drag={id:e.pointerId,y:e.clientY,start:panel.getBoundingClientRect().height,previous:TIMELINE_LAYOUT.height};
+  });
+  grip.addEventListener('pointermove',e=>{const d=TIMELINE_LAYOUT.drag;if(!d||d.id!==e.pointerId)return;if(Math.abs(e.clientY-d.y)<2&&!d.moved)return;d.moved=true;document.body.classList.add('timeline-resizing');apply(d.start+d.y-e.clientY);});
+  const end=e=>{const d=TIMELINE_LAYOUT.drag;if(!d||d.id!==e.pointerId)return;TIMELINE_LAYOUT.drag=null;document.body.classList.remove('timeline-resizing');if(e.type==='pointercancel')apply(d.previous);};
+  grip.addEventListener('pointerup',end);grip.addEventListener('pointercancel',end);grip.addEventListener('lostpointercapture',end);
+  grip.addEventListener('dblclick',e=>{e.preventDefault();TIMELINE_LAYOUT.drag=null;document.body.classList.remove('timeline-resizing');apply(null);});
+  grip.addEventListener('keydown',e=>{if(mobile())return;let h=panel.getBoundingClientRect().height;if(e.key==='ArrowUp')h+=16;else if(e.key==='ArrowDown')h-=16;else if(e.key==='Home')h=8;else if(e.key==='End')h=maximum();else if(e.key==='Enter')h=null;else return;e.preventDefault();e.stopPropagation();apply(h);});
+  window.addEventListener('resize',()=>apply(TIMELINE_LAYOUT.height,false));
+  apply(null,false);
+}
 const tlC = $('#tlCells'), tlR = $('#tlRuler'), tctx = tlC.getContext('2d'), rctx = tlR.getContext('2d');
 const tlScroll = $('#tlScroll');
 const MONO = '10.5px "IBM Plex Mono", ui-monospace, Menlo, monospace';
@@ -12764,8 +12816,8 @@ function showSounds() {
   });
 }
 
-/* ---------- code editor window ---------- */
-const CED = { lid: null, f: 0, fs: 13, tm: 0 };
+/* ---------- in-page script editor ---------- */
+const CED = { lid: null, f: 0, fs: 13, tm: 0, kind:'frame', id:null, doc:null, scope:null };
 try { const v = parseFloat(sessionPrefs.getItem('flashcraft.cedfs')); if (v >= 9 && v <= 26) CED.fs = v; } catch (e) { /* default */ }
 const CED_KW = new Set('break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new return super switch throw try typeof var void while with yield async await of'.split(' '));
 const CED_BI = new Set('this createjs exportRoot stage window document console true false null undefined lib images Math JSON Date Array Object parseInt parseFloat setTimeout setInterval'.split(' '));
@@ -12787,7 +12839,12 @@ function cedHighlight(code) {
   }
   return out + esc(code.slice(last));
 }
-const cedKf = () => { const l = getLayer(CED.lid); return l && C.kfAt(l, CED.f); };
+function cedTarget(){
+  if(S.doc!==CED.doc||JSON.stringify(S.edit.map(e=>e.sym))!==CED.scope)return null;
+  const layer=getLayer(CED.lid);if(!layer)return null;
+  const value=CED.kind==='instance'?C.evalLayerObjs(layer,CED.f).find(o=>o.id===CED.id):C.kfAt(layer,CED.f);
+  return value?{layer,value}:null;
+}
 function cedRender() {
   const ta = $('#cedTa'), v = ta.value;
   $('#cedHi').innerHTML = cedHighlight(v) + '\n ';
@@ -12804,30 +12861,34 @@ function cedScroll() {
 function cedStatus() {
   const ta = $('#cedTa'), v = ta.value, pos = ta.selectionStart, before = v.slice(0, pos).split('\n');
   let msg = '<span class="good">✓ no syntax errors</span>';
-  if (v.trim()) { try { new Function(v); } catch (e) { if (e instanceof SyntaxError) msg = '<span class="bad">' + String(e.message).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'; else msg = ''; } } else msg = '';
+  if (v.trim()) { try { if(S.doc.lang==='as1')new Function('__scope','with (__scope) {\n'+C.as1Prepare(v)+'\n}');else new Function(v); } catch (e) { if (e instanceof SyntaxError) msg = '<span class="bad">' + String(e.message).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'; else msg = ''; } } else msg = '';
   $('#cedStat').innerHTML = '<span>Ln ' + before.length + ', Col ' + (before[before.length - 1].length + 1) + '</span><span>' + v.split('\n').length + ' lines</span>' + msg;
 }
 function cedApplyFont() { $('#ced .cbody').style.fontSize = CED.fs + 'px'; try { sessionPrefs.setItem('flashcraft.cedfs', String(CED.fs)); } catch (e) { /* ignore */ } }
-function openCed() {
-  const l = curLayer(), k = l && C.kfAt(l, S.frame);
-  if (!k) { toast('Select a keyframe first (F6 adds one), then open its script.'); return; }
-  CED.lid = l.id; CED.f = S.frame;
-  const where = S.edit.length ? S.edit[S.edit.length - 1].sym.split('/').pop() + ' › ' : '';
-  $('#cedTitle').textContent = 'Script — ' + where + l.name + ' · frame ' + (S.frame + 1);
+function openCed(kind='frame') {
+  const one=singleSel(),instance=kind==='instance';
+  const l=instance&&one?getLayer(one.lid):curLayer(),value=instance?one?.o:l&&C.kfAt(l,S.frame);
+  if(!l||l.locked||!value||(instance&&(value.kind!=='clip'||!(value.mc||value.btn)))){toast(instance?'Select a Movie clip or Button on an unlocked layer first.':'Select an unlocked keyframe first (F6 adds one).');return;}
+  CED.lid=l.id;CED.f=S.frame;CED.kind=instance?'instance':'frame';CED.id=instance?one.id:null;CED.doc=S.doc;CED.scope=JSON.stringify(S.edit.map(e=>e.sym));
+  const where=S.edit.length?S.edit.map(e=>e.sym.split('/').pop()).join(' › '):'Scene 1';
+  $('#cedTitle').textContent=instance?'Instance script — '+where+' › '+(value.name||value.sym)+' · frame '+(S.frame+1):'Frame script — '+where+' › '+l.name+' · frame '+(S.frame+1);
   $('#ced').classList.add('on');
-  const ta = $('#cedTa'); ta.value = k.script || '';
-  cedApplyFont(); cedRender(); ta.focus(); ta.setSelectionRange(0, 0); ta.scrollTop = 0; ta.scrollLeft = 0; cedScroll(); cedStatus();
+  const ta=$('#cedTa');ta.readOnly=false;ta.value=value.script||'';
+  cedApplyFont();cedRender();ta.focus();ta.setSelectionRange(0,0);ta.scrollTop=0;ta.scrollLeft=0;cedScroll();cedStatus();
 }
-function closeCed() { $('#ced').classList.remove('on'); }
-function cedCommit() {
-  const k = cedKf();
-  if (!k) { toast('That keyframe no longer exists.'); closeCed(); return; }
-  const v = $('#cedTa').value;
+function closeCed(){ $('#ced').classList.remove('on'); }
+function cedCommit(){
+  const target=cedTarget();
+  if(!target){toast('The script target changed. Reopen its script to continue editing.');closeCed();return;}
+  if(target.layer.locked){$('#cedTa').value=target.value.script||'';cedRender();toast('Unlock the layer before editing its script.');return;}
+  const v=$('#cedTa').value;if(v===(target.value.script||''))return;
   beginEditOnce();
-  if (v.trim()) k.script = v; else delete k.script;
-  clearTimeout(saveTimer); saveTimer = 0;
-  drawTimeline(); refreshProps();
+  const value=CED.kind==='instance'?C.ensureEditable(target.layer,CED.f).objs.find(o=>o.id===CED.id):target.value;
+  if(!value)return;
+  if(v.trim())value.script=v;else delete value.script;
+  markDirty();invalidate();drawTimeline();refreshProps();
 }
+
 function cedInsert(ta, text) {
   ta.focus();
   if (!document.execCommand || !document.execCommand('insertText', false, text)) ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end');
@@ -12878,19 +12939,13 @@ function bindCed() {
   $('#cedPrev').addEventListener('click', openPreview);
   $('#cedBig').addEventListener('click', () => { CED.fs = Math.min(26, CED.fs + 1); cedApplyFont(); cedScroll(); });
   $('#cedSmall').addEventListener('click', () => { CED.fs = Math.max(9, CED.fs - 1); cedApplyFont(); cedScroll(); });
-  const head = $('#cedHead'), box = $('#ced');
-  let drag = null;
-  head.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button')) return;
-    const r = box.getBoundingClientRect();
-    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    head.setPointerCapture(e.pointerId);
-  });
-  head.addEventListener('pointermove', (e) => { if (!drag) return; box.style.left = clamp(e.clientX - drag.dx, -200, innerWidth - 80) + 'px'; box.style.top = clamp(e.clientY - drag.dy, 0, innerHeight - 40) + 'px'; });
-  head.addEventListener('pointerup', () => { drag = null; });
-  new ResizeObserver(() => cedScroll()).observe(box);
-  $('#kfPop').addEventListener('click', openCed);
-  $('#kfScript').addEventListener('dblclick', openCed);
+  const box=$('#ced');
+  $('#cedWide').addEventListener('click',()=>{const wide=box.classList.toggle('wide-editor');$('#cedWide').setAttribute('aria-pressed',String(wide));cedScroll();});
+  new ResizeObserver(()=>cedScroll()).observe(box);
+  $('#kfPop').addEventListener('click',()=>openCed('frame'));
+  $('#kfScript').addEventListener('dblclick',()=>openCed('frame'));
+  $('#iscriptPop').addEventListener('click',()=>openCed('instance'));
+  $('#iscript').addEventListener('dblclick',()=>openCed('instance'));
   // sounds
   $('#sndLib').addEventListener('click', showSounds);
   $('#sndPlay').addEventListener('click', (e) => { const n = $('#kfSound').value; if (n) auditionSound(n, e.currentTarget); else toast('Choose a sound first.'); });
@@ -13503,6 +13558,7 @@ function init() {
   $('#bEditorShow').addEventListener('contextmenu',e=>{e.preventDefault();editorShowMenu(e.currentTarget);});
   $('#bPreview').addEventListener('click', openPreview);
   bindCed();
+  initTimelineResize();
   $('#prevClose').addEventListener('click', () => { $('#prev').classList.remove('on'); $('#prevFrame').srcdoc = ''; });
   $('#prevRestart').addEventListener('click', () => { $('#prevErr').textContent = ''; $('#prevFrame').srcdoc = buildPlayer({debug:true,sound:true,doc:previewDocument||S.doc}).html; });
   const kfHere = () => { const l = curLayer(); return l && C.kfAt(l, S.frame); };

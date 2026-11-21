@@ -305,6 +305,26 @@ small.mut { color: var(--mut); font-size: 11px; margin: 0 2px 0 6px; }
   .brand span { display: none; }
   .tl-inner { grid-template-columns: 240px max-content; }
 }
+/* Desktop timeline overlay: reserve only its default (or smaller) height. */
+body:not(.oskyn-mobile) #app{--timeline-default-height:232px;grid-template-rows:42px minmax(0,1fr) min(var(--timeline-height,232px),232px)}
+body:not(.oskyn-mobile) #tl{position:fixed;left:0;right:0;bottom:0;height:var(--timeline-height,232px);z-index:45;overflow:hidden}
+#tlResize{position:absolute;left:0;right:0;top:0;height:8px;z-index:12;cursor:ns-resize;touch-action:none;user-select:none;background:transparent}
+body.timeline-adjusted:not(.oskyn-mobile) #tl{padding-top:8px}
+body.timeline-adjusted #tlResize{top:0;height:8px;background:repeating-linear-gradient(45deg,var(--fg) 0,var(--fg) 3px,var(--panel) 3px,var(--panel) 8px)}
+body.timeline-collapsed:not(.oskyn-mobile) #tl{padding-top:0;border:0}
+body.timeline-collapsed:not(.oskyn-mobile) #tl>:not(#tlResize){display:none!important}
+body.timeline-resizing,body.timeline-resizing *{cursor:ns-resize!important;user-select:none!important}
+body.oskyn-mobile #tlResize{display:none}
+@media(max-width:860px){body:not(.oskyn-mobile) #app{--timeline-default-height:210px;grid-template-rows:42px 44px minmax(0,1fr) min(var(--timeline-height,210px),210px)}}
+/* The script editor stays in this page; header and close control never scroll. */
+#ced{inset:54px 20px 16px;width:auto;height:auto;max-height:none;min-width:0;min-height:0;resize:none;background:var(--panel2)}
+#ced .ch{cursor:default;flex-shrink:0}
+#ced .cbody{width:100%;max-width:860px;align-self:center;box-shadow:0 0 0 1px var(--line);}
+#ced.wide-editor .cbody{max-width:none}
+#ced .cfoot{flex-shrink:0;flex-wrap:wrap}
+#ced .ch b{min-width:0;flex:1}
+#ced .ch button{flex-shrink:0}
+@media(max-width:600px){#ced{inset:46px 4px 4px}#ced .ch{gap:3px;padding:5px}#ced .ch button{padding:0 5px}#ced .ch b{font-size:11px}}
 @media (prefers-reduced-motion: reduce) { #props { transition: none; } }
 
 /* KROGAN: global layer controls align with the eye and lock in each row. */
