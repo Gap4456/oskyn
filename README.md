@@ -88,6 +88,14 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
 
+## Skew tool
+
+The toolbar defaults to **two columns**. Its layout toggle still switches to one column for the current session.
+
+Select ordinary vector paths or vector-only groups and choose **Skew** beside Deform. Drag the top/bottom edge handles horizontally, or the left/right handles vertically. The opposite edge stays fixed. Skew transforms existing anchors, Bézier handles and gradient coordinates, retaining node counts and identities; it does not flatten curves or create a persistent effect. Each completed drag uses one Undo. Escape cancels an in-progress drag and returns to Selection, whose rotation/resize handles are unchanged.
+
+This first version supports visible unlocked vector paths and nested vector-only groups. Text, symbol instances, bitmaps, live mirrors, masked groups and bone/soft-body-bound artwork are excluded. Parametric stars/ellipses become ordinary paths on an actual skew. Shape Tween can interpolate the baked geometry, including group children; no additional export format or rasterization is involved.
+
 ## Workspace layout
 
 On desktop web and Electron, drag the **upper edge of the Timeline** to resize it. It can extend over the canvas and side panels up to the top toolbar, or collapse to an 8px grip at the bottom. A static diagonal stripe appears only away from the default height. Double-click the edge/grip to reset; dragging close to the default height snaps back and hides the stripe. Resizing changes only the workspace layout, without changing the document, undo history or canvas zoom/pan. Sizes last for the session and are not stored in projects. Mobile retains its existing panel layout.

@@ -10,6 +10,7 @@ const TOOLS = [
   { id: 'bone', k: 'J', n: 'Bones (click to place a bone; hover a joint for actions)', svg: '<circle cx="4" cy="10" r="3" stroke-dasharray="3 2"/><circle cx="16" cy="10" r="3" stroke-dasharray="3 2"/><path d="M7 10h6" stroke-dasharray="2 2"/>', cur: 'crosshair' },
   { id: 'mirror', k: 'M', n: 'Mirror (drag from toolbar or draw a frame; filled vector paths)', svg: '<path d="M10 2v16" stroke-dasharray="2 2"/><path d="M7 5L2 10l5 5zM13 5l5 5-5 5z"/>', cur: 'crosshair' },
   { id: 'deform', k: '', n: 'Deform frame (draw a rectangle, confirm, then drag its corners; vector paths and groups)', svg: '<path d="M3 3h14v14H3z" stroke-dasharray="2 2"/><path d="m5 5 11 3-2 7-9 1Z"/><path d="M4 4h2v2H4zM15 6h2v2h-2zM13 14h2v2h-2zM4 15h2v2H4z"/>', cur: 'crosshair' },
+  { id: 'skew', k: '', n: 'Skew (drag side handles; vector paths and groups)', svg: '<path d="M6 4h11l-3 12H3z"/><path d="M6 1h8m-8 0 2-1m-2 1 2 2M3 19h8m0 0-2-2m2 2-2 1"/>', cur: 'default' },
   { id: 'line', k: 'L', n: 'Line (Shift = 45°)', svg: '<path d="M4 16L16 4"/>', cur: 'crosshair' },
   { id: 'rect', k: 'R', n: 'Rectangle (Shift = square, Alt = from centre)', svg: '<rect x="3.5" y="5.5" width="13" height="9" rx="1"/>', cur: 'crosshair' },
   { id: 'ellipse', k: 'O', n: 'Ellipse (Shift = circle, Alt = from centre)', svg: '<ellipse cx="10" cy="10" rx="7" ry="5.5"/>', cur: 'crosshair' },
@@ -45,8 +46,8 @@ function buildTools() {
   layout.textContent = '';
   box.appendChild(layout);
   box.appendChild(sw);
-  let compact = false;
-  try { compact = sessionPrefs.getItem('kroganToolColumns') === '2'; } catch (_) {}
+  let compact = true;
+  try { const saved=sessionPrefs.getItem('kroganToolColumns');if(saved!==null)compact=saved==='2'; } catch (_) {}
   const syncLayout = () => {
     document.body.classList.toggle('k-tools-double', compact);
     layout.setAttribute('aria-pressed', String(compact));
