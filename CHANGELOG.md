@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Draw regular Stars without holding Shift, reorder the tool palette, and simplify the Skew icon to a plain parallelogram.
+
 - Defaulted the desktop toolbar to two columns and added a dedicated lightweight vector Skew tool with unchanged node topology, gradients, group support and single-drag Undo.
 - Added desktop Timeline edge resizing, conditional striped grip, full collapse/expansion and double-click reset without changing canvas view.
 - Expanded the in-page script editor to support frame and instance scripts, large scrolling code pages, live shared edits and ActionScript-aware syntax checking.

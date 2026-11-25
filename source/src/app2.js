@@ -1,24 +1,22 @@
 const TOOLS = [
   { id: 'select', k: 'V', n: 'Selection', svg: '<path d="M5 3l10.5 6.5-4.8 1.3-2.5 4.7z"/>', cur: 'default' },
   { id: 'node', k: 'A', n: 'Node edit', svg: '<path d="M5 3l8 5-3.5 1-2 4z"/><rect x="12.5" y="12.5" width="4" height="4"/>', cur: 'default' },
-  { sep: 1 },
   { id: 'pen', k: 'P', n: 'Pen (click, or drag for curves; Enter to finish)', svg: '<path d="M6.8 12.7l1-4.1L14 2.4l3.4 3.4-6.2 6.2z"/><path d="m7.8 8.6 3.4 3.4M4 12.5v6M1 15.5h6"/><rect x="12" y="14" width="4.5" height="4.5"/>', cur: 'crosshair' },
   { id: 'pencil', k: 'Y', n: 'Pencil (freehand)', svg: '<path d="M4 16l.8-3.6 8.5-8.5 2.8 2.8-8.5 8.5z"/><path d="M12 5.2l2.8 2.8"/>', cur: 'crosshair' },
   { id: 'brush', k: 'B', n: 'Brush (paints a filled shape; [ and ] change size)', svg: '<path d="M16.5 3.5c-3 .6-6.5 4-8 7l1.5 1.5c3-1.5 6.4-5 7-8.5z"/><path d="M8.3 11.3c-2 0-3.3 1.2-3.3 3.2 0 1-.5 1.6-1.2 2 2.6.6 6-.2 6-3.4"/>', cur: 'crosshair' },
   { id: 'fluid', k: 'F', n: 'Fluid brush (smooth, tapered strokes; [ and ] change size)', svg: '<path d="M16.8 3.2c-4 .2-8.4 3.6-9.6 8.2l1.4 1.4c4.6-1.2 8-5.6 8.2-9.6z"/><path d="M7 12.6c-1.6 0-2.6 1.2-2.6 2.8 0 .8-.4 1.3-1 1.6 2.2.4 4.6-.6 4.6-2.8"/><path d="M10.5 16.5c1.6.4 3.2-.2 5-1.8" stroke-dasharray="1.6 2"/>', cur: 'crosshair' },
   { id: 'eraser', k: 'E', n: 'Eraser (cuts fills and lines on the active layer; [ and ] change size)', svg: '<path d="M7.5 16.5h8"/><path d="M4.2 11.8L11 5l4.2 4.2-6.8 6.8H6z"/><path d="M8 8.2l4.2 4.2"/>', cur: 'crosshair' },
-  { id: 'bone', k: 'J', n: 'Bones (click to place a bone; hover a joint for actions)', svg: '<circle cx="4" cy="10" r="3" stroke-dasharray="3 2"/><circle cx="16" cy="10" r="3" stroke-dasharray="3 2"/><path d="M7 10h6" stroke-dasharray="2 2"/>', cur: 'crosshair' },
-  { id: 'mirror', k: 'M', n: 'Mirror (drag from toolbar or draw a frame; filled vector paths)', svg: '<path d="M10 2v16" stroke-dasharray="2 2"/><path d="M7 5L2 10l5 5zM13 5l5 5-5 5z"/>', cur: 'crosshair' },
-  { id: 'deform', k: '', n: 'Deform frame (draw a rectangle, confirm, then drag its corners; vector paths and groups)', svg: '<path d="M3 3h14v14H3z" stroke-dasharray="2 2"/><path d="m5 5 11 3-2 7-9 1Z"/><path d="M4 4h2v2H4zM15 6h2v2h-2zM13 14h2v2h-2zM4 15h2v2H4z"/>', cur: 'crosshair' },
-  { id: 'skew', k: '', n: 'Skew (drag side handles; vector paths and groups)', svg: '<path d="M6 4h11l-3 12H3z"/><path d="M6 1h8m-8 0 2-1m-2 1 2 2M3 19h8m0 0-2-2m2 2-2 1"/>', cur: 'default' },
-  { id: 'line', k: 'L', n: 'Line (Shift = 45°)', svg: '<path d="M4 16L16 4"/>', cur: 'crosshair' },
   { id: 'rect', k: 'R', n: 'Rectangle (Shift = square, Alt = from centre)', svg: '<rect x="3.5" y="5.5" width="13" height="9" rx="1"/>', cur: 'crosshair' },
   { id: 'ellipse', k: 'O', n: 'Ellipse (Shift = circle, Alt = from centre)', svg: '<ellipse cx="10" cy="10" rx="7" ry="5.5"/>', cur: 'crosshair' },
-  { id: 'star', k: 'U', n: 'Star / Cog (drag to draw; Shift + ring to turn)', svg: '<path d="M10 2l2.4 5.1 5.6.8-4 3.9 1 5.5-5-2.6-5 2.6 1-5.5-4-3.9 5.6-.8z"/>', cur: 'crosshair' },
-  { sep: 1 },
+  { id: 'line', k: 'L', n: 'Line (Shift = 45°)', svg: '<path d="M4 16L16 4"/>', cur: 'crosshair' },
+  { id: 'star', k: 'U', n: 'Star / Cog (drag to draw a regular star; Shift + ring to turn)', svg: '<path d="M10 2l2.4 5.1 5.6.8-4 3.9 1 5.5-5-2.6-5 2.6 1-5.5-4-3.9 5.6-.8z"/>', cur: 'crosshair' },
   { id: 'text', k: 'T', n: 'Text (click to type; double-click text to edit)', svg: '<path d="M3.5 16.5L9.2 3.5h1.6l5.7 13M5.6 12h8.8"/>', cur: 'text' },
   { id: 'bucket', k: 'K', n: 'Paint bucket (Alt = stroke)', svg: '<path d="M4 10l5.5-5.5 6 6-5.5 5.5z"/><path d="M16.5 12.5c0 1.5 1.2 1.9 1.2 3.1a1.2 1.2 0 01-2.4 0c0-1.2 1.2-1.6 1.2-3.1z"/>', cur: 'cell' },
   { id: 'dropper', k: 'I', n: 'Screen eyedropper (Alt = stroke; Esc = cancel)', svg: '<path d="M11 5.5l2.2-2.2a2.8 2.8 0 014 4L15 9.5" fill="currentColor"/><path d="M9.5 4l6.5 6.5M10.7 6.2L4.2 12.7v2.6L2.8 17l1.7-1.4h2.6l6.5-6.5"/>', cur: 'copy' },
+  { id: 'skew', k: '', n: 'Skew (drag side handles; vector paths and groups)', svg: '<path d="M2 4h12l4 12H6z"/>', cur: 'default' },
+  { id: 'deform', k: '', n: 'Deform frame (draw a rectangle, confirm, then drag its corners; vector paths and groups)', svg: '<path d="M3 3h14v14H3z" stroke-dasharray="2 2"/><path d="m5 5 11 3-2 7-9 1Z"/><path d="M4 4h2v2H4zM15 6h2v2h-2zM13 14h2v2h-2zM4 15h2v2H4z"/>', cur: 'crosshair' },
+  { id: 'mirror', k: 'M', n: 'Mirror (drag from toolbar or draw a frame; filled vector paths)', svg: '<path d="M10 2v16" stroke-dasharray="2 2"/><path d="M7 5L2 10l5 5zM13 5l5 5-5 5z"/>', cur: 'crosshair' },
+  { id: 'bone', k: 'J', n: 'Bones (click to place a bone; hover a joint for actions)', svg: '<circle cx="4" cy="10" r="3" stroke-dasharray="3 2"/><circle cx="16" cy="10" r="3" stroke-dasharray="3 2"/><path d="M7 10h6" stroke-dasharray="2 2"/>', cur: 'crosshair' },
   { id: 'gradient', k: 'G', n: 'Gradient (drag across a filled path; double-click line to add stop)', svg: '<rect x="3" y="5" width="14" height="10" rx="1"/><path d="M5 12L15 8M5 15V5"/>', cur: 'crosshair' },
   { id: 'hand', k: 'H', n: 'Hand (or hold Space)', svg: '<path d="M7 9.5V5a1.2 1.2 0 012.4 0v3.5V4a1.2 1.2 0 012.4 0v4.5V5a1.2 1.2 0 012.4 0v6.2c0 3-2 5-5 5-2.6 0-3.8-1.5-4.8-3.4L4 10.6a1.2 1.2 0 012-.8z"/>', cur: 'grab' }
 ];
@@ -691,7 +689,7 @@ function marqueeUp(d) {
 /* ---------- shapes ---------- */
 function boxFrom(d) {
   let x0 = d.start.x, y0 = d.start.y, x1 = d.cur.x, y1 = d.cur.y;
-  if (d.shift && d.type !== 'line') {
+  if ((d.shift || d.type === 'star') && d.type !== 'line') {
     const w = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
     x1 = x0 + (x1 < x0 ? -w : w); y1 = y0 + (y1 < y0 ? -w : w);
   }
