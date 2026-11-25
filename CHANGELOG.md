@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Gradient stop position and opacity arrows support double-clicks for a total ±50 percentage points; single clicks remain ±1 and other numeric controls are unchanged.
+
 - Start drawing with Fill disabled and a dark Stroke; keep subsequent user paint choices. Simplify the Deform icon to a clean four-sided outline.
 
 - Draw regular Stars without holding Shift, reorder the tool palette, and simplify the Skew icon to a plain parallelogram.

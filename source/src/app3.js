@@ -785,6 +785,21 @@ function gsSync(gr, one) {
     gr.stops.forEach((st, i) => {
       const d = document.createElement('div'); d.className = 'gs'; d.dataset.i = i;
       d.innerHTML = '<input type="color" class="gc" aria-label="Stop colour"><input type="number" class="go" min="0" max="100" step="1" aria-label="Stop position in percent">%<input type="number" class="ga" min="0" max="100" step="1" aria-label="Stop opacity in percent" title="Opacity"><button type="button" class="gx btn" aria-label="Remove stop" title="Remove stop">\u00d7</button>';
+      for(const input of d.querySelectorAll('.go,.ga')){
+        const wrap=document.createElement('span');wrap.className='gs-number';input.before(wrap);wrap.appendChild(input);
+        const arrows=document.createElement('span');arrows.className='gs-arrows';wrap.appendChild(arrows);
+        for(const direction of [1,-1]){
+          const button=document.createElement('button');button.type='button';button.className='gs-step';button.textContent=direction>0?'▴':'▾';
+          button.setAttribute('aria-label',(direction>0?'Increase ':'Decrease ')+input.getAttribute('aria-label'));
+          button.title='Click: '+(direction>0?'+1':'−1')+'; double-click: '+(direction>0?'+50':'−50')+' percentage points';
+          let base=0;button.addEventListener('click',e=>{
+            if(e.detail!==2)base=+input.value||0;
+            input.value=clamp(base+direction*(e.detail===2?50:1),0,100);
+            input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));
+          });
+          button.addEventListener('dblclick',e=>e.preventDefault());arrows.appendChild(button);
+        }
+      }
       list.appendChild(d);
     });
   }

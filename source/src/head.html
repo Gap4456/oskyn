@@ -117,6 +117,13 @@ svg { display: block; }
 .gs input[type=number] { width: 50px; min-width: 0; padding: 3px 4px; }
 .gs input[type=color] { width: 30px; padding: 0; }
 .gs .gx { padding: 0 6px; }
+.gs-number { position: relative; display: inline-flex; width: 50px; flex: 0 0 50px; }
+.gs .gs-number input[type=number] { width: 100%; padding-right: 16px; appearance: textfield; -moz-appearance: textfield; }
+.gs-number input::-webkit-inner-spin-button, .gs-number input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.gs-arrows { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 14px; display: flex; flex-direction: column; }
+.gs .gs-step { flex: 1; min-height: 0; padding: 0; border: 0; border-radius: 2px; background: transparent; color: var(--mut); font-size: 10px; line-height: 10px; cursor: pointer; }
+.gs .gs-step:hover { background: var(--line); color: var(--fg); }
+
 #gAdd { white-space: nowrap; padding: 4px 8px; }
 .gchk { white-space: nowrap; display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mut); }
 .row { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: center; gap: 6px; margin-bottom: 6px; }
