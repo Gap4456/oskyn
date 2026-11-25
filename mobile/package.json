@@ -1,6 +1,6 @@
 {
   "name": "oskyn-mobile",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Touch-first oskyn HTML preview using the shared editor and animation core",
   "license": "SEE LICENSE IN ../LICENSE",
