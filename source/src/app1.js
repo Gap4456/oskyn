@@ -57,7 +57,7 @@ setInterval(() => {
 
 const S = {
   doc: null, frame: 0, layerId: null, tool: 'select', sel: [], view: { z: 1, px: 0, py: 0 },
-  style: { font: 'Arial', size: 32, bold: false, italic: false, align: 'left', fill: '#3F5BFF', fillOn: true, fa: 1, stroke: '#1B2030', strokeOn: true, sa: 1, sw: 2, cap: 'round', join: 'round', dash: 'solid', radius: 0, smooth: 40, bsize: 14, esize: 20, bshape: 'round', bpress: true, bangle: 0, bcolor: '#3F5BFF', fb: { size: 12, stab: 25, smooth: 50, round: 100, angle: 0, taper: 25, vel: 0, press: 100, zoom: true, color: '#3F5BFF', alpha: 100, merge: true }, bmerge: true, bgap: 'small', ball: false, fillType: 'solid', gradEdit: true },
+  style: { font: 'Arial', size: 32, bold: false, italic: false, align: 'left', fill: '#3F5BFF', fillOn: false, fa: 1, stroke: '#1B2030', strokeOn: true, sa: 1, sw: 2, cap: 'round', join: 'round', dash: 'solid', radius: 0, smooth: 40, bsize: 14, esize: 20, bshape: 'round', bpress: true, bangle: 0, bcolor: '#3F5BFF', fb: { size: 12, stab: 25, smooth: 50, round: 100, angle: 0, taper: 25, vel: 0, press: 100, zoom: true, color: '#3F5BFF', alpha: 100, merge: true }, bmerge: true, bgap: 'small', ball: false, fillType: 'solid', gradEdit: true },
   onion: { on: false, b: 1, a: 1 }, playing: false, loop: true, pen: null, draw: null, drag: null, nodeSel: null,
   edit: [], space: false, clipboard: [], cursorW: { x: 0, y: 0 }, autoFit: true
 };

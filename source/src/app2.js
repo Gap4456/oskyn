@@ -14,7 +14,7 @@ const TOOLS = [
   { id: 'bucket', k: 'K', n: 'Paint bucket (Alt = stroke)', svg: '<path d="M4 10l5.5-5.5 6 6-5.5 5.5z"/><path d="M16.5 12.5c0 1.5 1.2 1.9 1.2 3.1a1.2 1.2 0 01-2.4 0c0-1.2 1.2-1.6 1.2-3.1z"/>', cur: 'cell' },
   { id: 'dropper', k: 'I', n: 'Screen eyedropper (Alt = stroke; Esc = cancel)', svg: '<path d="M11 5.5l2.2-2.2a2.8 2.8 0 014 4L15 9.5" fill="currentColor"/><path d="M9.5 4l6.5 6.5M10.7 6.2L4.2 12.7v2.6L2.8 17l1.7-1.4h2.6l6.5-6.5"/>', cur: 'copy' },
   { id: 'skew', k: '', n: 'Skew (drag side handles; vector paths and groups)', svg: '<path d="M2 4h12l4 12H6z"/>', cur: 'default' },
-  { id: 'deform', k: '', n: 'Deform frame (draw a rectangle, confirm, then drag its corners; vector paths and groups)', svg: '<path d="M3 3h14v14H3z" stroke-dasharray="2 2"/><path d="m5 5 11 3-2 7-9 1Z"/><path d="M4 4h2v2H4zM15 6h2v2h-2zM13 14h2v2h-2zM4 15h2v2H4z"/>', cur: 'crosshair' },
+  { id: 'deform', k: '', n: 'Deform frame (draw a rectangle, confirm, then drag its corners; vector paths and groups)', svg: '<path d="M3 7l14-5v16L3 13z"/>', cur: 'crosshair' },
   { id: 'mirror', k: 'M', n: 'Mirror (drag from toolbar or draw a frame; filled vector paths)', svg: '<path d="M10 2v16" stroke-dasharray="2 2"/><path d="M7 5L2 10l5 5zM13 5l5 5-5 5z"/>', cur: 'crosshair' },
   { id: 'bone', k: 'J', n: 'Bones (click to place a bone; hover a joint for actions)', svg: '<circle cx="4" cy="10" r="3" stroke-dasharray="3 2"/><circle cx="16" cy="10" r="3" stroke-dasharray="3 2"/><path d="M7 10h6" stroke-dasharray="2 2"/>', cur: 'crosshair' },
   { id: 'gradient', k: 'G', n: 'Gradient (drag across a filled path; double-click line to add stop)', svg: '<rect x="3" y="5" width="14" height="10" rx="1"/><path d="M5 12L15 8M5 15V5"/>', cur: 'crosshair' },

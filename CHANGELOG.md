@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Start drawing with Fill disabled and a dark Stroke; keep subsequent user paint choices. Simplify the Deform icon to a clean four-sided outline.
+
 - Draw regular Stars without holding Shift, reorder the tool palette, and simplify the Skew icon to a plain parallelogram.
 
 - Defaulted the desktop toolbar to two columns and added a dedicated lightweight vector Skew tool with unchanged node topology, gradients, group support and single-drag Undo.
