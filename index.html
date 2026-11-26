@@ -11855,10 +11855,10 @@ function simplifyShapeTweenConflict(chosen){
   return false;
 }
 function kroganPathSimplify() {
-  if(selEval().some(s=>s.o.skin)){toast('Detach the soft body before simplifying its contour.');return;}
-  if(selEval().some(s=>s.o.skel)){toast('Skeletons are control guides. Select artwork to simplify.');return;}
+  if(selEval().some(s=>s.o.skin)){protest('Detach the soft body before simplifying its contour.');return;}
+  if(selEval().some(s=>s.o.skel)){protest('Skeletons are control guides. Select artwork to simplify.');return;}
   const chosen=selEval().filter(s=>s.o.kind==='path'&&!s.o.deformFrame&&getLayer(s.lid)?.visible&&!getLayer(s.lid)?.locked);
-  if(!chosen.length){toast('Simplify: select an unlocked path first.');return;}
+  if(!chosen.length){protest('Simplify: select an unlocked path first.');return;}
   // Changing one endpoint's topology can trigger expensive correspondence work
   // and destroy the intended animation. Refuse before history/keyframe edits.
   if(simplifyShapeTweenConflict(chosen)){protest('Simplify: this path belongs to a Shape Tween. Simplify before creating the tween, or remove its incoming/outgoing Shape Tween first. Nothing changed.');return;}
@@ -11868,7 +11868,7 @@ function kroganPathSimplify() {
     const count=contours.reduce((sum,r)=>sum+r.removed,0);
     if(count){changes.push({lid:s.lid,id:s.id,contours:contours.map(r=>r.contour)});total+=count;}
   }
-  if(!total){toast('Simplify: no removable nodes.');return;}
+  if(!total){protest('Simplify: no removable nodes.');return;}
   pushUndo();
   for(const {lid,id,contours} of changes){const key=C.ensureEditable(getLayer(lid),S.frame),o=key.objs.find(o=>o.id===id);if(o){o.contours=contours;delete o.star;}}
   S.nodeSel=null;S.kNodeSelection=[];commit();

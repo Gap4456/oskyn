@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Simplify blocked-action notices use the shared bounded spam warning instead of stacking ordinary toasts.
+
 - Default Fill colour is #89FF00 on desktop and mobile; creating a new project resets Fill to that colour with Fill disabled.
 
 - Mobile only: draw circles and squares without holding Shift, and hide the stale Pen hover segment after touch input. Desktop behaviour is unchanged.
