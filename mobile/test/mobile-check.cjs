@@ -1,7 +1,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{chromium}=require('playwright');
 (async()=>{
  let html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),end=html.lastIndexOf('\n})();');
- html=html.slice(0,end)+'\nwindow.M={C,S,H,REC,SK,CW,RH,loadDoc,setTool,setTab,setFrame,w2s,fitView,selectionControlsHidden,refreshAll,mobile,mobileMods,mobileKey,mobileTouch,mobileOpenPanel,mobileClosePanel,mobileApplyPanel,mobileSyncModifiers,clearDirty,dirty:()=>unsaved};\n'+html.slice(end);
+ html=html.slice(0,end)+'\nwindow.M={C,S,H,REC,SK,CW,RH,loadDoc,setTool,setTab,setFrame,w2s,fitView,selectionControlsHidden,refreshAll,mobile,mobileMods,mobileKey,mobileTouch,mobileOpenPanel,mobileClosePanel,mobileApplyPanel,mobileSyncModifiers,clearDirty,boxFrom,drawPenPreview,dirty:()=>unsaved};\n'+html.slice(end);
  const desktop=fs.readFileSync(path.join(__dirname,'../../oskyn.html'),'utf8'),core=s=>s.match(/<script id="fcCore">([\s\S]*?)<\/script>/)[1];assert.equal(core(html),core(desktop));assert(!desktop.includes('mobileModifiers'));
  const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
  try{
@@ -15,6 +15,9 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   assert.equal(await p.evaluate(()=>M.CW),40);assert.equal(await p.evaluate(()=>M.RH),44);
   assert(await p.locator('#bUndo').isVisible());assert(await p.locator('#bRedo').isVisible());assert.equal(await p.locator('#mobilePanel-tools').isVisible(),false);
   await chooseTool('rect');await p.evaluate(()=>{M.S.view={z:1,px:100,py:50};M.S.autoFit=false;});await stroke([250,130],[330,190]);assert.equal(await p.evaluate(()=>M.S.doc.layers[0].kfs[0].objs.length),1);assert.equal(await p.evaluate(()=>M.H.stack.length),1);
+  assert(await p.evaluate(()=>{const o=M.S.doc.layers[0].kfs[0].objs[0],b=M.C.localBounds(o);return Math.abs((b.x1-b.x0)-(b.y1-b.y0))<1e-6;}));
+  assert(await p.evaluate(()=>{for(const type of ['rect','ellipse'])for(const dx of [-120,120])for(const dy of [-60,60]){const b=M.boxFrom({type,start:{x:200,y:200},cur:{x:200+dx,y:200+dy},shift:false});if(b.w!==120||b.h!==120)return false;}const nodes=[M.C.node(10,10),M.C.node(80,10),M.C.node(80,70)],hover={x:10,y:10};M.S.pen={nodes,hover,drag:null};let curves=0;const ctx=new Proxy({bezierCurveTo(){curves++;}}, {get:(o,k)=>o[k]||(()=>{})});M.drawPenPreview(ctx);const valid=curves===2&&M.S.pen.hover===hover&&M.S.pen.nodes===nodes;M.S.pen=null;return valid;}));
+  console.log('PASS mobile Rectangle/Ellipse constrain without Shift in every direction; Pen preview draws only placed segments and preserves draft data');
   await p.locator('#bUndo').tap();await p.waitForFunction(()=>M.S.doc.layers[0].kfs[0].objs.length===0);await p.locator('#bRedo').tap();await p.waitForFunction(()=>M.S.doc.layers[0].kfs[0].objs.length===1);
   await chooseTool('brush');await stroke([380,130],[440,160]);assert.equal(await p.evaluate(()=>M.S.doc.layers[0].kfs[0].objs.length),2);
   await chooseTool('bone');await chooseTool('node');await chooseTool('select');

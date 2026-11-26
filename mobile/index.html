@@ -14097,6 +14097,15 @@ $('#mFile').addEventListener('click',e=>{
   ]);
 },true);
 
+// Touch drawing has no hovering cursor: constrain basic shapes and suppress
+// the stale Pen rubber band after lifting a finger. Shared desktop code stays intact.
+const mobileNativeBoxFrom=boxFrom;boxFrom=d=>mobileNativeBoxFrom(['rect','ellipse'].includes(d.type)?{...d,shift:true}:d);
+const mobileNativePenPreview=drawPenPreview;drawPenPreview=ctx=>{
+  const pen=S.pen;if(!pen)return;
+  const hover=pen.hover;pen.hover=null;
+  try{return mobileNativePenPreview(ctx);}finally{pen.hover=hover;}
+};
+
 const nativeSetTab=setTab;setTab=(...args)=>{nativeSetTab(...args);if(mobile.panel==='props')requestAnimationFrame(()=>mobileApplyPanel(mobile.panels.props));};
 const nativeSetTool=setTool;setTool=id=>{nativeSetTool(id);if(mobile.panel==='tools'&&!Object.values(mobileMods).some(m=>m.held.size))mobileClosePanel();};
 const nativeHiddenControls=selectionControlsHidden;selectionControlsHidden=()=>S.tool==='select'&&(!mobile.transform||mobileKey('Shift'))||nativeHiddenControls();

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Mobile only: draw circles and squares without holding Shift, and hide the stale Pen hover segment after touch input. Desktop behaviour is unchanged.
+
 ## 1.0.4 — 2026-11-25
 
 - Gradient stop position and opacity arrows support double-clicks for a total ±50 percentage points; single clicks remain ±1 and other numeric controls are unchanged.
