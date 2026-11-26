@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Default Fill colour is #89FF00 on desktop and mobile; creating a new project resets Fill to that colour with Fill disabled.
+
 - Mobile only: draw circles and squares without holding Shift, and hide the stale Pen hover segment after touch input. Desktop behaviour is unchanged.
 
 ## 1.0.4 — 2026-11-25

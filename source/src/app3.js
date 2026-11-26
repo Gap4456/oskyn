@@ -2148,7 +2148,8 @@ function openProjectDoc(doc,fileName){
   const p={id:uid(),name:fileName||doc.name||'Untitled',documentName:doc.name,dirty:false};ps.items.push(p);ps.active=p.id;
   loadDoc(doc);renderLibrary(true);renderProjectButtons();notifyDesktopDirty();
 }
-function newOpenProject(){const ps=projectSession(),d=C.mkDoc();let n=ps.items.length+1;while(ps.items.some(p=>p.name==='Project '+n))n++;d.name='Project '+n;openProjectDoc(d);}
+function resetNewProjectFill(){S.style.fill='#89FF00';S.style.fillOn=false;}
+function newOpenProject(){resetNewProjectFill();const ps=projectSession(),d=C.mkDoc();let n=ps.items.length+1;while(ps.items.some(p=>p.name==='Project '+n))n++;d.name='Project '+n;openProjectDoc(d);}
 async function saveAllProjectsBeforeClose(){
   const ps=projectSession();captureProject();
   const pending=ps.items.filter(p=>p.dirty).map(p=>({id:p.id,serial:p.serial}));let count=0;
@@ -2272,6 +2273,7 @@ function exitSym() {
 }
 function exitAllSyms() { while (S.edit.length) exitSym(); }
 function newDoc() {
+  resetNewProjectFill();
   const d = C.mkDoc();
   d.name = 'Untitled';
   loadDoc(d);
