@@ -1,6 +1,6 @@
 /* Multi-object node editing. Legacy single-object and Record gestures retain
    their original handlers; node coordinates are scoped to an owning object. */
-function multiNodeEligible(o){return o?.kind==='path'&&!o.skin&&!o.skel&&!o.rig&&!o.arc&&!o.star;}
+function multiNodeEligible(o){return o?.kind==='path'&&!o.skin&&!o.skel&&!o.rig;}
 function multiNodeObjects(){return selEval().filter(s=>multiNodeEligible(s.o)&&!getLayer(s.lid)?.locked&&getLayer(s.lid)?.visible!==false);}
 function multiNodeActive(){return S.tool==='node'&&multiNodeObjects().length>1;}
 function multiNodeSame(a,b){return a.lid===b.lid&&a.id===b.id;}

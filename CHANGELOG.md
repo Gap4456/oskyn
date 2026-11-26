@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added paired Shaper / Object Edit shape switches, default Star controls, opt-in ellipse-sector controls, four-corner rectangle rounding with single/row/column/diagonal modifiers and capsule maximum, and selected-shape Reset with Undo.
+- Retain Star and Rectangle drawing presets within each open project session; new ellipses remain whole and new projects reset presets. Actual node edits detach parametric controls without changing artwork; entering Node mode preserves them.
+- Remember the selected colour theme locally across web and Electron launches, while project saving remains explicit.
+
 - Simplify blocked-action notices use the shared bounded spam warning instead of stacking ordinary toasts.
 
 - Default Fill colour is #89FF00 on desktop and mobile; creating a new project resets Fill to that colour with Fill disabled.

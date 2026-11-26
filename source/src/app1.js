@@ -973,7 +973,7 @@ function drawOverlay(ctx) {
     // Atjaunojam iepriekšējos zīmēšanas iestatījumus.
     ctx.restore();
   }
-  if (one && S.tool === 'node' && nodeEditable(one.o) && !one.o.skel && !one.o.skin && !one.o.arc) {
+  if (one && S.tool === 'node' && nodeEditable(one.o) && !one.o.skel && !one.o.skin) {
     const handleKeys=new Set(visibleNodeHandles(one.o).map(h=>h.ci+':'+h.ni+':'+h.part));
     one.o.contours.forEach((c, ci) => {
       c.nodes.forEach((n, ni) => {

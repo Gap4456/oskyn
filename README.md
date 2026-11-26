@@ -8,7 +8,7 @@ A browser-based vector animation editor developed by Gap4456 from Dylan Papp's O
 
 Download this repository and open **oskyn.html** (or **index.html**) in a current Chromium-based browser. The application is self-contained; no server or build step is required to use it. Platform support for audio, video export and desktop colour picking can vary.
 
-Save projects explicitly with **Save project** (`.oskyn.json`). On supported desktop Edge/Chrome/Brave browsers, each Save or Ctrl+S opens the system **Save As** dialog: choose a folder, enter a name or select an existing file and confirm replacement. The previous file location/name is suggested for each open project during the session. Firefox and other desktop browsers without the picker use a direct download without an extra oskyn naming form. Enable the browser’s “Always ask where to save files” option to choose a folder or replace an existing file; automatic downloads may still produce numbered copies. Mobile retains its project-name form. Cancelling keeps unsaved work open. Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave and persistent application settings are disabled in this version.
+Save projects explicitly with **Save project** (`.oskyn.json`). On supported desktop Edge/Chrome/Brave browsers, each Save or Ctrl+S opens the system **Save As** dialog: choose a folder, enter a name or select an existing file and confirm replacement. The previous file location/name is suggested for each open project during the session. Firefox and other desktop browsers without the picker use a direct download without an extra oskyn naming form. Enable the browser’s “Always ask where to save files” option to choose a folder or replace an existing file; automatic downloads may still produce numbered copies. Mobile retains its project-name form. Cancelling keeps unsaved work open. Legacy Onionskyn/FlashCraft project formats remain supported. Browser project autosave is disabled. The colour theme is remembered locally between launches; other application settings and shape presets stay within the current session.
 
 ## Selection toolbar
 
@@ -87,6 +87,14 @@ npm test
 The build reproduces `index.html` and `oskyn.html` from source without changing the application version (`1.0.4`). Edit the source and rebuild rather than editing generated HTML alone.
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
+
+## Shaper / Edit shape
+
+The **Shaper** toolbar switch and **Object → Edit shape** toggle the same parametric controls. Shaper stays pressed alongside Rectangle, Ellipse or Star. Star starts enabled; Ellipse and Rectangle start disabled. Enabling it on an eligible selected shape also activates that shape’s drawing tool. Entering Node mode does not bake a shape; changing its actual node geometry does, preserving the artwork and restoring its parameters with Undo.
+
+For rectangles, hover near a corner to reveal its small round handle. Drag inward to round all corners; **Shift** affects one corner, **Alt** its horizontal pair, **Ctrl** its vertical pair, and **Ctrl+Shift** its diagonal pair. Unaffected corners stay unchanged. Maximum rounding makes a square circular and a long rectangle capsule-shaped. Existing simple rectangles from older projects can also use these controls.
+
+Turning Shaper off remembers the selected Star’s proportions or the Rectangle’s corner settings for repeated drawing in that project session. A new ellipse always starts whole, without a remembered sector cut. **Reset shape**, or double-clicking Shaper, resets only the selected shape while keeping its placement, transform and paint. With no selection it resets the active tool’s drawing preset. Reset is undoable for existing artwork. New projects start with default presets; project switching retains each open project’s session presets. These presets are not saved to browser storage.
 
 ## Skew tool
 

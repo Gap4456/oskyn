@@ -73,10 +73,6 @@ function setTool(id) {
   S.bone = null;
   S.tool = id; S.draw = null; S.nodeSel = id === 'node' ? S.nodeSel : null;
   if (id !== 'node') S.kNodeSelection = [];
-  if(id==='node'){
-    const one=singleSel();
-    if(one?.o.star&&!getLayer(one.lid).locked){pushUndo();C.ensureEditable(getLayer(one.lid),S.frame);starBake(findEditable(one.lid,one.id));commit();}
-  }
   document.getElementById('kNodeBar')?.classList.toggle('on', id === 'node');
   document.getElementById('kSelectBar')?.classList.toggle('on', id === 'select');
   $$('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === id)));
@@ -236,7 +232,7 @@ function onDown(e) {
   if(S.tool==='select')S.shiftHeld=e.shiftKey;
   // Ctrl selection must win before pivots, handles, curves and object hit-tests.
   if(e.ctrlKey&&['select','node','mirror'].includes(S.tool)){
-    const one=singleSel(),nodes=S.tool==='node'&&nodeEditable(one?.o)&&!one.o.arc&&!one.o.skel&&!one.o.skin&&!getLayer(one.lid)?.locked;
+    const one=singleSel(),nodes=S.tool==='node'&&nodeEditable(one?.o)&&!one.o.skel&&!one.o.skin&&!getLayer(one.lid)?.locked;
     if(nodes&&e.shiftKey&&hitNodePart(one.o,p.sx,p.sy)){
       nodeDown({shiftKey:false,altKey:e.altKey,ctrlKey:true},p);return;
     }
@@ -1390,7 +1386,6 @@ function kDrawTrueContours(ctx,o) {
 /* ---------- node edit tool ---------- */
 function nodeDown(e, p) {
   if(singleSel()?.o.skin){protest('Detach the soft body through its slime menu before editing nodes.');return;}
-  if(singleSel()?.o.arc){selDown(e,p);return;}
   if(singleSel()?.o.skel){protest('Use the Bone tool (J) to build or pose this skeleton.');return;}
   const one = singleSel();
   if (one && one.o.rig) { protest('A bone arm is posed with the Selection tool: drag its hand, elbow or shoulder.'); return; }

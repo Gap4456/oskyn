@@ -52,6 +52,7 @@
   "src/deform-frame.js",
   "src/panel-layout.js",
   "src/skew-tool.js",
+  "src/shaper.js",
   "src/app3.js",
   {
     "text": "</script>"

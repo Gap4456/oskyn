@@ -3622,7 +3622,7 @@ function init() {
   readTheme();
   let theme = 'sepia';
   try {
-    const saved = sessionPrefs.getItem(LS_THEME);
+    const saved = localStorage.getItem(LS_THEME);
     theme = KROGAN_THEMES.includes(saved) ? saved : 'sepia';
   } catch (e) { /* Storage unavailable: use sepia. */ }
   const palette = $('#kThemePalette');
@@ -3641,7 +3641,7 @@ function init() {
       opt.append(sw,name); opt.addEventListener('click', () => { setTheme(id); closeThemeMenu(); }); menu.appendChild(opt);
     }
   }
-  function setTheme(id) { theme = id; try { sessionPrefs.setItem(LS_THEME,id); } catch(e) {} applyTheme(id); }
+  function setTheme(id) { theme = id; try { localStorage.setItem(LS_THEME,id); } catch(e) {} applyTheme(id); }
   function closeThemeMenu() { menu.classList.remove('open'); palette.setAttribute('aria-expanded','false'); }
   palette.addEventListener('click', e => { e.stopPropagation(); const open = menu.classList.toggle('open'); palette.setAttribute('aria-expanded',String(open)); });
   document.addEventListener('pointerdown', e => { if (!menu.contains(e.target) && !palette.contains(e.target)) closeThemeMenu(); });

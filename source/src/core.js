@@ -1759,6 +1759,11 @@ function lerpObj(a, b, p, mode, rot) {
       o.grad = { type: a.grad.type, stops: a.grad.stops.map((s, i) => ({ o: lerp(s.o, b.grad.stops[i].o, p), c: lerpHex(s.c, b.grad.stops[i].c, p), a: lerp(nz(s.a, 1), nz(b.grad.stops[i].a, 1), p) })), m: a.grad.m && b.grad.m ? a.grad.m.map((v, i) => lerp(v, b.grad.m[i], p)) : (a.grad.m || b.grad.m) };
     }
     if(o.skin)o.contours=o.skin.base;else if (mode === 'shape') { const m = morphContours(a.contours, b.contours, p); if (m) o.contours = m; }
+    if(mode==='shape'&&(a.shapeRect||b.shapeRect)){
+      const x=a.shapeRect,y=b.shapeRect;
+      if(x&&y&&x.r?.length===4&&y.r?.length===4){const w=lerp(x.w,y.w,p),h=lerp(x.h,y.h,p),rmax=Math.min(w,h)/2;o.shapeRect={w,h,r:x.r.map((v,i)=>lerp(v*Math.min(x.w,x.h)/2,y.r[i]*Math.min(y.w,y.h)/2,p)/(rmax||1))};}
+      else delete o.shapeRect;
+    }
     if (a.rig && b.rig) { o.rig = lerpRig(a.rig, b.rig, p); rigBuild(o); }
   }
   return o;
