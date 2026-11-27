@@ -3078,6 +3078,29 @@ function mirrorBoolean(a,b,op,template){
   };
   try{return build(kroganBooleanSources([a,b]));}catch(error){return build(null);}
 }
+// Clip both halves in one shared polygon approximation and reconstruct curves
+// only once. Reconstructing each half first gives independently sampled seams
+// that can leave tiny gaps or two coincident stroked edges during the Union.
+function mirrorBakeSource(source,reflected,frame){
+  const frameInverse=minv(matOf(frame.t)),local=[source,reflected,frame].map(o=>{const copy=clone(o);C.setObjMatrix(copy,mmul(frameInverse,matOf(o.t)));return copy;});
+  // Work at an origin on the mirror axis. Canonical rounding also makes cut
+  // endpoints identical across separate clipping operations and frame angles.
+  const bounds=C.contoursBounds(frame.contours),quantum=Math.max(1,bounds.x1-bounds.x0,bounds.y1-bounds.y0)*1e-11;
+  const snapGeometry=geometry=>geometry.map(poly=>poly.map(ring=>ring.map(p=>p.map(v=>Math.round(v/quantum)*quantum))));
+  const build=curves=>{
+    const [original,reflection,clip]=(curves?curves.geometries:local.map(o=>eFillGeom(o,matOf(o.t)))).map(snapGeometry);
+    const visible=polygonClipping.difference(original,clip),mirrored=polygonClipping.intersection(reflection,clip);
+    const geometry=polygonClipping.union(snapGeometry(visible),snapGeometry(mirrored)),inv=minv(matOf(local[0].t)),contours=[];
+    for(const polygon of geometry)for(const ring of polygon){
+      const c=curves?curves.reconstruct(ring,inv):{closed:true,nodes:ring.slice(0,-1).map(p=>C.node(...mapply(inv,...p)))};
+      if(c?.nodes.length>=2)contours.push(c);
+    }
+    if(!contours.length)return null;
+    const out=clone(source);out.contours=contours;out.nz=true;
+    for(const key of ['star','arc','ellipseFrame','shapeRect','skin'])delete out[key];out.shapeFree=true;return out;
+  };
+  try{return build(kroganBooleanSources(local));}catch(error){return build(null);}
+}
 function mirrorApply(){
   mirrorSync();
   if(MIR.busy||!MIR.active||!MIR.box)return;
@@ -3087,22 +3110,14 @@ function mirrorApply(){
     const b=MIR.box,frame=C.mkPath([{closed:true,nodes:[[0,-b.h/2],[b.w,-b.h/2],[b.w,b.h/2],[0,b.h/2]].map(p=>C.node(...p))}],{fill:'#000000'},{x:b.x,y:b.y,r:b.r,sx:b.sx??1,sy:b.sy??1}),reflection=mirrorReflection(),plans=new Map();
     for(const source of sources){
       const reflected=clone(source);C.setObjMatrix(reflected,mmul(reflection,matOf(source.t)));delete reflected.sbind;delete reflected.bind;delete reflected.skin;
-      const inverse=minv(mirrorMatrix()),inside=(worldCorners(reflected)||[]).every(p=>{const q=mapply(inverse,...p);return q[0]>=0&&q[0]<=b.w&&q[1]>=-b.h/2&&q[1]<=b.h/2;});
-      const clipped=inside?reflected:mirrorBoolean(reflected,frame,'intersection',reflected);
-      const sourceGeom=eFillGeom(source,matOf(source.t)),frameGeom=eFillGeom(frame,matOf(frame.t));
-      const covered=polygonClipping.intersection(sourceGeom,frameGeom).length>0;
-      const visible=covered?mirrorBoolean(source,frame,'difference',source):clone(source);
-      const overlap=clipped&&polygonClipping.intersection(sourceGeom,eFillGeom(clipped,matOf(clipped.t))).length>0;
-      const objects=[];
-      if(overlap){const out=visible?mirrorBoolean(visible,clipped,'union',source):clipped;if(out){out.id=source.id;objects.push(out);}}
-      else {if(visible){visible.id=source.id;objects.push(visible);}if(clipped){clipped.id=uid();objects.push(clipped);}}
+      const out=mirrorBakeSource(source,reflected,frame),objects=out?[out]:[];
       plans.set(source.id,{objects});
     }
     if(!plans.size){protest('Move the mirror so the reflected drawing enters its frame.');return;}
     pushUndo();if(!C.kfAt(layer,S.frame))C.insertKeyframe(layer,S.frame,false);const key=C.ensureEditable(layer,S.frame),next=[],selected=[];
     for(const o of key.objs){if(o.id===MIR.id)continue;const plan=plans.get(o.id);if(!plan){next.push(o);continue;}next.push(...plan.objects);selected.push(...plan.objects.map(out=>({lid:layer.id,id:out.id})));}
     key.objs=next;S.sel=selected;S.nodeSel=null;S.kNodeSelection=[];mirrorCancel();setTool('select');commit();refreshAll();toast('Mirror saved as vector artwork. Overlapping reflections were joined with Union.');
-  }catch(error){toast('Mirror could not be joined: '+(error.message||error));}
+  }catch(error){protest('Mirror could not be joined: '+(error.message||error));}
   finally{MIR.busy=false;}
 }
 function mirrorUI(){

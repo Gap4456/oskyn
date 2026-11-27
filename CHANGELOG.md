@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed Mirror baking leaving an internal stroked seam or two disconnected contours where reflected curves should join. Clip and union use shared axis-local geometry before a single curve reconstruction; holes, paint and Undo are retained.
+
 - Added paired Shaper / Object Edit shape switches, default Star controls, opt-in ellipse-sector controls, four-corner rectangle rounding with single/row/column/diagonal modifiers and capsule maximum, and selected-shape Reset with Undo.
 - Retain Star and Rectangle drawing presets within each open project session; new ellipses remain whole and new projects reset presets. Actual node edits detach parametric controls without changing artwork; entering Node mode preserves them.
 - Remember the selected colour theme locally across web and Electron launches, while project saving remains explicit.
