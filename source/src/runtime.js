@@ -18,10 +18,16 @@ function create(doc, cv, opt) {
 
   /* ---- helpers ---- */
   const isInst = (o) => (o.kind === 'clip' && (o.mc || o.btn)) || (o.kind === 'text' && !!o.name);
+  function groupMembers(objs,fn,path=[]) {
+    for(const o of objs){fn(o,path);if(o.kind==='group'){groupMembers(o.children||[],fn,[...path,o.id]);if(o.mask)groupMembers(o.mask,fn,[...path,o.id,'mask']);}}
+  }
   function hasScripts() {
-    const chk = (layers) => layers.some((l) => l.kfs.some((k) => (k.script && String(k.script).trim()) || k.objs.some((o) => o.kind === 'clip' && o.script && String(o.script).trim())));
-    if (chk(doc.layers)) return true;
-    for (const k of Object.keys(lib)) if (chk(lib[k].layers)) return true;
+    const chk=layers=>layers.some(l=>l.kfs.some(k=>{
+      if(k.script&&String(k.script).trim())return true;
+      let found=false;groupMembers(k.objs,o=>{if(o.kind==='clip'&&o.script&&String(o.script).trim())found=true;});return found;
+    }));
+    if(chk(doc.layers))return true;
+    for(const k of Object.keys(lib))if(chk(lib[k].layers))return true;
     return false;
   }
   function newInst(tl, parent, key, o) {
@@ -40,7 +46,10 @@ function create(doc, cv, opt) {
     const list = [];
     Core.setSkeletonScope(inst.layers);
     for (const l of inst.layers) list.push({ layer: l, objs: l.visible === false ? [] : Core.evalLayerObjs(l, f).filter(Core.notGhost) }); /* hidden layers stay in the list (empty) so a hidden mask still disables its masking, exactly as in the editor */
-    if (f === inst.cur) inst.cache = { f, list };
+    if(f===inst.cur){
+      inst.cache={f,list};inst.objectKeys=new WeakMap();
+      for(const {layer,objs} of list)groupMembers(objs,(o,path)=>{if(isInst(o))inst.objectKeys.set(o,JSON.stringify([layer.id,...path,o.id]));});
+    }
     return list;
   }
 
@@ -94,19 +103,18 @@ function create(doc, cv, opt) {
   /* ---- timeline stepping ---- */
   function sync(inst) {
     const born = [], want = new Set();
-    for (const { layer, objs } of evalInst(inst)) for (const o of objs) {
-      if (!isInst(o)) continue;
-      const key = layer.id + '|' + o.id;
-      want.add(key);
-      let k = inst.kids.get(key);
-      if (k && k.sym !== o.sym) { kill(inst, k); k = null; }
-      if (!k) {
-        k = newInst(o.kind === 'clip' ? (lib[o.sym] || { layers: [], frames: 1 }) : { layers: [], frames: 1 }, inst, key, o);
-        k.sym = o.sym; inst.kids.set(key, k); link(inst, k); born.push(k);
-        if (o.kind === 'clip' && o.script && String(o.script).trim()) runInstScript(k, o);
+    for(const {layer,objs} of evalInst(inst))groupMembers(objs,(o,path)=>{
+      if(!isInst(o))return;
+      const key=JSON.stringify([layer.id,...path,o.id]);want.add(key);
+      let k=inst.kids.get(key);
+      if(k&&k.sym!==o.sym){kill(inst,k);k=null;}
+      if(!k){
+        k=newInst(o.kind==='clip'?(lib[o.sym]||{layers:[],frames:1}):{layers:[],frames:1},inst,key,o);
+        k.sym=o.sym;inst.kids.set(key,k);link(inst,k);born.push(k);
+        if(o.kind==='clip'&&o.script&&String(o.script).trim())runInstScript(k,o);
       }
-      k.last = o;
-    }
+      k.last=o;
+    });
     for (const [key, k] of Array.from(inst.kids)) if (!want.has(key)) kill(inst, k);
     return born;
   }
@@ -486,8 +494,11 @@ function create(doc, cv, opt) {
         for (const o of e.objs) {
           // Invisibility mask geometry is consumed by Core.drawUnits; never paint it visibly.
           if (o.invisMask && o.kind === 'path') continue;
-          const k = isInst(o) ? inst.kids.get(e.layer.id + '|' + o.id) : null;
-          if (k) drawKid(k, o); else Core.drawObj(ctx, o, {strokeBase});
+          const drawInstance=(c,obj)=>{
+            const key=inst.objectKeys?.get(obj),k=key&&inst.kids.get(key);if(!k)return false;
+            const previous=ctx;ctx=c;try{drawKid(k,obj);}finally{ctx=previous;}return true;
+          };
+          Core.drawObj(ctx,o,{strokeBase,drawInstance});
         }
       } finally { ctx = prev; }
     });

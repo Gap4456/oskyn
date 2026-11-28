@@ -1776,23 +1776,31 @@ function kfIndexAt(layer, t) {
 function kfAt(layer, f) { return layer.kfs.find((k) => k.f === f) || null; }
 function kfFor(layer, f) { const i = kfIndexAt(layer, f); return i < 0 ? null : layer.kfs[i]; }
 function withClips(layer, i, t, objs) {
-  let any = false;
-  for (const o of objs) if (o.kind === 'clip') { any = true; break; }
-  if (!any) return objs;
-  return objs.map((o) => {
-    if (o.kind !== 'clip') return o;
-    const lib = _lib[o.sym], n = lib ? lib.frames : 1;
-    let start;
-    if (o.mc) { let j = i; while (j > 0 && layer.kfs[j - 1].objs.some((x) => x.id === o.id && x.kind === 'clip')) j--; start = layer.kfs[j].f; }
-    else start = layer.kfs[i].f;
-    /* playback mode and first frame belong to graphic symbols (as in Animate); a movie clip always loops from its first frame */
-    const el = Math.max(0, (o.mc && _ctxEl != null ? _ctxEl : t) - start), first = o.mc ? 0 : (o.first || 0), mode = o.mc ? 'loop' : o.mode;
-    const f = mode === 'single' ? first : mode === 'once' ? Math.min(first + el, n - 1) : (first + el) % n;
-    const c = Object.assign({}, o);
-    Object.defineProperty(c, '_f', { value: f, enumerable: false });
-    Object.defineProperty(c, '_el', { value: el, enumerable: false });
-    return c;
-  });
+  const contains=(items,id)=>items.some(o=>o.kind==='clip'&&o.id===id||o.kind==='group'&&(contains(o.children||[],id)||contains(o.mask||[],id)));
+  const visit=items=>{
+    let changed=false;
+    const result=items.map(o=>{
+      if(o.kind==='group'){
+        const children=visit(o.children||[]),mask=o.mask?visit(o.mask):o.mask;
+        if(children===o.children&&mask===o.mask)return o;
+        changed=true;const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.children=children;if(o.mask)copy.mask=mask;return copy;
+      }
+      if(o.kind!=='clip')return o;
+      changed=true;
+      const lib=_lib[o.sym],n=lib?lib.frames:1;
+      let start;
+      if(o.mc){let j=i;while(j>0&&contains(layer.kfs[j-1].objs,o.id))j--;start=layer.kfs[j].f;}
+      else start=layer.kfs[i].f;
+      /* Groups add no timeline: graphic modes and nested Movie Clip clocks
+         use the enclosing layer's frame exactly as ungrouped instances do. */
+      const el=Math.max(0,(o.mc&&_ctxEl!=null?_ctxEl:t)-start),first=o.mc?0:(o.first||0),mode=o.mc?'loop':o.mode;
+      const f=mode==='single'?first:mode==='once'?Math.min(first+el,n-1):(first+el)%n;
+      const copy=Object.assign({},o);
+      Object.defineProperty(copy,'_f',{value:f,enumerable:false});Object.defineProperty(copy,'_el',{value:el,enumerable:false});return copy;
+    });
+    return changed?result:items;
+  };
+  return visit(objs);
 }
 /* which object in the next keyframe each object tweens to: same id first; for a shape tween, leftover shapes pair up in drawing order, so drawing a new shape in a blank keyframe still morphs */
 function tweenPairs(kf, next) {
@@ -2109,6 +2117,7 @@ function drawMirrorExcluded(ctx,o,opt){
   }finally{ctx.restore();}
 }
 function drawObj(ctx, o, opt) {
+  if(opt?.drawInstance&&opt.drawInstance(ctx,o))return;
   if(o.deformFrame)return;
   if(o._mirrorCuts?.length){drawMirrorExcluded(ctx,o,opt);return;}
   if(o.skel)return;

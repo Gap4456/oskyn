@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed animated symbols freezing when placed in ordinary or nested groups. Group members retain graphic playback modes and Movie Clip clocks; Preview/HTML export also retain grouped Movie Clip instances, independent playback and instance scripts.
+
 - Fixed Mirror baking leaving an internal stroked seam or two disconnected contours where reflected curves should join. Clip and union use shared axis-local geometry before a single curve reconstruction; holes, paint and Undo are retained.
 
 - Added paired Shaper / Object Edit shape switches, default Star controls, opt-in ellipse-sector controls, four-corner rectangle rounding with single/row/column/diagonal modifiers and capsule maximum, and selected-shape Reset with Undo.

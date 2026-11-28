@@ -88,6 +88,10 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
 
+## Animated symbols in groups
+
+Grouping an animated symbol with other artwork preserves its animation, including inside nested groups. Groups add transforms and organization without creating a new timeline. Graphic symbols keep their Loop / Play once / Single frame settings. Movie Clips retain independent playback and instance scripts in Preview and HTML export, including on a one-frame main timeline.
+
 ## Shaper / Edit shape
 
 The **Shaper** toolbar switch and **Object → Edit shape** toggle the same parametric controls. Shaper stays pressed alongside Rectangle, Ellipse or Star. Star starts enabled; Ellipse and Rectangle start disabled. Enabling it on an eligible selected shape also activates that shape’s drawing tool. Entering Node mode does not bake a shape; changing its actual node geometry does, preserving the artwork and restoring its parameters with Undo.

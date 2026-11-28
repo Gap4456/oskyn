@@ -2797,23 +2797,31 @@ function kfIndexAt(layer, t) {
 function kfAt(layer, f) { return layer.kfs.find((k) => k.f === f) || null; }
 function kfFor(layer, f) { const i = kfIndexAt(layer, f); return i < 0 ? null : layer.kfs[i]; }
 function withClips(layer, i, t, objs) {
-  let any = false;
-  for (const o of objs) if (o.kind === 'clip') { any = true; break; }
-  if (!any) return objs;
-  return objs.map((o) => {
-    if (o.kind !== 'clip') return o;
-    const lib = _lib[o.sym], n = lib ? lib.frames : 1;
-    let start;
-    if (o.mc) { let j = i; while (j > 0 && layer.kfs[j - 1].objs.some((x) => x.id === o.id && x.kind === 'clip')) j--; start = layer.kfs[j].f; }
-    else start = layer.kfs[i].f;
-    /* playback mode and first frame belong to graphic symbols (as in Animate); a movie clip always loops from its first frame */
-    const el = Math.max(0, (o.mc && _ctxEl != null ? _ctxEl : t) - start), first = o.mc ? 0 : (o.first || 0), mode = o.mc ? 'loop' : o.mode;
-    const f = mode === 'single' ? first : mode === 'once' ? Math.min(first + el, n - 1) : (first + el) % n;
-    const c = Object.assign({}, o);
-    Object.defineProperty(c, '_f', { value: f, enumerable: false });
-    Object.defineProperty(c, '_el', { value: el, enumerable: false });
-    return c;
-  });
+  const contains=(items,id)=>items.some(o=>o.kind==='clip'&&o.id===id||o.kind==='group'&&(contains(o.children||[],id)||contains(o.mask||[],id)));
+  const visit=items=>{
+    let changed=false;
+    const result=items.map(o=>{
+      if(o.kind==='group'){
+        const children=visit(o.children||[]),mask=o.mask?visit(o.mask):o.mask;
+        if(children===o.children&&mask===o.mask)return o;
+        changed=true;const copy=Object.defineProperties({},Object.getOwnPropertyDescriptors(o));copy.children=children;if(o.mask)copy.mask=mask;return copy;
+      }
+      if(o.kind!=='clip')return o;
+      changed=true;
+      const lib=_lib[o.sym],n=lib?lib.frames:1;
+      let start;
+      if(o.mc){let j=i;while(j>0&&contains(layer.kfs[j-1].objs,o.id))j--;start=layer.kfs[j].f;}
+      else start=layer.kfs[i].f;
+      /* Groups add no timeline: graphic modes and nested Movie Clip clocks
+         use the enclosing layer's frame exactly as ungrouped instances do. */
+      const el=Math.max(0,(o.mc&&_ctxEl!=null?_ctxEl:t)-start),first=o.mc?0:(o.first||0),mode=o.mc?'loop':o.mode;
+      const f=mode==='single'?first:mode==='once'?Math.min(first+el,n-1):(first+el)%n;
+      const copy=Object.assign({},o);
+      Object.defineProperty(copy,'_f',{value:f,enumerable:false});Object.defineProperty(copy,'_el',{value:el,enumerable:false});return copy;
+    });
+    return changed?result:items;
+  };
+  return visit(objs);
 }
 /* which object in the next keyframe each object tweens to: same id first; for a shape tween, leftover shapes pair up in drawing order, so drawing a new shape in a blank keyframe still morphs */
 function tweenPairs(kf, next) {
@@ -3130,6 +3138,7 @@ function drawMirrorExcluded(ctx,o,opt){
   }finally{ctx.restore();}
 }
 function drawObj(ctx, o, opt) {
+  if(opt?.drawInstance&&opt.drawInstance(ctx,o))return;
   if(o.deformFrame)return;
   if(o._mirrorCuts?.length){drawMirrorExcluded(ctx,o,opt);return;}
   if(o.skel)return;
@@ -4442,10 +4451,16 @@ function create(doc, cv, opt) {
 
   /* ---- helpers ---- */
   const isInst = (o) => (o.kind === 'clip' && (o.mc || o.btn)) || (o.kind === 'text' && !!o.name);
+  function groupMembers(objs,fn,path=[]) {
+    for(const o of objs){fn(o,path);if(o.kind==='group'){groupMembers(o.children||[],fn,[...path,o.id]);if(o.mask)groupMembers(o.mask,fn,[...path,o.id,'mask']);}}
+  }
   function hasScripts() {
-    const chk = (layers) => layers.some((l) => l.kfs.some((k) => (k.script && String(k.script).trim()) || k.objs.some((o) => o.kind === 'clip' && o.script && String(o.script).trim())));
-    if (chk(doc.layers)) return true;
-    for (const k of Object.keys(lib)) if (chk(lib[k].layers)) return true;
+    const chk=layers=>layers.some(l=>l.kfs.some(k=>{
+      if(k.script&&String(k.script).trim())return true;
+      let found=false;groupMembers(k.objs,o=>{if(o.kind==='clip'&&o.script&&String(o.script).trim())found=true;});return found;
+    }));
+    if(chk(doc.layers))return true;
+    for(const k of Object.keys(lib))if(chk(lib[k].layers))return true;
     return false;
   }
   function newInst(tl, parent, key, o) {
@@ -4464,7 +4479,10 @@ function create(doc, cv, opt) {
     const list = [];
     Core.setSkeletonScope(inst.layers);
     for (const l of inst.layers) list.push({ layer: l, objs: l.visible === false ? [] : Core.evalLayerObjs(l, f).filter(Core.notGhost) }); /* hidden layers stay in the list (empty) so a hidden mask still disables its masking, exactly as in the editor */
-    if (f === inst.cur) inst.cache = { f, list };
+    if(f===inst.cur){
+      inst.cache={f,list};inst.objectKeys=new WeakMap();
+      for(const {layer,objs} of list)groupMembers(objs,(o,path)=>{if(isInst(o))inst.objectKeys.set(o,JSON.stringify([layer.id,...path,o.id]));});
+    }
     return list;
   }
 
@@ -4518,19 +4536,18 @@ function create(doc, cv, opt) {
   /* ---- timeline stepping ---- */
   function sync(inst) {
     const born = [], want = new Set();
-    for (const { layer, objs } of evalInst(inst)) for (const o of objs) {
-      if (!isInst(o)) continue;
-      const key = layer.id + '|' + o.id;
-      want.add(key);
-      let k = inst.kids.get(key);
-      if (k && k.sym !== o.sym) { kill(inst, k); k = null; }
-      if (!k) {
-        k = newInst(o.kind === 'clip' ? (lib[o.sym] || { layers: [], frames: 1 }) : { layers: [], frames: 1 }, inst, key, o);
-        k.sym = o.sym; inst.kids.set(key, k); link(inst, k); born.push(k);
-        if (o.kind === 'clip' && o.script && String(o.script).trim()) runInstScript(k, o);
+    for(const {layer,objs} of evalInst(inst))groupMembers(objs,(o,path)=>{
+      if(!isInst(o))return;
+      const key=JSON.stringify([layer.id,...path,o.id]);want.add(key);
+      let k=inst.kids.get(key);
+      if(k&&k.sym!==o.sym){kill(inst,k);k=null;}
+      if(!k){
+        k=newInst(o.kind==='clip'?(lib[o.sym]||{layers:[],frames:1}):{layers:[],frames:1},inst,key,o);
+        k.sym=o.sym;inst.kids.set(key,k);link(inst,k);born.push(k);
+        if(o.kind==='clip'&&o.script&&String(o.script).trim())runInstScript(k,o);
       }
-      k.last = o;
-    }
+      k.last=o;
+    });
     for (const [key, k] of Array.from(inst.kids)) if (!want.has(key)) kill(inst, k);
     return born;
   }
@@ -4910,8 +4927,11 @@ function create(doc, cv, opt) {
         for (const o of e.objs) {
           // Invisibility mask geometry is consumed by Core.drawUnits; never paint it visibly.
           if (o.invisMask && o.kind === 'path') continue;
-          const k = isInst(o) ? inst.kids.get(e.layer.id + '|' + o.id) : null;
-          if (k) drawKid(k, o); else Core.drawObj(ctx, o, {strokeBase});
+          const drawInstance=(c,obj)=>{
+            const key=inst.objectKeys?.get(obj),k=key&&inst.kids.get(key);if(!k)return false;
+            const previous=ctx;ctx=c;try{drawKid(k,obj);}finally{ctx=previous;}return true;
+          };
+          Core.drawObj(ctx,o,{strokeBase,drawInstance});
         }
       } finally { ctx = prev; }
     });
