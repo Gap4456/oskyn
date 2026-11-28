@@ -821,7 +821,7 @@ function refreshSelectionActions(sels){
       if(i+1<objs.length&&!ids.has(objs[i+1].id))forward=true;
     }
   }
-  const group=unlocked.length===sels.length&&unlocked.length>1&&new Set(unlocked.map(s=>s.lid)).size===1&&!unlocked.some(s=>s.o.mirror||s.o.skel||s.o.sbind||s.o.skin);
+  const group=false; // New grouping is disabled; existing groups remain editable/ungroupable.
   const ungroup=unlocked.some(s=>s.o.kind==='group')&&!sels.some(s=>s.o.mirror||s.o.sbind||s.o.skin);
   const enabled={backward,forward,back:backward,front:forward,group,ungroup};
   document.querySelectorAll('#kSelectBar [data-karrange]').forEach(b=>{b.disabled=!enabled[b.dataset.karrange];});
@@ -1132,7 +1132,7 @@ function bindProps() {
     const dir = direction ? (rot.dir === direction ? 'short' : direction) : (rot.dir || 'short');
     const turns = Math.max(0, Math.min(100, Math.floor(Number(rot.turns) || 0) + (increment || 0)));
     if (dir === (rot.dir || 'short') && turns === (rot.turns || 0)) return;
-    pushUndo(); kf.rot = { dir, turns }; commit(); refreshProps();
+    pushUndo(); kf.rot = { dir, turns, ...(kf.rot?.sharedPivots?{sharedPivots:clone(kf.rot.sharedPivots)}:{}) }; commit(); refreshProps();
   };
   on('#rotCW', 'click', () => editMotionRotation('cw', 0));
   on('#rotCCW', 'click', () => editMotionRotation('ccw', 0));
@@ -1280,24 +1280,8 @@ function arrange(act) {
   commit();
 }
 function groupSel() {
-  if(!refreshSelectionActions(selEval()).group)return;
-  const lids = selLayerIds();
-  const l = getLayer(lids[0]);
-  if (l.locked) return;
-  pushUndo();
-  const kf = C.ensureEditable(l, S.frame);
-  const objs = kf.objs.filter((o) => S.sel.some((s) => s.id === o.id));
-  if (objs.length < 2) { H.stack.pop(); return; }
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const o of objs) { const b = worldBounds(o); if (b) { x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1); } }
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  const g = { id: uid(), kind: 'group', children: [], op: 1, t: { x: cx, y: cy, sx: 1, sy: 1, r: 0 } };
-  const top = Math.max(...objs.map((o) => kf.objs.indexOf(o)));
-  for (const o of objs) { o.t.x -= cx; o.t.y -= cy; g.children.push(o); }
-  kf.objs = kf.objs.filter((o) => !objs.includes(o));
-  kf.objs.splice(Math.min(top - objs.length + 1, kf.objs.length), 0, g);
-  S.sel = [{ lid: l.id, id: g.id }];
-  commit();
+  // Disabled: multi-object rotation keeps original object identities intact.
+  return;
 }
 function ungroupSel() {
   if(!refreshSelectionActions(selEval()).ungroup)return;
@@ -2783,7 +2767,7 @@ function showHelp() {
   const rows = [['V / A', 'Selection / node edit'], ['P / Y / B / F', 'Pen / pencil / brush / fluid brush'], ['[ and ]', 'Brush size smaller / larger'], ['L R O', 'Line, rectangle, ellipse'], ['Ellipse handles', 'Drag to open a mouth; double-click the ellipse to finish as a path'], ['Soft body (slime HUD)', 'In Edit: slime → diamond → click one vector figure. Switch to Animate to bend. +/− adjusts the selected bone; ↑/↓ orders its body part on the current keyframe; same figure detaches. Colored dots toggle editor-only influence zones. Branched bodies: use a closed, filled figure; bind with limbs apart.'], ['Bone HUD: Ctrl / Shift', 'Hold menu on its joint / hide controls'], ['T', 'Text (Esc or click away to finish)'], ['K / I / H', 'Bucket, eyedropper, hand'],
     ['F8', 'Convert selection to symbol (Fn+F8 on some laptops)'], ['F9', 'Script editor'],
     ['F5 / F6 / F7', 'Insert frame / keyframe / blank keyframe'], ['⇧F5 / ⇧F6', 'Remove selected frames / clear keyframe'], [', and .', 'Previous / next frame'],
-    ['Q (Record armed)', 'Hold while dragging objects, nodes, curves or ellipse mouth handles to record keyframes'], ['Enter', 'Play or stop (finishes a pen path)'], ['Ctrl+G / ⇧G', 'Group / ungroup'], ['Ctrl+C X V D', 'Copy, cut, paste, duplicate'], ['Ctrl+Alt+V', 'Paste in the original position'],
+    ['Q (Record armed)', 'Hold while dragging objects, nodes, curves or ellipse mouth handles to record keyframes'], ['Enter', 'Play or stop (finishes a pen path)'], ['Ctrl+Shift+G', 'Ungroup existing groups'], ['Ctrl+C X V D', 'Copy, cut, paste, duplicate'], ['Ctrl+Alt+V', 'Paste in the original position'],
     ['Ctrl+drag (V / A)', 'Select fully enclosed objects; Ctrl starts the box over artwork; Shift adds'], ['Ctrl+Z / ⇧Z', 'Undo / redo'], ['Ctrl+S', 'Save project'], ['Arrows', 'Nudge (⇧ = 10 px)'], ['Space-drag', 'Pan the stage'], ['Ctrl+wheel / Shift+wheel', 'Zoom / horizontal pan'], ['Shift / Ctrl or Alt', 'Constrain / from centre while drawing']];
   openModal('Keyboard shortcuts', '<table>' + rows.map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table><p class="hint">Right-click a timeline cell for frame and tween actions. Editing a frame inside a tween adds a keyframe there.</p><p class="hint">oskyn ' + APP_VERSION + ' · Something broken? File → Report a problem.</p>');
 }

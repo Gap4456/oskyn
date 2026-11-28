@@ -619,7 +619,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <button class="tbtn karrange" data-karrange="forward" title="Raise one step in current layer (Ctrl+])" aria-label="Raise one step in current layer (Ctrl+])">f</button>
       <button class="tbtn karrange" data-karrange="back" title="Send to bottom of current layer (Ctrl+Shift+[)" aria-label="Send to bottom of current layer (Ctrl+Shift+[)">B</button>
       <button class="tbtn karrange" data-karrange="front" title="Bring to top of current layer (Ctrl+Shift+])" aria-label="Bring to top of current layer (Ctrl+Shift+])">F</button>
-      <button class="tbtn karrange" data-karrange="group" title="Group selected objects (Ctrl+G)" aria-label="Group selected objects (Ctrl+G)">G</button>
+      <button class="tbtn karrange" data-karrange="group" title="Grouping disabled — select objects to rotate together" aria-label="Group selected objects (Ctrl+G)">G</button>
       <button class="tbtn karrange" data-karrange="ungroup" title="Ungroup selected groups (Ctrl+Shift+G)" aria-label="Ungroup selected groups (Ctrl+Shift+G)">U</button>
       <button class="tbtn karrange" id="bEditorHide" title="Hide selected objects or next front object (editor only)">H</button>
       <button class="tbtn karrange" id="bEditorShow" title="Show last hidden (right-click for Show all and outlines)">S</button>
@@ -746,7 +746,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="mini" >
         <button data-act="front" title="Bring to front (Ctrl+Shift+])">Front</button><button data-act="forward" title="Bring forward (Ctrl+])">Forward</button>
         <button data-act="backward" title="Send backward (Ctrl+[)">Backward</button><button data-act="back" title="Send to back (Ctrl+Shift+[)">Back</button>
-        <button data-act="group" title="Group (Ctrl+G)">Group</button><button data-act="ungroup" title="Ungroup (Ctrl+Shift+G)">Ungroup</button>
+        <button data-act="group" title="Grouping disabled — select objects to rotate together">Group</button><button data-act="ungroup" title="Ungroup (Ctrl+Shift+G)">Ungroup</button>
         <button data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button><button data-act="del" title="Delete">Delete</button>
       </div>
     </div>
@@ -2597,15 +2597,20 @@ function lerpObj(a, b, p, mode, rot) {
     return out;
   }
   const o = Object.assign({}, a);
-  const rotation=rot?.deltas&&Number.isFinite(rot.deltas[a.id])?{delta:rot.deltas[a.id]}:rot;
-  o.t = lerpT(a.t, b.t, p, mode === 'motion' ? rotation : null);
+  const sharedPivot=rot?.sharedPivots?.[a.id],hasShared=Array.isArray(sharedPivot)&&sharedPivot.length===2&&sharedPivot.every(Number.isFinite),delta=rot?.deltas?.[a.id];
+  // A later single-object rotation can replace one endpoint of a shared turn.
+  // Ignore that object's stale shared channel instead of jumping at its end.
+  const coherent=!hasShared||!Number.isFinite(delta)||Math.abs(Math.atan2(Math.sin((a.t.r+delta-b.t.r)*PI/180),Math.cos((a.t.r+delta-b.t.r)*PI/180)))<1e-7;
+  const rotation=coherent&&Number.isFinite(delta)?{delta}:rot,shared=hasShared&&coherent;
+  o.t = lerpT(a.t,b.t,p,mode==='motion'||shared?rotation:null);
   if(a.mirror&&b.mirror)o.mirror={...a.mirror,width:lerp(a.mirror.width,b.mirror.width,p),height:lerp(a.mirror.height,b.mirror.height,p)};
   // The editor rotates/scales about the bounds centre unless a custom pivot
   // was set. Tween that same world-space anchor, not the top-left registration
   // point of bitmaps/text. Keep ordinary shape morphing unchanged.
   const customPivot = obj => Array.isArray(obj.pivot) && obj.pivot.length === 2 && obj.pivot.every(Number.isFinite);
-  if (mode === 'motion' || (customPivot(a) && customPivot(b))) {
+  if (mode === 'motion' || shared || (customPivot(a) && customPivot(b))) {
     const pivotOf = obj => {
+      if(shared)return sharedPivot;
       if (customPivot(obj)) return obj.pivot;
       const bounds = localBounds(obj);
       return bounds ? [(bounds.x0+bounds.x1)/2,(bounds.y0+bounds.y1)/2] : [0,0];
@@ -2613,8 +2618,9 @@ function lerpObj(a, b, p, mode, rot) {
     const pa = pivotOf(a), pb = pivotOf(b);
     const startPivot = mapply(matOf(a.t),pa[0],pa[1]);
     const endPivot = mapply(matOf(b.t),pb[0],pb[1]);
-    o.pivot = [lerp(pa[0],pb[0],p),lerp(pa[1],pb[1],p)];
-    const actualPivot = mapply(matOf(o.t),o.pivot[0],o.pivot[1]);
+    const pivot=[lerp(pa[0],pb[0],p),lerp(pa[1],pb[1],p)];
+    if(!shared)o.pivot=pivot;
+    const actualPivot = mapply(matOf(o.t),pivot[0],pivot[1]);
     o.t.x += lerp(startPivot[0],endPivot[0],p)-actualPivot[0];
     o.t.y += lerp(startPivot[1],endPivot[1],p)-actualPivot[1];
   }
@@ -4290,7 +4296,7 @@ root.FCCore = {
   uid, clamp, lerp, clone, nz, hexToRgb, rgbToHex, lerpHex, rgba,
   newT, matOf, mmul, minv, mapply, decompose, node, mouthContour, tracePath, pathD, bezPt, splitSeg, contoursBounds, localBounds, worldCorners, worldBounds,
   starDefaults, starContour, imageContours, imageMaskContours, constrainImageMask, recenter, applyMatrixToNodes, setObjMatrix, ellipseContour, rectContour, mkPath, mkLayer, mkKf, mkDoc, normalizeDoc,
-  groupEntries, drawUnits, maskedDraw, groupAlpha, tweenPairs, shapeTweenIssues, ease, bezierEase, morphContours, evalLayerObjs, evalDoc, kfIndexAt, kfAt, kfFor, sortKfs, ensureEditable, insertKeyframe, insertFrames, removeFrames,
+  groupEntries, drawUnits, maskedDraw, groupAlpha, lerpAngleTween, tweenPairs, shapeTweenIssues, ease, bezierEase, morphContours, evalLayerObjs, evalDoc, kfIndexAt, kfAt, kfFor, sortKfs, ensureEditable, insertKeyframe, insertFrames, removeFrames,
   beginRenderEval, endRenderEval,
   skeletonRigidGroups, skeletonRigidValid, skeletonPoseRigid,
   skeletonGraph, skeletonPath, skeletonPinTargets, skeletonPinsValid, skeletonPosePinned,
@@ -10094,6 +10100,101 @@ document.addEventListener('keydown',e=>{
   if(e.key!=='Escape'||S.drag||S.draw||S.pen||modalBg.classList.contains('on')||e.target.closest?.('input,textarea,select,[contenteditable="true"]'))return;
   const kind=shapeActiveKind();if(kind&&SHAPER.enabled[kind]){const one=shapeChosen();if(one)shapeRemember(one.o);SHAPER.enabled[kind]=false;setTool('select');invalidate();e.preventDefault();e.stopImmediatePropagation();}
 },true);
+/* A shared, editor-only pivot for a mixed Selection. Objects keep their own
+   identities; tween spans store only the rotation anchor/delta they need. */
+const MULTIX={doc:null,key:null,pivot:null,poses:null};
+function multiTransformSelection(){
+  if(S.tool!=='select')return [];
+  const selected=selEval();return selected.length>1&&selected.every(s=>{const l=getLayer(s.lid);return l?.visible&&!l.locked&&!s.o.deformFrame&&!s.o.mirror&&!s.o.skel;})?selected:[];
+}
+function multiTransformBounds(selected){let b=null;for(const s of selected){const q=worldBounds(s.o);if(!q)return null;b=b?{x0:Math.min(b.x0,q.x0),y0:Math.min(b.y0,q.y0),x1:Math.max(b.x1,q.x1),y1:Math.max(b.y1,q.y1)}:{...q};}return b;}
+function multiTransformState(){
+  const selected=multiTransformSelection();if(!selected.length)return null;
+  const bounds=multiTransformBounds(selected);if(!bounds)return null;
+  const key=JSON.stringify([S.frame,S.edit.map(e=>e.sym),selected.map(s=>[s.lid,s.id]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))]),poses=selected.map(s=>({lid:s.lid,id:s.id,t:{...s.o.t}}));
+  if(MULTIX.doc!==S.doc||MULTIX.key!==key){MULTIX.doc=S.doc;MULTIX.key=key;MULTIX.pivot=[(bounds.x0+bounds.x1)/2,(bounds.y0+bounds.y1)/2];MULTIX.poses=poses;}
+  else if(!S.drag&&MULTIX.poses){
+    const before=poses.map(p=>MULTIX.poses.find(q=>q.lid===p.lid&&q.id===p.id)),dx=poses[0].t.x-before[0]?.t.x,dy=poses[0].t.y-before[0]?.t.y;
+    if(Number.isFinite(dx)&&Number.isFinite(dy)&&poses.every((p,i)=>{const a=before[i]?.t,b=p.t;return a&&Math.abs(b.x-a.x-dx)<1e-7&&Math.abs(b.y-a.y-dy)<1e-7&&b.r===a.r&&b.sx===a.sx&&b.sy===a.sy;})){MULTIX.pivot[0]+=dx;MULTIX.pivot[1]+=dy;}
+    MULTIX.poses=poses;
+  }
+  if(!S.drag)MULTIX.poses=poses;
+  return {selected,bounds,pivot:MULTIX.pivot.slice(),key};
+}
+function multiTransformHandles(state){const b=state.bounds;return {pivot:w2s(...state.pivot),rotate:w2s((b.x0+b.x1)/2,b.y0-26/S.view.z),edge:w2s((b.x0+b.x1)/2,b.y0)};}
+function multiRotationPlan(original){
+  const l=getLayer(original.lid),key=C.kfFor(l,S.frame),index=l.kfs.indexOf(key),next=l.kfs[index+1],here=key.objs.find(o=>o.id===original.id);
+  const delta=(a,b,rot)=>{
+    if(!a||!b||a.kind!==b.kind)return null;
+    const explicit=rot?.deltas?.[original.id],coherent=Number.isFinite(explicit)&&Math.abs(Math.atan2(Math.sin((a.t.r+explicit-b.t.r)*Math.PI/180),Math.cos((a.t.r+explicit-b.t.r)*Math.PI/180)))<1e-7;
+    return C.lerpAngleTween(a.t.r,b.t.r,1,coherent?{delta:explicit}:rot)-a.t.r;
+  };
+  if(key.f!==S.frame&&key.tween!=='none'&&next){const total=delta(here,next.objs.find(o=>o.id===original.id),key.rot),part=original.t.r-here.t.r;return {previous:part,next:total==null?null:total-part};}
+  return {previous:delta(l.kfs[index-1]?.objs.find(o=>o.id===original.id),here,l.kfs[index-1]?.rot),next:delta(here,next?.objs.find(o=>o.id===original.id),key.rot)};
+}
+function multiTransformDown(e,p){
+  if(e.button!==0||S.space||e.ctrlKey||e.metaKey||selectionControlsHidden())return false;
+  const state=multiTransformState();if(!state)return false;
+  const handles=multiTransformHandles(state),radius=window.matchMedia('(hover: none)').matches?17:10;
+  const type=Math.hypot(handles.pivot[0]-p.sx,handles.pivot[1]-p.sy)<radius?'multi-pivot':Math.hypot(handles.rotate[0]-p.sx,handles.rotate[1]-p.sy)<radius?'multi-rotate':null;
+  if(!type)return false;if(type==='multi-rotate'&&REC.armed){protest('Leave Record mode before rotating a multi-object selection.');return true;}
+  if(S.playing)stopPlay();
+  S.drag={type,doc:S.doc,frame:S.frame,scope:JSON.stringify(S.edit.map(e=>e.sym)),key:state.key,pivot:state.pivot,start:p.w,lastAngle:Math.atan2(p.w.y-state.pivot[1],p.w.x-state.pivot[0]),angle:0,degrees:0,started:false,originals:state.selected.map(s=>({lid:s.lid,id:s.id,t:clone(s.o.t)}))};for(const o of S.drag.originals)o.plan=multiRotationPlan(o);invalidate();return true;
+}
+function multiTransformMove(p,e){
+  const d=S.drag;if(!d||!['multi-pivot','multi-rotate'].includes(d.type))return;
+  if(d.doc!==S.doc||d.frame!==S.frame||d.scope!==JSON.stringify(S.edit.map(e=>e.sym))){S.drag=null;invalidate();return;}
+  if(d.type==='multi-pivot'){MULTIX.pivot=[d.pivot[0]+p.w.x-d.start.x,d.pivot[1]+p.w.y-d.start.y];invalidate();return;}
+  if(d.originals.some(s=>{const l=getLayer(s.lid);return !l?.visible||l.locked;}))return;
+  const angle=Math.atan2(p.w.y-d.pivot[1],p.w.x-d.pivot[0]);d.angle+=Math.atan2(Math.sin(angle-d.lastAngle),Math.cos(angle-d.lastAngle));d.lastAngle=angle;
+  let degrees=d.angle*180/Math.PI;if(e.shiftKey)degrees=Math.round(degrees/15)*15;
+  if(!d.started&&Math.abs(degrees)*Math.PI/180*Math.hypot(d.start.x-d.pivot[0],d.start.y-d.pivot[1])*S.view.z<2)return;
+  if(!d.started){
+    d.rollback={doc:snap(),undo:H.stack.slice(),redo:H.redo.slice(),dirty:unsaved,serial:S.changeSerial||0,sel:clone(S.sel)};
+    pushUndo();for(const lid of new Set(d.originals.map(s=>s.lid)))C.ensureEditable(getLayer(lid),S.frame);d.started=true;
+  }
+  const r=degrees*Math.PI/180,c=Math.cos(r),s=Math.sin(r);d.degrees=degrees;
+  for(const original of d.originals){const o=findEditable(original.lid,original.id);if(!o)continue;const t=original.t,dx=t.x-d.pivot[0],dy=t.y-d.pivot[1];o.t={...t,x:d.pivot[0]+c*dx-s*dy,y:d.pivot[1]+s*dx+c*dy,r:t.r+degrees};if(o.bind||o.sbind)C.freeBind.add(o.id);}
+  MULTIX.poses=d.originals.map(s=>({lid:s.lid,id:s.id,t:{...findEditable(s.lid,s.id).t}}));invalidate();refreshTransformFields();
+}
+function multiRotationChannels(d){
+  const shortest=degrees=>Math.atan2(Math.sin(degrees*Math.PI/180),Math.cos(degrees*Math.PI/180))*180/Math.PI;
+  for(const original of d.originals){
+    const l=getLayer(original.lid),key=C.kfFor(l,S.frame),index=l.kfs.indexOf(key),local=mapply(minv(matOf(original.t)),...d.pivot);
+    for(const [span,a,b,delta] of [[l.kfs[index-1],l.kfs[index-1]?.objs.find(o=>o.id===original.id),original,d.degrees],[key,original,l.kfs[index+1]?.objs.find(o=>o.id===original.id),-d.degrees]]){
+      if(!span||!a||!b)continue;
+      const rot=clone(span.rot||{}),planned=span===key?original.plan.next:original.plan.previous,base=planned??shortest(b.t.r-a.t.r);
+      rot.deltas={...rot.deltas,[original.id]:base+delta};rot.sharedPivots={...rot.sharedPivots,[original.id]:local};span.rot=rot;
+    }
+  }
+}
+function multiTransformEnd(cancel=false){
+  const d=S.drag;if(!d||!['multi-pivot','multi-rotate'].includes(d.type))return;
+  S.drag=null;
+  if(cancel&&d.rollback&&d.doc===S.doc){const r=d.rollback;restoreSnap(r.doc);H.stack=r.undo;H.redo=r.redo;unsaved=r.dirty;S.changeSerial=r.serial;S.sel=r.sel;$('#mFile').classList.toggle('dirty',unsaved);notifyDesktopDirty();MULTIX.doc=S.doc;MULTIX.key=d.key;MULTIX.pivot=d.pivot.slice();MULTIX.poses=null;refreshAll();}
+  else if(cancel){MULTIX.pivot=d.pivot.slice();invalidate();}
+  else if(d.started){multiRotationChannels(d);commit();refreshAll();}
+  else invalidate();
+  C.freeBind.clear();
+}
+function multiTransformDraw(ctx){
+  const state=multiTransformState(),active=['multi-pivot','multi-rotate'].includes(S.drag?.type);if(!state||S.playing||selectionControlsHidden()&&!active)return;
+  const h=multiTransformHandles(state);ctx.save();ctx.lineWidth=1.5;ctx.strokeStyle=CSSV.accent;ctx.fillStyle=CSSV.panel;
+  ctx.beginPath();ctx.moveTo(...h.edge);ctx.lineTo(...h.rotate);ctx.stroke();
+  for(const [point,radius] of [[h.rotate,6],[h.pivot,5]]){ctx.beginPath();ctx.arc(...point,radius,0,Math.PI*2);ctx.lineWidth=4;ctx.strokeStyle='#ffffff';ctx.stroke();ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=CSSV.accent;ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(h.pivot[0]-9,h.pivot[1]);ctx.lineTo(h.pivot[0]+9,h.pivot[1]);ctx.moveTo(h.pivot[0],h.pivot[1]-9);ctx.lineTo(h.pivot[0],h.pivot[1]+9);ctx.stroke();
+  const cursor=S.cursorW?w2s(S.cursorW.x,S.cursorW.y):null;
+  if(active||cursor&&Math.min(Math.hypot(cursor[0]-h.rotate[0],cursor[1]-h.rotate[1]),Math.hypot(cursor[0]-h.pivot[0],cursor[1]-h.pivot[1]))<14){ctx.font='11px sans-serif';ctx.fillStyle=CSSV.accent;const text=S.drag?.type==='multi-rotate'?Math.round(S.drag.degrees*10)/10+'°':cursor&&Math.hypot(cursor[0]-h.pivot[0],cursor[1]-h.pivot[1])<14?'Drag shared pivot · double-click to centre':'Rotate selection · Shift: 15°';ctx.fillText(text,Math.max(8,h.rotate[0]-100),Math.max(16,h.rotate[1]-12));}
+  ctx.restore();
+}
+const multiTransformNativeDown=onDown;onDown=function(e){if(multiTransformDown(e,stagePt(e)))return;return multiTransformNativeDown(e);};
+const multiTransformNativeMove=onMove;onMove=function(e){if(['multi-pivot','multi-rotate'].includes(S.drag?.type)){S.cursorW=stagePt(e).w;multiTransformMove(stagePt(e),e);return;}const result=multiTransformNativeMove(e),state=multiTransformState();if(state&&!S.draw&&!S.drag){const p=stagePt(e),h=multiTransformHandles(state);if(Math.min(Math.hypot(h.pivot[0]-p.sx,h.pivot[1]-p.sy),Math.hypot(h.rotate[0]-p.sx,h.rotate[1]-p.sy))<11)stage.style.cursor='grab';invalidate();}return result;};
+const multiTransformNativeUp=onUp;onUp=function(e){if(['multi-pivot','multi-rotate'].includes(S.drag?.type)){multiTransformEnd(e.type==='pointercancel');return;}return multiTransformNativeUp(e);};
+const multiTransformNativeDouble=onDbl;onDbl=function(e){const state=multiTransformState(),p=stagePt(e);if(state){const h=multiTransformHandles(state);if(Math.hypot(h.pivot[0]-p.sx,h.pivot[1]-p.sy)<11){MULTIX.pivot=[(state.bounds.x0+state.bounds.x1)/2,(state.bounds.y0+state.bounds.y1)/2];invalidate();e.preventDefault();return;}}return multiTransformNativeDouble(e);};
+const multiTransformNativeOverlay=drawOverlay;drawOverlay=function(ctx){multiTransformNativeOverlay(ctx);multiTransformDraw(ctx);};
+const multiTransformNativePinch=startPinch;startPinch=function(){if(['multi-pivot','multi-rotate'].includes(S.drag?.type))multiTransformEnd(true);return multiTransformNativePinch();};
+const multiTransformNativeTool=setTool;setTool=function(id){if(['multi-pivot','multi-rotate'].includes(S.drag?.type)&&id!=='select')multiTransformEnd(false);return multiTransformNativeTool(id);};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&['multi-pivot','multi-rotate'].includes(S.drag?.type)){multiTransformEnd(true);e.preventDefault();e.stopImmediatePropagation();}},true);
 const tlC = $('#tlCells'), tlR = $('#tlRuler'), tctx = tlC.getContext('2d'), rctx = tlR.getContext('2d');
 const tlScroll = $('#tlScroll');
 const MONO = '10.5px "IBM Plex Mono", ui-monospace, Menlo, monospace';
@@ -10917,7 +11018,7 @@ function refreshSelectionActions(sels){
       if(i+1<objs.length&&!ids.has(objs[i+1].id))forward=true;
     }
   }
-  const group=unlocked.length===sels.length&&unlocked.length>1&&new Set(unlocked.map(s=>s.lid)).size===1&&!unlocked.some(s=>s.o.mirror||s.o.skel||s.o.sbind||s.o.skin);
+  const group=false; // New grouping is disabled; existing groups remain editable/ungroupable.
   const ungroup=unlocked.some(s=>s.o.kind==='group')&&!sels.some(s=>s.o.mirror||s.o.sbind||s.o.skin);
   const enabled={backward,forward,back:backward,front:forward,group,ungroup};
   document.querySelectorAll('#kSelectBar [data-karrange]').forEach(b=>{b.disabled=!enabled[b.dataset.karrange];});
@@ -11228,7 +11329,7 @@ function bindProps() {
     const dir = direction ? (rot.dir === direction ? 'short' : direction) : (rot.dir || 'short');
     const turns = Math.max(0, Math.min(100, Math.floor(Number(rot.turns) || 0) + (increment || 0)));
     if (dir === (rot.dir || 'short') && turns === (rot.turns || 0)) return;
-    pushUndo(); kf.rot = { dir, turns }; commit(); refreshProps();
+    pushUndo(); kf.rot = { dir, turns, ...(kf.rot?.sharedPivots?{sharedPivots:clone(kf.rot.sharedPivots)}:{}) }; commit(); refreshProps();
   };
   on('#rotCW', 'click', () => editMotionRotation('cw', 0));
   on('#rotCCW', 'click', () => editMotionRotation('ccw', 0));
@@ -11376,24 +11477,8 @@ function arrange(act) {
   commit();
 }
 function groupSel() {
-  if(!refreshSelectionActions(selEval()).group)return;
-  const lids = selLayerIds();
-  const l = getLayer(lids[0]);
-  if (l.locked) return;
-  pushUndo();
-  const kf = C.ensureEditable(l, S.frame);
-  const objs = kf.objs.filter((o) => S.sel.some((s) => s.id === o.id));
-  if (objs.length < 2) { H.stack.pop(); return; }
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const o of objs) { const b = worldBounds(o); if (b) { x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1); } }
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  const g = { id: uid(), kind: 'group', children: [], op: 1, t: { x: cx, y: cy, sx: 1, sy: 1, r: 0 } };
-  const top = Math.max(...objs.map((o) => kf.objs.indexOf(o)));
-  for (const o of objs) { o.t.x -= cx; o.t.y -= cy; g.children.push(o); }
-  kf.objs = kf.objs.filter((o) => !objs.includes(o));
-  kf.objs.splice(Math.min(top - objs.length + 1, kf.objs.length), 0, g);
-  S.sel = [{ lid: l.id, id: g.id }];
-  commit();
+  // Disabled: multi-object rotation keeps original object identities intact.
+  return;
 }
 function ungroupSel() {
   if(!refreshSelectionActions(selEval()).ungroup)return;
@@ -12879,7 +12964,7 @@ function showHelp() {
   const rows = [['V / A', 'Selection / node edit'], ['P / Y / B / F', 'Pen / pencil / brush / fluid brush'], ['[ and ]', 'Brush size smaller / larger'], ['L R O', 'Line, rectangle, ellipse'], ['Ellipse handles', 'Drag to open a mouth; double-click the ellipse to finish as a path'], ['Soft body (slime HUD)', 'In Edit: slime → diamond → click one vector figure. Switch to Animate to bend. +/− adjusts the selected bone; ↑/↓ orders its body part on the current keyframe; same figure detaches. Colored dots toggle editor-only influence zones. Branched bodies: use a closed, filled figure; bind with limbs apart.'], ['Bone HUD: Ctrl / Shift', 'Hold menu on its joint / hide controls'], ['T', 'Text (Esc or click away to finish)'], ['K / I / H', 'Bucket, eyedropper, hand'],
     ['F8', 'Convert selection to symbol (Fn+F8 on some laptops)'], ['F9', 'Script editor'],
     ['F5 / F6 / F7', 'Insert frame / keyframe / blank keyframe'], ['⇧F5 / ⇧F6', 'Remove selected frames / clear keyframe'], [', and .', 'Previous / next frame'],
-    ['Q (Record armed)', 'Hold while dragging objects, nodes, curves or ellipse mouth handles to record keyframes'], ['Enter', 'Play or stop (finishes a pen path)'], ['Ctrl+G / ⇧G', 'Group / ungroup'], ['Ctrl+C X V D', 'Copy, cut, paste, duplicate'], ['Ctrl+Alt+V', 'Paste in the original position'],
+    ['Q (Record armed)', 'Hold while dragging objects, nodes, curves or ellipse mouth handles to record keyframes'], ['Enter', 'Play or stop (finishes a pen path)'], ['Ctrl+Shift+G', 'Ungroup existing groups'], ['Ctrl+C X V D', 'Copy, cut, paste, duplicate'], ['Ctrl+Alt+V', 'Paste in the original position'],
     ['Ctrl+drag (V / A)', 'Select fully enclosed objects; Ctrl starts the box over artwork; Shift adds'], ['Ctrl+Z / ⇧Z', 'Undo / redo'], ['Ctrl+S', 'Save project'], ['Arrows', 'Nudge (⇧ = 10 px)'], ['Space-drag', 'Pan the stage'], ['Ctrl+wheel / Shift+wheel', 'Zoom / horizontal pan'], ['Shift / Ctrl or Alt', 'Constrain / from centre while drawing']];
   openModal('Keyboard shortcuts', '<table>' + rows.map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table><p class="hint">Right-click a timeline cell for frame and tween actions. Editing a frame inside a tween adds a keyframe there.</p><p class="hint">oskyn ' + APP_VERSION + ' · Something broken? File → Report a problem.</p>');
 }

@@ -12,7 +12,7 @@ Save projects explicitly with **Save project** (`.oskyn.json`). On supported des
 
 ## Selection toolbar
 
-Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/raise one step, send to bottom/bring to top within the current layer, Group and Ungroup. Hover for descriptions and shortcuts; unavailable actions are dimmed. Node edit keeps its own operations. The Pen icon has a plus and a node square to distinguish drawing nodes from editing them.
+Selection mode shows compact **b f B F G U** buttons after Flip/Rotate: lower/raise one step, send to bottom/bring to top within the current layer, disabled Group and legacy Ungroup. New grouping is disabled; select objects together to rotate them without changing their identities. Hover for descriptions and shortcuts; unavailable actions are dimmed. Node edit keeps its own operations. The Pen icon has a plus and a node square to distinguish drawing nodes from editing them.
 
 ## Editor visibility and grid
 
@@ -88,9 +88,15 @@ The build reproduces `index.html` and `oskyn.html` from source without changing 
 
 Ctrl-click an object with the Selection tool to remove it from or add it to the selection. Ctrl-drag retains rectangle selection; Ctrl-click empty space leaves the current selection intact. In Node Edit, selected groups use contrasting white/dark dashed bounds. These bounds are editor overlays and never appear in exports.
 
+## Rotate multiple selected objects
+
+Use **Selection (V)** and select two or more objects, including symbols or objects on different unlocked layers. Drag the round handle above the selection to rotate all of them around their shared pivot. Drag the central crosshair to move that pivot; double-click it to return it to the selection’s centre. Hold **Shift after grabbing the rotation handle** to snap to 15° increments. A rotation uses one Undo; **Escape** cancels it. Moving the shared pivot changes only the editor control, without creating history or modifying artwork.
+
+Motion and Shape Tween retain the shared rotation centre so objects keep their relative arrangement between keyframes. No wrapper group is created and object IDs stay unchanged. Existing groups still open, animate, export and support Ungroup. New Group commands are disabled in the toolbar, Align and keyboard shortcuts. Shared-selection rotation does not currently record a REC take.
+
 ## Animated symbols in groups
 
-Grouping an animated symbol with other artwork preserves its animation, including inside nested groups. Groups add transforms and organization without creating a new timeline. Graphic symbols keep their Loop / Play once / Single frame settings. Movie Clips retain independent playback and instance scripts in Preview and HTML export, including on a one-frame main timeline.
+Existing groups containing animated symbols preserve their animation, including inside nested groups. Groups add transforms and organization without creating a new timeline. Graphic symbols keep their Loop / Play once / Single frame settings. Movie Clips retain independent playback and instance scripts in Preview and HTML export, including on a one-frame main timeline.
 
 ## Shaper / Edit shape
 

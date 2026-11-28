@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Disabled creation of new groups while preserving existing-group playback, imports, export and Ungroup.
+- Added mixed multi-object Selection rotation with a movable shared pivot, 15° Shift snapping, centre reset, one Undo and Escape cancellation. Motion/Shape Tween preserve shared-centre rotation without changing object identities.
+
 - Fixed animated symbols freezing when placed in ordinary or nested groups. Group members retain graphic playback modes and Movie Clip clocks; Preview/HTML export also retain grouped Movie Clip instances, independent playback and instance scripts.
 
 - Fixed Mirror baking leaving an internal stroked seam or two disconnected contours where reflected curves should join. Clip and union use shared axis-local geometry before a single curve reconstruction; holes, paint and Undo are retained.

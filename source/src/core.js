@@ -1705,15 +1705,20 @@ function lerpObj(a, b, p, mode, rot) {
     return out;
   }
   const o = Object.assign({}, a);
-  const rotation=rot?.deltas&&Number.isFinite(rot.deltas[a.id])?{delta:rot.deltas[a.id]}:rot;
-  o.t = lerpT(a.t, b.t, p, mode === 'motion' ? rotation : null);
+  const sharedPivot=rot?.sharedPivots?.[a.id],hasShared=Array.isArray(sharedPivot)&&sharedPivot.length===2&&sharedPivot.every(Number.isFinite),delta=rot?.deltas?.[a.id];
+  // A later single-object rotation can replace one endpoint of a shared turn.
+  // Ignore that object's stale shared channel instead of jumping at its end.
+  const coherent=!hasShared||!Number.isFinite(delta)||Math.abs(Math.atan2(Math.sin((a.t.r+delta-b.t.r)*PI/180),Math.cos((a.t.r+delta-b.t.r)*PI/180)))<1e-7;
+  const rotation=coherent&&Number.isFinite(delta)?{delta}:rot,shared=hasShared&&coherent;
+  o.t = lerpT(a.t,b.t,p,mode==='motion'||shared?rotation:null);
   if(a.mirror&&b.mirror)o.mirror={...a.mirror,width:lerp(a.mirror.width,b.mirror.width,p),height:lerp(a.mirror.height,b.mirror.height,p)};
   // The editor rotates/scales about the bounds centre unless a custom pivot
   // was set. Tween that same world-space anchor, not the top-left registration
   // point of bitmaps/text. Keep ordinary shape morphing unchanged.
   const customPivot = obj => Array.isArray(obj.pivot) && obj.pivot.length === 2 && obj.pivot.every(Number.isFinite);
-  if (mode === 'motion' || (customPivot(a) && customPivot(b))) {
+  if (mode === 'motion' || shared || (customPivot(a) && customPivot(b))) {
     const pivotOf = obj => {
+      if(shared)return sharedPivot;
       if (customPivot(obj)) return obj.pivot;
       const bounds = localBounds(obj);
       return bounds ? [(bounds.x0+bounds.x1)/2,(bounds.y0+bounds.y1)/2] : [0,0];
@@ -1721,8 +1726,9 @@ function lerpObj(a, b, p, mode, rot) {
     const pa = pivotOf(a), pb = pivotOf(b);
     const startPivot = mapply(matOf(a.t),pa[0],pa[1]);
     const endPivot = mapply(matOf(b.t),pb[0],pb[1]);
-    o.pivot = [lerp(pa[0],pb[0],p),lerp(pa[1],pb[1],p)];
-    const actualPivot = mapply(matOf(o.t),o.pivot[0],o.pivot[1]);
+    const pivot=[lerp(pa[0],pb[0],p),lerp(pa[1],pb[1],p)];
+    if(!shared)o.pivot=pivot;
+    const actualPivot = mapply(matOf(o.t),pivot[0],pivot[1]);
     o.t.x += lerp(startPivot[0],endPivot[0],p)-actualPivot[0];
     o.t.y += lerp(startPivot[1],endPivot[1],p)-actualPivot[1];
   }
@@ -3398,7 +3404,7 @@ root.FCCore = {
   uid, clamp, lerp, clone, nz, hexToRgb, rgbToHex, lerpHex, rgba,
   newT, matOf, mmul, minv, mapply, decompose, node, mouthContour, tracePath, pathD, bezPt, splitSeg, contoursBounds, localBounds, worldCorners, worldBounds,
   starDefaults, starContour, imageContours, imageMaskContours, constrainImageMask, recenter, applyMatrixToNodes, setObjMatrix, ellipseContour, rectContour, mkPath, mkLayer, mkKf, mkDoc, normalizeDoc,
-  groupEntries, drawUnits, maskedDraw, groupAlpha, tweenPairs, shapeTweenIssues, ease, bezierEase, morphContours, evalLayerObjs, evalDoc, kfIndexAt, kfAt, kfFor, sortKfs, ensureEditable, insertKeyframe, insertFrames, removeFrames,
+  groupEntries, drawUnits, maskedDraw, groupAlpha, lerpAngleTween, tweenPairs, shapeTweenIssues, ease, bezierEase, morphContours, evalLayerObjs, evalDoc, kfIndexAt, kfAt, kfFor, sortKfs, ensureEditable, insertKeyframe, insertFrames, removeFrames,
   beginRenderEval, endRenderEval,
   skeletonRigidGroups, skeletonRigidValid, skeletonPoseRigid,
   skeletonGraph, skeletonPath, skeletonPinTargets, skeletonPinsValid, skeletonPosePinned,
